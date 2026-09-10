@@ -93,6 +93,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val _lastRecord = MutableStateFlow<MatchRecord?>(null)
     val lastRecord: StateFlow<MatchRecord?> = _lastRecord
     private var botJob: Job? = null
+    private var autoNextJob: Job? = null
     private var recorded = false
     private val _inputMethod = MutableStateFlow(settings.value.inputMethod)
     val inputMethod: StateFlow<InputMethod> = _inputMethod
@@ -321,7 +322,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun abortGame() {
-        botJob?.cancel()
+        botJob?.cancel(); autoNextJob?.cancel()
         game = null
         _gameState.value = null
         goHome()
@@ -372,7 +373,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun undo() {
         val g = game ?: return
-        botJob?.cancel()
+        botJob?.cancel(); autoNextJob?.cancel()
         g.undo()
         refresh()
         caller.beep()
@@ -387,9 +388,23 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         afterEvent(before)
     }
 
+    /** Automatic Next Player: läuft nach jedem Dart neu an, wenn die Aufnahme noch nicht voll ist. */
+    private fun scheduleAutoNext() {
+        autoNextJob?.cancel()
+        val delayMs = settings.value.autoNextDelayMs
+        val g = game ?: return
+        if (delayMs <= 0 || g.finished || g.visit.isEmpty() || g.players[g.current].isBot) return
+        autoNextJob = viewModelScope.launch {
+            delay(delayMs)
+            val cur = game ?: return@launch
+            if (!cur.finished && cur.visit.isNotEmpty() && !cur.players[cur.current].isBot) nextPlayer()
+        }
+    }
+
     private fun afterEvent(before: GameState) {
         val g = game ?: return
         refresh()
+        scheduleAutoNext()
         val after = _gameState.value ?: return
         val s = settings.value
         val playerName = before.players[before.currentPlayer].player.name

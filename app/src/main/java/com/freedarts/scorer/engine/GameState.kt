@@ -40,4 +40,8 @@ data class GameState(
     val cricketTargets: List<Int>? = null,
     val showLegs: Boolean = false,
     val showSets: Boolean = false,
+    /** Aufnahme abgeschlossen (3 Darts / Bust / Checkout); es wird auf Takeout bzw. "Next" gewartet. */
+    val visitLocked: Boolean = false,
+    /** Ausbullen läuft: [currentPlayer] wirft einen Dart auf Bull. */
+    val bullOff: Boolean = false,
 )

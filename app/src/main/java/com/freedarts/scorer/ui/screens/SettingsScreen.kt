@@ -72,6 +72,10 @@ fun SettingsScreen(vm: AppViewModel) {
             SettingSwitch("Chalkboard anzeigen", s.showChalkboard) { v -> vm.updateSettings { it.copy(showChalkboard = v) } }
             SettingSwitch("Checkout-Guide", s.showCheckoutGuide) { v -> vm.updateSettings { it.copy(showCheckoutGuide = v) } }
             SettingSwitch("Bildschirm im Match anlassen", s.keepScreenOn) { v -> vm.updateSettings { it.copy(keepScreenOn = v) } }
+            SettingSwitch("Darts Zoom (Aufnahme groß im Kamerabild)", s.dartsZoom) { v -> vm.updateSettings { it.copy(dartsZoom = v) } }
+            SettingSwitch("Animationen und Match-Intro", s.animations) { v -> vm.updateSettings { it.copy(animations = v) } }
+            Text("Automatic Next Player: " + (if (s.autoNextDelayMs == 0L) "aus" else "nach ${s.autoNextDelayMs / 1000} s ohne Dart"), color = DartColors.TextMuted)
+            Slider(value = s.autoNextDelayMs.toFloat(), onValueChange = { v -> vm.updateSettings { it.copy(autoNextDelayMs = (v / 1000).toInt() * 1000L) } }, valueRange = 0f..20000f, steps = 19)
 
             SectionLabel("Remote Scoring")
             val remoteUrl by vm.remoteUrl.collectAsStateWithLifecycle()

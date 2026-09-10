@@ -41,6 +41,13 @@ data class AppSettings(
     val cloudSessionCode: String = "",
     val cloudSessionToken: String = "",
 
+    /** Aktuelle Aufnahme groß über dem Kamerabild anzeigen (Darts Zoom). */
+    val dartsZoom: Boolean = true,
+    /** Automatisch zum nächsten Spieler, wenn nach einer angefangenen Aufnahme so lange kein Dart kommt (0 = aus). */
+    val autoNextDelayMs: Long = 0,
+    /** Animationen (Match-Intro, Gewinn, Bust, Caller). */
+    val animations: Boolean = true,
+
     /** Onboarding (Profil anlegen, Lens einrichten) abgeschlossen. */
     val onboardingDone: Boolean = false,
 

@@ -40,7 +40,7 @@ abstract class RoundGame(players: List<Player>, settings: GameSettings, seed: Lo
 
     protected open fun detail(i: Int): String = fmtAvg(i)
 
-    override fun snapshot(): GameState = GameState(
+    override fun buildSnapshot(): GameState = GameState(
         players = players.indices.map { i -> playerState(i, score[i].toString(), detail(i)) },
         currentPlayer = current, currentVisit = visit.toList(), round = round,
         finished = finished, winnerIndex = winner, banner = banner, headline = headline(),
@@ -121,7 +121,7 @@ class AroundTheClockGame(players: List<Player>, settings: GameSettings, seed: Lo
         }
     }
 
-    override fun snapshot(): GameState = GameState(
+    override fun buildSnapshot(): GameState = GameState(
         players = players.indices.map { i ->
             val t = target(i)
             playerState(i, t?.let { if (it == 25) "Bull" else it.toString() } ?: "✓", "${progress[i]} / ${order.size} · ${dartsThrown[i]} Darts")
@@ -152,7 +152,7 @@ class ShanghaiGame(players: List<Player>, settings: GameSettings, seed: Long = S
     }
 
     override fun botTarget(): Segment = Segment.triple(target)
-    override fun snapshot(): GameState = super.snapshot().copy(headline = "Runde $round / $totalRounds · Ziel: $target")
+    override fun buildSnapshot(): GameState = super.buildSnapshot().copy(headline = "Runde $round / $totalRounds · Ziel: $target")
 }
 
 /** Bob's 27: Start 27, Doubles 1..20 und Bull. Treffer +2n, kein Treffer −2n. Unter 0 = ausgeschieden. */
@@ -183,7 +183,7 @@ class Bobs27Game(players: List<Player>, settings: GameSettings, seed: Long = Sys
 
     override fun onLastPlayerStanding(index: Int) { finish(index, "Game Shot") }
     override fun botTarget(): Segment = if (target == 25) Segment.BULL else Segment.double(target)
-    override fun snapshot(): GameState = super.snapshot().copy(
+    override fun buildSnapshot(): GameState = super.buildSnapshot().copy(
         headline = "Ziel: " + (if (target == 25) "Bull" else "D$target") + " · ${round.coerceAtMost(totalRounds)} / $totalRounds")
 }
 
@@ -229,9 +229,9 @@ class RandomCheckoutGame(players: List<Player>, settings: GameSettings, seed: Lo
 
     override fun detail(i: Int): String = "${score[i]} von ${(round - 1).coerceAtMost(totalRounds)} Checkouts"
 
-    override fun snapshot(): GameState {
+    override fun buildSnapshot(): GameState {
         val r = if (visit.isEmpty()) target else remaining[current]
-        return super.snapshot().copy(
+        return super.buildSnapshot().copy(
             headline = "Runde ${round.coerceAtMost(totalRounds)} / $totalRounds · Rest: $r",
             checkoutHint = if (finished) null else Checkout.describe(Checkout.bestRoute(r, (3 - visit.size).coerceAtLeast(1), OutMode.DOUBLE)),
         )
@@ -251,7 +251,7 @@ class SegmentTrainingGame(players: List<Player>, settings: GameSettings, seed: L
         val d = dartsThrown[i]
         return if (d == 0) "Trefferquote –" else "Trefferquote %.0f %%".format(100.0 * score[i] / d)
     }
-    override fun snapshot(): GameState = super.snapshot().copy(headline = headline() + " · Ziel: " + (if (t == 25) "Bull" else t.toString()))
+    override fun buildSnapshot(): GameState = super.buildSnapshot().copy(headline = headline() + " · Ziel: " + (if (t == 25) "Bull" else t.toString()))
 }
 
 /** Round the World: Runde n = Zahl n (1..20, optional Bull), jeder Treffer zählt seinen Wert. */
@@ -265,7 +265,7 @@ class RoundTheWorldGame(players: List<Player>, settings: GameSettings, seed: Lon
         return false
     }
     override fun botTarget(): Segment = if (target == 25) Segment.BULL else Segment.triple(target)
-    override fun snapshot(): GameState = super.snapshot().copy(headline = "Ziel: " + (if (target == 25) "Bull" else target.toString()) + " · ${round.coerceAtMost(totalRounds)} / $totalRounds")
+    override fun buildSnapshot(): GameState = super.buildSnapshot().copy(headline = "Ziel: " + (if (target == 25) "Bull" else target.toString()) + " · ${round.coerceAtMost(totalRounds)} / $totalRounds")
 }
 
 /**
@@ -327,7 +327,7 @@ class OneTwentyOneGame(players: List<Player>, settings: GameSettings, seed: Long
         Checkout.bestRoute(remaining[current], 3 - visit.size, OutMode.DOUBLE)?.first()
             ?: Checkout.bestRoute(remaining[current], 3, OutMode.DOUBLE)?.first() ?: Segment.triple(20)
 
-    override fun snapshot(): GameState = GameState(
+    override fun buildSnapshot(): GameState = GameState(
         players = players.indices.map { i -> playerState(i, target[i].toString(), "Rest ${remaining[i]} · ${successes[i]}/${attemptsDone[i]} ✓") },
         currentPlayer = current, currentVisit = visit.toList(), round = round, finished = finished, winnerIndex = winner, banner = banner,
         headline = "Versuch ${(attemptsDone[current] + 1).coerceAtMost(settings.attempts)} / ${settings.attempts} · Dart ${attemptDarts[current] + 1} / 9",

@@ -95,6 +95,13 @@ DM Sans, schräge Namens-Ribbons mit Level-Badge, Kategorie-Badges (X01 grün, C
 gelbgrün), Live-Match mit Magenta-Spielerkarte, Aufnahme-Leiste und Overlays im Kamerabild (Detecting, Darts-Zähler,
 Checkout, Caller). Umgesetzt in `ui/theme/Theme.kt`, `ui/components/AdWidgets.kt` und den Screens.
 
+## Match-Komfort
+
+Farbcode wie bei Autodarts (Grün = Finish, Orange = Checkout-Vorschlag, gedämpftes Rot = Bust; Sets blau, Legs orange),
+Quick-Correction-Grid (ein Tap pro Dart, Zahl lange drücken = Double) auch als Dart-für-Dart-Eingabe, Darts Zoom über
+dem Kamerabild, vollflächiges Takeout-Panel mit Reset, Automatic Next Player (Verzögerung in den Einstellungen),
+Match-Intro und Animationen für Caller, 180 und Game Shot (abschaltbar).
+
 ## Umstieg von Autodarts
 
 Avatar-Menü mit **Devices** (Lens: „Start Lens Detection Mode“, Board Manager, Remote Scoring), Onboarding beim ersten

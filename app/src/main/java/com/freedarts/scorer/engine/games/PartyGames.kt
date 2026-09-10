@@ -47,7 +47,7 @@ class BermudaGame(players: List<Player>, settings: GameSettings, seed: Long = Sy
         else -> Segment.triple(target.toInt())
     }
 
-    override fun snapshot(): GameState = super.snapshot().copy(headline = "Ziel: $target · ${round.coerceAtMost(totalRounds)} / $totalRounds")
+    override fun buildSnapshot(): GameState = super.buildSnapshot().copy(headline = "Ziel: $target · ${round.coerceAtMost(totalRounds)} / $totalRounds")
 }
 
 /**
@@ -116,7 +116,7 @@ class GotchaGame(players: List<Player>, settings: GameSettings, seed: Long = Sys
         return Segment.ALL.filter { it.score <= rest }.maxByOrNull { if (it.score == rest) 1000 else it.score } ?: Segment.single(1)
     }
 
-    override fun snapshot(): GameState = GameState(
+    override fun buildSnapshot(): GameState = GameState(
         players = players.indices.map { i -> playerState(i, score[i].toString(), "Rest ${target - score[i]}") },
         currentPlayer = current, currentVisit = visit.toList(), round = round,
         finished = finished, winnerIndex = winner, banner = banner,
@@ -178,7 +178,7 @@ class KillerGame(players: List<Player>, settings: GameSettings, seed: Long = Sys
         return Segment.double(numbers[victim])
     }
 
-    override fun snapshot(): GameState = GameState(
+    override fun buildSnapshot(): GameState = GameState(
         players = players.indices.map { i ->
             playerState(i, "D${numbers[i]}", if (out[i]) "Ausgeschieden" else "♥ ".repeat(lives[i]).trim(), lives = lives[i], isKiller = killer[i])
         },

@@ -81,6 +81,16 @@ import com.freedarts.scorer.ui.components.TotalScorePad
 import com.freedarts.scorer.ui.theme.Condensed
 import com.freedarts.scorer.ui.theme.DartColors
 import kotlinx.coroutines.delay
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.ui.draw.scale
+import com.freedarts.scorer.ui.components.NameRibbon
+import com.freedarts.scorer.ui.components.SegmentGrid
 
 @Composable
 fun MatchScreen(vm: AppViewModel) {
@@ -121,6 +131,9 @@ fun MatchScreen(vm: AppViewModel) {
         if (historyCount > 0 && label != null && !label.startsWith("—")) { callerText = label; delay(2500); callerText = null }
     }
 
+    var intro by remember(game) { mutableStateOf(settings.animations && game.eventCount == 0) }
+    LaunchedEffect(game) { if (intro) { delay(3200); intro = false } }
+    Box(Modifier.fillMaxSize()) {
     Column(Modifier.fillMaxSize().background(DartColors.Background)) {
         // Kopfzeile
         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -161,8 +174,10 @@ fun MatchScreen(vm: AppViewModel) {
         val input: @Composable (Modifier) -> Unit = { mod ->
             Box(mod, contentAlignment = Alignment.Center) {
                 if (s.finished) {
+                    val winScale by animateFloatAsState(1f, animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy), label = "win")
                     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(16.dp)) {
-                        Text(s.banner ?: "Spiel beendet", fontFamily = Condensed, fontWeight = FontWeight.Bold, fontSize = 44.sp, color = DartColors.Lime, textAlign = TextAlign.Center)
+                        Text(s.banner ?: "Spiel beendet", fontFamily = Condensed, fontWeight = FontWeight.Bold, fontSize = 52.sp, color = DartColors.Lime, textAlign = TextAlign.Center,
+                            modifier = Modifier.scale(if (settings.animations) winScale else 1f))
                         s.winnerIndex?.let { Text("${s.players[it].player.name} gewinnt!", style = MaterialTheme.typography.headlineMedium) }
                         PrimaryButton("Finish", Modifier.fillMaxWidth()) { vm.finishToResult() }
                         OutlinedButton(onClick = { vm.undo() }) { Text("Letzten Dart zurücknehmen") }
@@ -172,12 +187,15 @@ fun MatchScreen(vm: AppViewModel) {
                         if (lensOn && showCamera) {
                             Box(Modifier.clip(RoundedCornerShape(16.dp)).border(3.dp, if (lensStatus.setup == LensController.Setup.READY) DartColors.Green else DartColors.Outline, RoundedCornerShape(16.dp))) {
                                 LensPreview(vm.lens, settings.lensCalibration, lensDetections, editable = false, status = lensStatus, cropToBoard = true)
-                                LiveOverlays(lensStatus, s.currentVisit.size, s.checkoutHint.takeIf { settings.showCheckoutGuide }, callerText)
+                                LiveOverlays(lensStatus, s.currentVisit.size, s.checkoutHint.takeIf { settings.showCheckoutGuide }, callerText,
+                                    zoom = if (settings.dartsZoom) s.currentVisit else null, animations = settings.animations)
+                                TakeoutPanel(visible = lensStatus.phase == DartDetector.Phase.TAKEOUT || (settings.boardManagerEnabled && boardState.status == "Takeout")) { vm.lens.requestReference() }
                             }
                         } else {
                             Box(Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(16.dp)).background(DartColors.Surface).padding(8.dp)) {
                                 Dartboard(Modifier.fillMaxWidth(), darts = s.currentVisit, highlight = highlight, enabled = inputEnabled) { vm.throwDart(it) }
-                                LiveOverlays(if (lensOn) lensStatus else null, s.currentVisit.size, s.checkoutHint.takeIf { settings.showCheckoutGuide }, callerText)
+                                LiveOverlays(if (lensOn) lensStatus else null, s.currentVisit.size, s.checkoutHint.takeIf { settings.showCheckoutGuide }, callerText, zoom = null, animations = settings.animations)
+                                TakeoutPanel(visible = (lensOn && lensStatus.phase == DartDetector.Phase.TAKEOUT) || (settings.boardManagerEnabled && boardState.status == "Takeout")) { vm.lens.requestReference() }
                             }
                         }
                     }
@@ -219,6 +237,21 @@ fun MatchScreen(vm: AppViewModel) {
         }
     }
 
+    // Match-Intro wie im Turnier: Spieler, Modus, dann los
+    AnimatedVisibility(visible = intro, enter = fadeIn(), exit = fadeOut(), modifier = Modifier.fillMaxSize()) {
+        Box(Modifier.fillMaxSize().background(Color(0xF00B1220)).clickable { intro = false }, contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Text("MATCH", fontFamily = Condensed, fontWeight = FontWeight.Bold, fontSize = 52.sp, color = DartColors.Lime)
+                s.players.forEachIndexed { i, p ->
+                    if (i > 0) Text("VS", fontFamily = Condensed, fontWeight = FontWeight.Bold, fontSize = 22.sp, color = DartColors.TextMuted)
+                    Row(verticalAlignment = Alignment.CenterVertically) { Avatar(p.player, 36); Spacer(Modifier.width(10.dp)); NameRibbon(p.player.name, fontSize = 20) }
+                }
+                Chip(title + (if (gs.mode == GameMode.X01) " · ${gs.baseScore}" else ""))
+                Text("Tippen zum Überspringen", fontSize = 11.sp, color = DartColors.TextMuted)
+            }
+        }
+    }
+    } // Box
     if (showSettings) {
         AlertDialog(
             onDismissRequest = { showSettings = false },
@@ -258,10 +291,15 @@ fun MatchScreen(vm: AppViewModel) {
             onDismissRequest = { correctIndex = -1 },
             title = { Text("Dart ${correctIndex + 1} korrigieren" + (current?.let { " (${it.name})" } ?: "")) },
             text = {
+                var useBoard by remember { mutableStateOf(false) }
                 Column {
-                    Text("Tippe auf das richtige Segment, oder markiere den Dart als Bouncer.", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Quick Correction: ein Tap = neuer Dart.", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                        Chip(if (useBoard) "Grid" else "Board", selected = false) { useBoard = !useBoard }
+                    }
                     Spacer(Modifier.height(8.dp))
-                    Dartboard(Modifier.fillMaxWidth(), darts = current?.let { listOf(it) } ?: emptyList(), enabled = true) { seg -> vm.correctDart(correctIndex, seg); correctIndex = -1 }
+                    if (useBoard) Dartboard(Modifier.fillMaxWidth(), darts = current?.let { listOf(it) } ?: emptyList(), enabled = true) { seg -> vm.correctDart(correctIndex, seg); correctIndex = -1 }
+                    else SegmentGrid(enabled = true, compact = true) { seg -> vm.correctDart(correctIndex, seg); correctIndex = -1 }
                 }
             },
             confirmButton = { TextButton(onClick = { vm.correctDart(correctIndex, Segment.MISS); correctIndex = -1 }) { Text("Bouncer / Miss", color = DartColors.Red) } },
@@ -281,8 +319,16 @@ fun MatchScreen(vm: AppViewModel) {
 
 /** Overlays im Live-Bild: Detecting-Pill, Dart-Zähler, Checkout, Caller. */
 @Composable
-private fun LiveOverlays(lens: LensController.Status?, dartsInVisit: Int, checkout: String?, caller: String?) {
+private fun LiveOverlays(lens: LensController.Status?, dartsInVisit: Int, checkout: String?, caller: String?, zoom: List<Segment>?, animations: Boolean) {
     Box(Modifier.fillMaxSize()) {
+        // Darts Zoom: aktuelle Aufnahme groß, von der Abwurflinie lesbar
+        if (zoom != null && zoom.isNotEmpty()) Row(
+            Modifier.align(Alignment.TopCenter).padding(top = 44.dp).background(Color(0xD90D1119), RoundedCornerShape(12.dp)).padding(horizontal = 14.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically,
+        ) {
+            zoom.forEach { d -> Text(d.name, fontFamily = Condensed, fontWeight = FontWeight.Bold, fontSize = 34.sp, lineHeight = 34.sp) }
+            Text("= ${zoom.sumOf { it.score }}", fontFamily = Condensed, fontWeight = FontWeight.Bold, fontSize = 34.sp, lineHeight = 34.sp, color = DartColors.Orange)
+        }
         if (lens != null) {
             val ready = lens.setup == LensController.Setup.READY
             Row(Modifier.align(Alignment.TopStart).padding(10.dp).background(Color(0xD90D1119), RoundedCornerShape(999.dp)).padding(horizontal = 10.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -297,10 +343,12 @@ private fun LiveOverlays(lens: LensController.Status?, dartsInVisit: Int, checko
         if (checkout != null) Row(Modifier.align(Alignment.BottomCenter).padding(10.dp).background(Color(0xD90D1119), RoundedCornerShape(999.dp)).padding(horizontal = 12.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("Checkout", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = DartColors.TextMuted)
             Spacer(Modifier.width(8.dp))
-            Text(checkout.replace("  ", " · "), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = DartColors.Lime)
+            Text(checkout.replace("  ", " · "), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = DartColors.Orange)
         }
-        if (caller != null) Column(Modifier.align(Alignment.Center).background(Color(0xB80D1119), RoundedCornerShape(14.dp)).padding(horizontal = 18.dp, vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(caller, fontFamily = Condensed, fontWeight = FontWeight.Bold, fontSize = 44.sp, lineHeight = 44.sp, color = if (caller == "Bust") DartColors.Red else Color.White)
+        val callerScale by animateFloatAsState(if (caller != null && animations) 1f else 0.6f, animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy), label = "caller")
+        if (caller != null) Column(Modifier.align(Alignment.Center).scale(if (animations) callerScale else 1f).background(Color(0xB80D1119), RoundedCornerShape(14.dp)).padding(horizontal = 18.dp, vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(caller, fontFamily = Condensed, fontWeight = FontWeight.Bold, fontSize = if (caller == "180") 56.sp else 44.sp, lineHeight = 56.sp,
+                color = when { caller == "Bust" -> DartColors.Red; caller == "180" -> DartColors.Lime; else -> Color.White })
             Text("CALLER", fontSize = 11.sp, letterSpacing = 1.sp, color = DartColors.TextMuted)
         }
     }
@@ -338,10 +386,25 @@ fun ScoreCard(p: PlayerState, active: Boolean, showLegs: Boolean, showSets: Bool
     }
 }
 
+/** Sets blau, Legs orange – Farbkonvention von Autodarts. */
 @Composable
 private fun LegBox(n: Int, light: Boolean) {
-    Box(Modifier.background(if (light) Color.White else Color(0xFF111111), RoundedCornerShape(3.dp)).padding(horizontal = 6.dp, vertical = 1.dp)) {
-        Text(n.toString(), fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, color = if (light) Color(0xFF111111) else Color.White)
+    Box(Modifier.background(if (light) DartColors.Primary else DartColors.Orange, RoundedCornerShape(3.dp)).padding(horizontal = 6.dp, vertical = 1.dp)) {
+        Text(n.toString(), fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, color = if (light) Color.White else Color(0xFF1A1206))
+    }
+}
+
+/** Vollflächiges Takeout-Panel in Warnfarbe, solange Darts gezogen werden. */
+@Composable
+private fun TakeoutPanel(visible: Boolean, onReset: () -> Unit) {
+    AnimatedVisibility(visible = visible, enter = fadeIn(), exit = fadeOut(), modifier = Modifier.fillMaxSize()) {
+        Box(Modifier.fillMaxSize().background(Color(0xB3F59E5B)), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("TAKEOUT", fontFamily = Condensed, fontWeight = FontWeight.Bold, fontSize = 48.sp, color = Color(0xFF1A1206))
+                Text("Darts entfernen", fontWeight = FontWeight.SemiBold, color = Color(0xFF1A1206))
+                SecondaryButton("Reset", Modifier.width(120.dp)) { onReset() }
+            }
+        }
     }
 }
 

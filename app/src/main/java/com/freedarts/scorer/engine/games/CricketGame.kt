@@ -84,7 +84,7 @@ class CricketGame(players: List<Player>, settings: GameSettings, seed: Long = Sy
         return Segment.triple(20)
     }
 
-    override fun snapshot(): GameState = GameState(
+    override fun buildSnapshot(): GameState = GameState(
         players = players.indices.map { i ->
             playerState(i, points[i].toString(), mpr(i), marks = marks[i].toMap())
         },

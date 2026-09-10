@@ -177,7 +177,7 @@ class X01Game(players: List<Player>, settings: GameSettings, seed: Long = System
         return Segment.triple(20)
     }
 
-    override fun snapshot(): GameState {
+    override fun buildSnapshot(): GameState {
         val left = 3 - visit.size
         val hint = if (finished) null else Checkout.describe(Checkout.bestRoute(scores[current], left.coerceAtLeast(1), settings.outMode))
         val headline = buildString {

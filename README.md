@@ -16,9 +16,10 @@ Alle Daten bleiben auf dem Gerät.
 - **KI-Erkennung**: liegt `app/src/main/assets/dartsense_yolov8n.tflite` vor (Export aus
   [dart-sense](https://github.com/bnww/dart-sense), YOLOv8n, CC BY-NC 4.0), erkennt ein neuronales Netz Dartspitzen und die
   vier Kalibrierpunkte direkt auf dem Gerät. Die klassische Erkennung übernimmt Bewegungs-/Takeout-Logik und dient als Rückfall.
-  Das Modell läuft mit seiner Trainingsgröße 800×800 px (nicht 640) und FP16-Gewichten (halbe Dateigröße, keine
-  messbare Genauigkeitseinbuße; INT8 würde die Erkennung kleiner Spitzen verschlechtern). Die Eingabegröße wird zur
-  Laufzeit aus dem Modell gelesen. Export: `tools/export_model.sh` (benötigt Python 3.11, ultralytics, tensorflow-cpu).
+  Das Modell läuft mit seiner Trainingsgröße 800×800 px (nicht 640) als float32-TFLite (12 MB; INT8 würde die Erkennung
+  kleiner Spitzen verschlechtern). Die Eingabegröße wird zur Laufzeit aus dem Modell gelesen; das Bild wird wie beim
+  Training per Letterbox mit bilinearer Skalierung bzw. Flächenmittelung eingepasst. Export und Verifikation gegen
+  ultralytics: `tools/export_model.sh` (benötigt uv, Python 3.11, ultralytics, ai-edge-litert; ca. 5 min CPU).
 - **Erkennungs-Pipeline (Autodarts-Niveau angestrebt)**: Kamera 1280×960; Bewegungs- und Stabilitätslogik auf einem
   360×480-Graubild; KI-Spitzenerkennung auf dem hochaufgelösten Board-Ausschnitt, auf einem eigenen Thread (die
   Bewegungslogik verpasst keine Frames). Jeder Dart wird über mindestens drei Auswertungen gemessen und der **Median**

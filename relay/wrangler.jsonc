@@ -1,0 +1,18 @@
+// Cloudflare-Konfiguration für das FreeDarts-Relay.
+// Deploy: npm install && npx wrangler deploy   (siehe README.md)
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "freedarts-relay",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-06-01",
+  "observability": { "enabled": true },
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application"
+  },
+  "durable_objects": {
+    "bindings": [{ "name": "BOARD", "class_name": "BoardSession" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["BoardSession"] }]
+}

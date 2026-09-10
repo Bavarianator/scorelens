@@ -18,6 +18,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.freedarts.scorer.ui.AppViewModel
 import com.freedarts.scorer.ui.Screen
 import com.freedarts.scorer.ui.screens.BoardScreen
+import com.freedarts.scorer.ui.screens.DevicesScreen
+import com.freedarts.scorer.ui.screens.HelpScreen
+import com.freedarts.scorer.ui.screens.OnboardingScreen
 import com.freedarts.scorer.ui.screens.HomeScreen
 import com.freedarts.scorer.ui.screens.LensScreen
 import com.freedarts.scorer.ui.screens.LobbyScreen
@@ -55,7 +58,7 @@ fun FreeDartsApp(vm: AppViewModel, onKeepScreenOn: (Boolean) -> Unit) {
 
     LaunchedEffect(screen, settings.keepScreenOn) { onKeepScreenOn((screen == Screen.Match || screen == Screen.Lens) && settings.keepScreenOn) }
 
-    BackHandler(enabled = screen != Screen.Home) {
+    BackHandler(enabled = screen != Screen.Home && screen != Screen.Onboarding) {
         if (screen == Screen.Match) return@BackHandler // Abbruch nur über den Button im Match
         vm.back()
     }
@@ -72,5 +75,8 @@ fun FreeDartsApp(vm: AppViewModel, onKeepScreenOn: (Boolean) -> Unit) {
         Screen.Lens -> LensScreen(vm)
         Screen.ModeSelect -> ModeSelectScreen(vm)
         Screen.History -> StatsScreen(vm, startTab = 1)
+        Screen.Devices -> DevicesScreen(vm)
+        Screen.Onboarding -> OnboardingScreen(vm)
+        Screen.Help -> HelpScreen(vm)
     }
 }

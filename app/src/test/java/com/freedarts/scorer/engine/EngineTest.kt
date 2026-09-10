@@ -92,6 +92,21 @@ class EngineTest {
         assertEquals(1, g.current)
     }
 
+    @Test fun correctDartReplaysGame() {
+        val g = X01Game(listOf(a, b), GameSettings(baseScore = 501), seed = 1)
+        g.throwDart(Segment.triple(20)); g.throwDart(Segment.single(5))
+        assertEquals(listOf(Segment.triple(20), Segment.single(5)), g.correctableDarts())
+        assertTrue(g.correctDart(1, Segment.triple(5)))
+        assertEquals("426", g.snapshot().players[0].score)
+        g.throwDart(Segment.single(1)) // Aufnahme abgeschlossen → Spieler B
+        assertEquals(1, g.current)
+        assertEquals(3, g.correctableDarts().size)
+        assertTrue(g.correctDart(0, Segment.single(20))) // T20 → S20
+        assertEquals("465", g.snapshot().players[0].score)
+        assertEquals(1, g.current)
+        assertFalse(g.correctDart(3, Segment.MISS))
+    }
+
     @Test fun botHitsSomething() {
         val counts = (1..200).map { Bot.throwAt(Segment.triple(20), 11) }.count { it == Segment.triple(20) }
         assertTrue("Profi-Bot trifft T20 zu selten: $counts", counts > 40)

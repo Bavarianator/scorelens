@@ -69,6 +69,7 @@ fun LensScreen(vm: AppViewModel) {
     var cropView by remember { mutableStateOf(true) }
     var showTools by remember { mutableStateOf(false) }
     val remoteUrl by vm.remoteUrl.collectAsStateWithLifecycle()
+    val cloudUrl by vm.cloudUrl.collectAsStateWithLifecycle()
     val gameState by vm.gameState.collectAsStateWithLifecycle()
     var calibration by remember { mutableStateOf(settings.lensCalibration.takeIf { it.size == 8 } ?: defaultCalibration()) }
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
@@ -107,7 +108,7 @@ fun LensScreen(vm: AppViewModel) {
             // ---- Detection Mode (wie Autodarts): nur Kamera, Status-Pill, drei Dart-Symbole, Tipps ----
             if (!showTools && !manual) {
                 DetectionMode(
-                    vm, status, detections, calibration, cropView, remoteUrl,
+                    vm, status, detections, calibration, cropView, remoteUrl, cloudUrl,
                     visitCount = gameState?.currentVisit?.size ?: detections.size,
                     onTools = { showTools = true },
                 )
@@ -207,6 +208,7 @@ private fun DetectionMode(
     calibration: List<Float>,
     crop: Boolean,
     remoteUrl: String?,
+    cloudUrl: String?,
     visitCount: Int,
     onTools: () -> Unit,
 ) {
@@ -222,12 +224,12 @@ private fun DetectionMode(
         ) {
             Icon(if (ready) Icons.Default.CheckCircle else Icons.Default.Search, null, tint = if (ready) DartColors.Lime else DartColors.Accent, modifier = Modifier.width(18.dp))
             Spacer(Modifier.width(6.dp))
-            Text(if (ready) "Detecting" else "Suche Board", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
+            Text(if (ready) "Detecting" else "Position your device", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
         }
     }
     // Meldung (Positionierung / Bereit)
-    Text(status.guidance.ifEmpty { status.message }, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium,
-        color = if (ready) DartColors.Lime else Color.White)
+    Text(if (ready) "Ready to play ✓" else status.guidance.ifEmpty { status.message }, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium,
+        color = if (ready) DartColors.Green else Color.White)
     // Drei Dart-Symbole der aktuellen Aufnahme
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
         for (i in 0 until 3) {
@@ -254,6 +256,12 @@ private fun DetectionMode(
         AdCard(padding = 10) {
             Text("Remote Scoring aktiv", fontWeight = FontWeight.Bold)
             Text("Spielansicht im Browser eines zweiten Geräts: $remoteUrl", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
+        }
+    }
+    if (cloudUrl != null) {
+        AdCard(padding = 10) {
+            Text("Online-Remote aktiv", fontWeight = FontWeight.Bold)
+            Text("Von überall im Browser: $cloudUrl", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
         }
     }
     Text(

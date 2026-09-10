@@ -1,0 +1,20 @@
+{
+  "name": "freedarts-relay",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Online-Relay für FreeDarts Remote Scoring (Cloudflare Workers + Durable Objects)",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "types": "wrangler types",
+    "test": "node test/smoke.mjs"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260910.1",
+    "typescript": "^5.6.0",
+    "wrangler": "^4.0.0"
+  },
+  "allowScripts": {
+    "workerd@1.20260910.1": true
+  }
+}

@@ -65,7 +65,8 @@ fun StatsScreen(vm: AppViewModel, startTab: Int = 0) {
     val df = remember { SimpleDateFormat("dd.MM.yy HH:mm", Locale.GERMANY) }
 
     Box(Modifier.fillMaxSize()) {
-        HeaderSwoosh(Modifier.align(Alignment.TopEnd), height = 120)
+        com.freedarts.scorer.ui.components.ScreenBackground()
+        HeaderSwoosh(Modifier.align(Alignment.TopEnd), height = 150)
         Column(Modifier.fillMaxSize()) {
             AdTopBar("", onBack = { vm.back() })
             Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 12.dp)) {
@@ -91,11 +92,11 @@ fun StatsScreen(vm: AppViewModel, startTab: Int = 0) {
                     val filtered = mine.filter { it.mode == modeFilter }
                     val stats = filtered.mapNotNull { m -> m.players.firstOrNull { it.playerId == selected } }
                     SectionLabel("${modeFilter.title} Performance")
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    AdCard { Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         StatTile(stats.sumOf { it.legsWon.coerceAtLeast(if (it.won) 1 else 0) }.toString(), "Legs gewonnen", Modifier.weight(1f))
                         StatTile(filtered.size.toString(), "Spiele", Modifier.weight(1f))
                         StatTile(filtered.count { it.players.size == 1 }.toString(), "Solo-Spiele", Modifier.weight(1f))
-                    }
+                    } }
                     if (modeFilter == GameMode.X01) {
                         val darts = stats.sumOf { it.dartsThrown }
                         val avg = if (darts == 0) 0.0 else stats.sumOf { it.pointsScored }.toDouble() / darts * 3
@@ -105,10 +106,10 @@ fun StatsScreen(vm: AppViewModel, startTab: Int = 0) {
                         SectionLabel("Breakdown", trailing = { Chip("Letzte 10 Spiele") })
                         Text("Vergleich mit den 10 Spielen davor", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
                         Spacer(Modifier.height(8.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        AdCard { Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             StatTile(last10.size.toString(), "Spiele", Modifier.weight(1f))
                             StatTile(last10.count { it.won }.toString(), "Siege", Modifier.weight(1f))
-                        }
+                        } }
                         Spacer(Modifier.height(8.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             AdCard(Modifier.weight(1f)) {
@@ -174,8 +175,8 @@ private fun MatchRow(m: MatchRecord, selectedId: String?, df: SimpleDateFormat) 
 @Composable
 private fun TabLabel(text: String, selected: Boolean, onClick: () -> Unit) {
     Column(Modifier.clickable(onClick = onClick)) {
-        Text(text, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal, color = if (selected) Color.White else DartColors.TextMuted)
-        Box(Modifier.padding(top = 4.dp).width(if (selected) 40.dp else 0.dp).height(2.dp).background(DartColors.Primary))
+        Text(text, fontSize = androidx.compose.ui.unit.TextUnit(16f, androidx.compose.ui.unit.TextUnitType.Sp), fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal, color = if (selected) Color.White else DartColors.TextMuted)
+        Box(Modifier.padding(top = 8.dp).fillMaxWidth().height(2.dp).background(if (selected) Color.White else Color.Transparent))
     }
 }
 

@@ -1,0 +1,83 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap">
+  <style>
+    body { margin: 0; background: #0B1220; color: #F3F5F9; font-family: "DM Sans", "Segoe UI", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+    a { color: #2B6BFF; } a:hover { color: #1F55D6; }
+    .screen { width: 390px; height: 844px; box-sizing: border-box; position: relative; overflow: hidden; background: #0B1220; background-image: linear-gradient(112deg, rgba(20,34,72,0) 0%, rgba(20,34,72,0) 28%, rgba(22,38,80,0.55) 28%, rgba(22,38,80,0.55) 44%, rgba(20,34,72,0) 44%), linear-gradient(112deg, rgba(20,34,72,0) 0%, rgba(20,34,72,0) 60%, rgba(22,38,80,0.35) 60%, rgba(22,38,80,0.35) 78%, rgba(20,34,72,0) 78%); }
+    .h { font-family: "Barlow Condensed", "Arial Narrow", sans-serif; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+    .card { background: #171C27; border-radius: 16px; }
+    .chip { background: #2A3040; color: #C7CDD8; border-radius: 999px; padding: 6px 12px; font-size: 12px; font-weight: 500; }
+    .badge { border-radius: 999px; padding: 4px 10px; font-size: 12px; font-weight: 600; }
+    .btn { height: 52px; border-radius: 14px; background: #2B6BFF; color: #FFFFFF; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 16px; font-weight: 600; }
+    .btn2 { height: 48px; border-radius: 12px; background: transparent; border: 1px solid #3A4152; color: #FFFFFF; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 14px; font-weight: 600; }
+    .ribbon { display: inline-flex; align-items: center; gap: 8px; background: #0D1119; color: #FFFFFF; font-family: "Barlow Condensed", "Arial Narrow", sans-serif; font-weight: 700; text-transform: uppercase; font-size: 16px; letter-spacing: 0.5px; padding: 6px 14px 6px 10px; clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 100%, 0 100%); }
+    .lvl { font-family: "Barlow Condensed", "Arial Narrow", sans-serif; font-weight: 700; font-size: 15px; padding: 6px 16px 6px 12px; margin-left: -8px; clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 100%, 0 100%); }
+    .muted { color: #9AA3B5; }
+  </style>
+</helmet>
+<div class="screen" style="padding: 48px 0 0 0; display: flex; flex-direction: column;">
+  <div style="display: flex; align-items: center; height: 44px; padding: 0 12px; gap: 8px;">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#F3F5F9" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+    <div style="flex-grow: 1; text-align: center;"><span class="chip" style="font-size: 13px;">First to 3 Legs · Leg 2</span></div>
+    <div style="display: flex; align-items: center; gap: 6px; background: #123B2A; border: 1px solid #22C55E; border-radius: 999px; padding: 4px 10px;"><div style="width: 8px; height: 8px; border-radius: 4px; background: #22C55E;"></div><div style="font-size: 12px; font-weight: 600;">Lens</div></div>
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F3F5F9" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"></path></svg>
+  </div>
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 0 4px;">
+    <div style="border-radius: 6px; padding: 12px 12px 10px 12px; background: linear-gradient(160deg, #E0287E 0%, #B21A8E 55%, #6D28D9 100%); display: flex; flex-direction: column; gap: 4px; position: relative;">
+      <div style="display: inline-flex; align-items: center; gap: 6px; background: #0D1119; border-radius: 999px; padding: 4px 10px 4px 4px; width: fit-content;"><div style="width: 20px; height: 20px; border-radius: 10px; background: #3B82F6;"></div><div class="h" style="font-size: 13px;">Spieler 1</div></div>
+      <div style="display: flex; align-items: flex-end; gap: 8px;">
+        <div style="font-size: 66px; font-weight: 800; line-height: 1; letter-spacing: -2px;">213</div>
+        <div style="display: flex; flex-direction: column; gap: 3px; padding-bottom: 8px;"><div style="background: #FFFFFF; color: #111; font-size: 12px; font-weight: 800; padding: 1px 6px; border-radius: 3px;">1</div><div style="background: #111; color: #FFF; font-size: 12px; font-weight: 800; padding: 1px 6px; border-radius: 3px;">1</div></div>
+      </div>
+      <div style="font-size: 13px;">Leg <b>104</b> / Match <b>108</b></div>
+      <div style="font-size: 13px; display: flex; align-items: center; gap: 4px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round"><path d="M3 21l7-7M14 4l6 6M10 8l6 6M13 5l6 6"></path></svg><b>8</b></div>
+      <div style="position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: #22C55E;"></div>
+    </div>
+    <div style="border-radius: 6px; padding: 12px 12px 10px 12px; background: #171C27; display: flex; flex-direction: column; gap: 4px;">
+      <div style="display: inline-flex; align-items: center; gap: 6px; background: #0D1119; border-radius: 999px; padding: 4px 10px 4px 4px; width: fit-content;"><div style="width: 20px; height: 20px; border-radius: 10px; background: #F59E5B;"></div><div class="h" style="font-size: 13px;">Jonas</div></div>
+      <div style="display: flex; align-items: flex-end; gap: 8px;">
+        <div style="font-size: 66px; font-weight: 800; line-height: 1; letter-spacing: -2px;">401</div>
+        <div style="display: flex; flex-direction: column; gap: 3px; padding-bottom: 8px;"><div style="background: #FFFFFF; color: #111; font-size: 12px; font-weight: 800; padding: 1px 6px; border-radius: 3px;">0</div><div style="background: #111; color: #FFF; font-size: 12px; font-weight: 800; padding: 1px 6px; border-radius: 3px;">2</div></div>
+      </div>
+      <div class="muted" style="font-size: 13px;">Leg <b style="color: #F3F5F9;">100</b> / Match <b style="color: #F3F5F9;">98.4</b></div>
+      <div class="muted" style="font-size: 13px; display: flex; align-items: center; gap: 4px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9AA3B5" stroke-width="2" stroke-linecap="round"><path d="M3 21l7-7M14 4l6 6M10 8l6 6M13 5l6 6"></path></svg><b>3</b></div>
+    </div>
+  </div>
+
+  <div style="margin: 10px 12px 0 12px; background: #171C27; border-radius: 12px; padding: 8px 12px; display: flex; align-items: center; gap: 8px;">
+    <div style="display: flex; align-items: center; gap: 6px; background: #2B6BFF; border-radius: 999px; padding: 6px 12px 6px 8px;"><svg width="26" height="12" viewBox="0 0 40 14" fill="#FFFFFF"><rect x="0" y="6" width="24" height="2"></rect><path d="M24 3l8 4-8 4z"></path><rect x="32" y="6" width="8" height="2"></rect></svg><div style="font-size: 15px; font-weight: 700;">T20</div></div>
+    <div style="display: flex; align-items: center; gap: 6px; background: #2B6BFF; border-radius: 999px; padding: 6px 12px 6px 8px;"><svg width="26" height="12" viewBox="0 0 40 14" fill="#FFFFFF"><rect x="0" y="6" width="24" height="2"></rect><path d="M24 3l8 4-8 4z"></path><rect x="32" y="6" width="8" height="2"></rect></svg><div style="font-size: 15px; font-weight: 700;">S20</div></div>
+    <div style="display: flex; align-items: center; gap: 6px; background: #2A3040; border-radius: 999px; padding: 6px 12px 6px 8px;"><svg width="26" height="12" viewBox="0 0 40 14" fill="#7B8496"><rect x="0" y="6" width="24" height="2"></rect><path d="M24 3l8 4-8 4z"></path><rect x="32" y="6" width="8" height="2"></rect></svg><div style="font-size: 15px; font-weight: 700; color: #7B8496;">—</div></div>
+    <div style="flex-grow: 1;"></div>
+    <div style="display: flex; flex-direction: column; align-items: flex-end;"><div class="h" style="font-size: 24px; line-height: 1; color: #7CF06B;">80</div><div class="muted" style="font-size: 10px;">Aufnahme</div></div>
+  </div>
+
+  <div style="margin: 8px 12px 0 12px; position: relative; border-radius: 16px; overflow: hidden; background: radial-gradient(circle at 50% 50%, #2b2f3a 0%, #1b1e26 60%, #0e1015 100%); aspect-ratio: 1; border: 3px solid #22C55E; box-sizing: border-box;">
+    <svg width="100%" height="100%" viewBox="0 0 360 360" style="position: absolute; inset: 0;"><circle cx="180" cy="180" r="176" fill="#101216"></circle><circle cx="180" cy="180" r="150" fill="#E8DCC0"></circle><g fill="#151515"><path d="M180 180L166 31a150 150 0 0 1 28 0z"></path><path d="M180 180L246 45a150 150 0 0 1 24 15z"></path><path d="M180 180L315 114a150 150 0 0 1 12 26z"></path><path d="M180 180L329 195a150 150 0 0 1-8 28z"></path><path d="M180 180L286 288a150 150 0 0 1-22 18z"></path><path d="M180 180L197 328a150 150 0 0 1-28 2z"></path><path d="M180 180L104 310a150 150 0 0 1-24-14z"></path><path d="M180 180L40 236a150 150 0 0 1-9-27z"></path><path d="M180 180L36 152a150 150 0 0 1 10-27z"></path><path d="M180 180L85 65a150 150 0 0 1 22-18z"></path></g><circle cx="180" cy="180" r="150" fill="none" stroke="#C62828" stroke-width="8" stroke-dasharray="47 47"></circle><circle cx="180" cy="180" r="150" fill="none" stroke="#2E7D32" stroke-width="8" stroke-dasharray="47 47" stroke-dashoffset="47"></circle><circle cx="180" cy="180" r="92" fill="none" stroke="#C62828" stroke-width="7" stroke-dasharray="29 29"></circle><circle cx="180" cy="180" r="92" fill="none" stroke="#2E7D32" stroke-width="7" stroke-dasharray="29 29" stroke-dashoffset="29"></circle><circle cx="180" cy="180" r="14" fill="#2E7D32"></circle><circle cx="180" cy="180" r="6" fill="#C62828"></circle><g fill="#FFFFFF" font-size="16" font-weight="700" text-anchor="middle" font-family="Arial Narrow, sans-serif"><text x="180" y="20">20</text><text x="228" y="30">1</text><text x="272" y="53">18</text><text x="308" y="92">4</text><text x="332" y="140">13</text><text x="342" y="186">6</text><text x="332" y="232">10</text><text x="308" y="276">15</text><text x="272" y="315">2</text><text x="228" y="342">17</text><text x="180" y="352">3</text><text x="132" y="342">19</text><text x="88" y="315">7</text><text x="52" y="276">16</text><text x="28" y="232">8</text><text x="18" y="186">11</text><text x="28" y="140">14</text><text x="52" y="92">9</text><text x="88" y="53">12</text><text x="132" y="30">5</text></g><g><line x1="176" y1="92" x2="150" y2="150" stroke="#D9D9D9" stroke-width="3" stroke-linecap="round"></line><path d="M150 150l-14 22 24-6z" fill="#E0287E"></path><circle cx="176" cy="92" r="9" fill="#22C55E" stroke="#0B1220" stroke-width="3"></circle><text x="176" y="96" fill="#0B1220" font-size="10" font-weight="800" text-anchor="middle">1</text><line x1="186" y1="110" x2="214" y2="164" stroke="#D9D9D9" stroke-width="3" stroke-linecap="round"></line><path d="M214 164l16 20-25-4z" fill="#E0287E"></path><circle cx="186" cy="110" r="9" fill="#22C55E" stroke="#0B1220" stroke-width="3"></circle><text x="186" y="114" fill="#0B1220" font-size="10" font-weight="800" text-anchor="middle">2</text></g></svg>
+    <div style="position: absolute; left: 10px; top: 10px; display: flex; align-items: center; gap: 6px; background: rgba(13,17,25,0.85); border-radius: 999px; padding: 5px 10px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#22C55E" stroke-width="3" stroke-linecap="round"><path d="M5 12l5 5 9-10"></path></svg><div style="font-size: 12px; font-weight: 600;">Detecting</div></div>
+    <div style="position: absolute; right: 10px; top: 10px; background: rgba(13,17,25,0.85); border-radius: 999px; padding: 5px 10px; font-size: 12px; font-weight: 600;">2 / 3 Darts</div>
+    <div style="position: absolute; left: 50%; transform: translateX(-50%); bottom: 10px; display: flex; align-items: center; gap: 8px; background: rgba(13,17,25,0.85); border-radius: 999px; padding: 6px 12px;"><div style="font-size: 12px; font-weight: 600; color: #9AA3B5;">Checkout</div><div style="font-size: 13px; font-weight: 700; color: #7CF06B;">T20 · T19 · D18</div></div>
+    <div style="position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background: rgba(13,17,25,0.72); border-radius: 14px; padding: 8px 18px; display: flex; flex-direction: column; align-items: center;"><div class="h" style="font-size: 44px; line-height: 1;">80</div><div class="muted" style="font-size: 11px; letter-spacing: 1px;">CALLER</div></div>
+  </div>
+
+  <div style="flex-grow: 1;"></div>
+  <div style="background: #10192E; padding: 10px 12px 26px 12px; display: flex; align-items: center; gap: 10px;">
+    <div style="width: 48px; height: 44px; border-radius: 12px; background: #2B6BFF; display: flex; align-items: center; justify-content: center;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2"><path d="M4 8h3l2-3h6l2 3h3v11H4z"></path><circle cx="12" cy="13" r="3.5"></circle></svg></div>
+    <div style="width: 48px; height: 44px; border-radius: 12px; background: #1C2740; display: flex; align-items: center; justify-content: center;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F3F5F9" stroke-width="2"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="4"></circle></svg></div>
+    <div style="flex-grow: 1;"></div>
+    <div class="btn2" style="width: 84px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F3F5F9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3"></path></svg>Undo</div>
+    <div class="btn" style="width: 92px; height: 48px;">Next</div>
+    <div style="width: 48px; height: 44px; border-radius: 12px; background: #1C2740; display: flex; align-items: center; justify-content: center;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F3F5F9" stroke-width="2" stroke-linecap="round"><path d="M4 20h4l10-10-4-4L4 16z"></path></svg></div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

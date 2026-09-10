@@ -12,6 +12,7 @@ import com.freedarts.scorer.engine.DartGame
 import com.freedarts.scorer.engine.GameFactory
 import com.freedarts.scorer.engine.GameState
 import com.freedarts.scorer.lens.LensController
+import com.freedarts.scorer.remote.CloudRelayClient
 import com.freedarts.scorer.remote.RemoteServer
 import android.os.Build
 import android.os.VibrationEffect
@@ -30,6 +31,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -46,6 +49,9 @@ sealed class Screen {
     data object Lens : Screen()
     data object ModeSelect : Screen()
     data object History : Screen()
+    data object Devices : Screen()
+    data object Onboarding : Screen()
+    data object Help : Screen()
 }
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
@@ -57,12 +63,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val remote = RemoteServer({ remoteState() }) { cmd -> viewModelScope.launch { when (cmd) { "undo" -> undo(); "next" -> nextPlayer() } } }
     private val _remoteUrl = MutableStateFlow<String?>(null)
     val remoteUrl: StateFlow<String?> = _remoteUrl
+    val cloud = CloudRelayClient(viewModelScope) { cmd -> viewModelScope.launch { when (cmd) { "undo" -> undo(); "next" -> nextPlayer() } } }
+    val cloudStatus: StateFlow<CloudRelayClient.Status> = cloud.status
+    private val _cloudUrl = MutableStateFlow<String?>(null)
+    /** Zuschauer-Link des Online-Remotes (null = aus). */
+    val cloudUrl: StateFlow<String?> = _cloudUrl
 
     val players: StateFlow<List<Player>> = repo.players
     val settings: StateFlow<AppSettings> = repo.settings
     val matches: StateFlow<List<MatchRecord>> = repo.matches
 
-    private val _screen = MutableStateFlow<Screen>(Screen.Home)
+    private val _screen = MutableStateFlow<Screen>(if (repo.settings.value.onboardingDone) Screen.Home else Screen.Onboarding)
     val screen: StateFlow<Screen> = _screen
     private val backStack = ArrayDeque<Screen>()
 
@@ -96,7 +107,40 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val s = settings.value
         if (s.boardManagerEnabled) board.connect(s.boardManagerHost, s.boardManagerPort)
         if (s.remoteEnabled) startRemote()
+        if (s.cloudRelayEnabled) startCloud()
+        cloud.onCodeRejected = { viewModelScope.launch { newCloudSession() } }
+        // Online-Remote: Zustand nur bei Änderung schicken (kein Polling).
+        viewModelScope.launch {
+            combine(_gameState, lens.status) { _, _ -> remoteState() }.distinctUntilChanged().collect { if (cloud.isActive) cloud.sendState(it) }
+        }
         lens.onReady = { vibrate() }
+    }
+
+    // ---------- Onboarding / Umstieg ----------
+
+    /** Erster Start: Profil anlegen (oder ersten Spieler umbenennen) und als Dashboard-Profil setzen. */
+    fun finishOnboarding(name: String, color: Long) {
+        val trimmed = name.trim().ifEmpty { "Spieler 1" }
+        val existing = players.value.firstOrNull()
+        val profile = if (existing != null && existing.name == "Spieler 1") existing.copy(name = trimmed, color = color).also { repo.updatePlayer(it) }
+        else Player(name = trimmed, color = color).also { repo.addPlayer(it) }
+        _lobbyPlayers.value = listOf(profile)
+        repo.updateSettings { it.copy(onboardingDone = true, profilePlayerId = profile.id) }
+        backStack.clear()
+        _screen.value = Screen.Home
+    }
+
+    /** "Gegner finden" ohne Online-Matchmaking: Bot auf dem Niveau des Profils. */
+    fun playVsMatchedBot() {
+        val s = settings.value
+        val profile = players.value.firstOrNull { it.id == s.profilePlayerId } ?: players.value.firstOrNull() ?: return
+        val x01 = matches.value.filter { it.mode == GameMode.X01 }.mapNotNull { m -> m.players.firstOrNull { it.playerId == profile.id } }
+        val darts = x01.sumOf { it.dartsThrown }
+        val avg = if (darts == 0) 45.0 else x01.sumOf { it.pointsScored }.toDouble() / darts * 3
+        val level = (1..11).minByOrNull { kotlin.math.abs(Player.botAverage(it) - avg) } ?: 4
+        _lobbyPlayers.value = listOf(profile, Player.bot(level))
+        if (_lobbySettings.value.mode != GameMode.X01) _lobbySettings.value = GameSettings(mode = GameMode.X01, baseScore = 501, legs = 3)
+        startGame()
     }
 
     // ---------- Remote Scoring ----------
@@ -112,6 +156,36 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         remote.stop(); _remoteUrl.value = null
         repo.updateSettings { it.copy(remoteEnabled = false) }
     }
+
+    // ---------- Online-Remote (Cloudflare-Relay) ----------
+
+    fun startCloud() {
+        val base = settings.value.cloudRelayUrl.trim().trimEnd('/')
+        if (base.isBlank()) return
+        if (settings.value.cloudSessionCode.isBlank() || settings.value.cloudSessionToken.isBlank()) {
+            updateSettings { it.copy(cloudSessionCode = CloudRelayClient.newCode(), cloudSessionToken = CloudRelayClient.newToken()) }
+        }
+        val s = settings.value
+        cloud.start(base, s.cloudSessionCode, s.cloudSessionToken)
+        _cloudUrl.value = CloudRelayClient.viewerUrl(base, s.cloudSessionCode)
+        updateSettings { it.copy(cloudRelayEnabled = true) }
+    }
+
+    fun stopCloud() {
+        cloud.stop(); _cloudUrl.value = null
+        updateSettings { it.copy(cloudRelayEnabled = false) }
+    }
+
+    /** Neuen Code + Token würfeln (z. B. Link zurückziehen oder Code vom Relay abgelehnt). */
+    fun newCloudSession() {
+        updateSettings { it.copy(cloudSessionCode = CloudRelayClient.newCode(), cloudSessionToken = CloudRelayClient.newToken()) }
+        if (_cloudUrl.value != null || settings.value.cloudRelayEnabled) startCloud()
+    }
+
+    fun setCloudRelayUrl(url: String) = updateSettings { it.copy(cloudRelayUrl = url) }
+
+    /** Nach Änderung der Relay-URL neu verbinden, falls aktiv. */
+    fun applyCloudRelayUrl() { if (_cloudUrl.value != null) startCloud() }
 
     private fun remoteState(): RemoteServer.RemoteState {
         val g = game; val st = _gameState.value
@@ -458,5 +532,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         board.disconnect()
         lens.stop()
         remote.stop()
+        cloud.stop()
     }
 }

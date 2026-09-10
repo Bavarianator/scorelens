@@ -33,6 +33,17 @@ data class AppSettings(
     /** Remote Scoring: Spielansicht im Browser eines zweiten Geräts (Port 8765). */
     val remoteEnabled: Boolean = false,
 
+    /** Online-Remote über ein eigenes FreeDarts-Relay auf Cloudflare (Ordner relay/). */
+    val cloudRelayEnabled: Boolean = false,
+    /** Basis-URL des Relays, z. B. https://freedarts-relay.<account>.workers.dev */
+    val cloudRelayUrl: String = "",
+    /** Session-Code (Teil des Zuschauer-Links) und geheimes Token des Handys. Werden beim ersten Aktivieren erzeugt. */
+    val cloudSessionCode: String = "",
+    val cloudSessionToken: String = "",
+
+    /** Onboarding (Profil anlegen, Lens einrichten) abgeschlossen. */
+    val onboardingDone: Boolean = false,
+
     /** Spieler, dessen Statistiken auf dem Dashboard erscheinen (Profil). */
     val profilePlayerId: String? = null,
 

@@ -23,6 +23,7 @@ class X01Game(players: List<Player>, settings: GameSettings, seed: Long = System
     private var visitStart = 0
     private var visitPoints = 0
     private var legDarts = IntArray(players.size)
+    private val legPoints = IntArray(players.size)
     private var legNumber = 1
 
     // Statistik
@@ -44,7 +45,7 @@ class X01Game(players: List<Player>, settings: GameSettings, seed: Long = System
         opened.fill(settings.inMode == InMode.STRAIGHT)
         legsWon.fill(0); setsWon.fill(0)
         legStarter = 0; visitStart = settings.baseScore; visitPoints = 0
-        legDarts.fill(0); legNumber = 1
+        legDarts.fill(0); legPoints.fill(0); legNumber = 1
         first9Points.fill(0); first9Darts.fill(0); checkouts.fill(0); dartsAtDouble.fill(0); highestCheckout.fill(0)
         c60.fill(0); c100.fill(0); c140.fill(0); c170.fill(0); c180.fill(0)
     }
@@ -81,6 +82,7 @@ class X01Game(players: List<Player>, settings: GameSettings, seed: Long = System
         if (after < 0 || (after in 1 until minRemaining) || (after == 0 && !validOut(seg))) {
             // Bust: Aufnahme zählt 0
             pointsScored[p] -= visitPoints
+            legPoints[p] -= visitPoints
             if (legDarts[p] <= 9) first9Points[p] -= visitPoints
             visitPoints = 0
             scores[p] = visitStart
@@ -91,6 +93,7 @@ class X01Game(players: List<Player>, settings: GameSettings, seed: Long = System
         }
         scores[p] = after
         pointsScored[p] += seg.score
+        legPoints[p] += seg.score
         visitPoints += seg.score
         if (legDarts[p] <= 9) first9Points[p] += seg.score
 
@@ -141,7 +144,7 @@ class X01Game(players: List<Player>, settings: GameSettings, seed: Long = System
     private fun nextLeg() {
         scores.fill(settings.baseScore)
         opened.fill(settings.inMode == InMode.STRAIGHT)
-        legDarts.fill(0)
+        legDarts.fill(0); legPoints.fill(0)
         legNumber++
         legStarter = (legStarter + 1) % players.size
         players.indices.forEach { addHistory(it, "— Leg $legNumber —", "") }
@@ -184,7 +187,7 @@ class X01Game(players: List<Player>, settings: GameSettings, seed: Long = System
         }
         return GameState(
             players = players.indices.map { i ->
-                playerState(i, scores[i].toString(), fmtAvg(i), legs = legsWon[i], sets = setsWon[i])
+                playerState(i, scores[i].toString(), detailFor(i), legs = legsWon[i], sets = setsWon[i])
             },
             currentPlayer = current,
             currentVisit = visit.toList(),
@@ -197,6 +200,13 @@ class X01Game(players: List<Player>, settings: GameSettings, seed: Long = System
             showLegs = settings.legs > 1 || settings.matchMode == MatchMode.SETS,
             showSets = settings.matchMode == MatchMode.SETS,
         )
+    }
+
+    /** "Leg 64.2 / Match 71.8 · 9 Darts" wie in der Live-Ansicht. */
+    private fun detailFor(i: Int): String {
+        val leg = if (legDarts[i] == 0) 0.0 else legPoints[i].toDouble() / legDarts[i] * 3
+        val match = if (dartsThrown[i] == 0) 0.0 else pointsScored[i].toDouble() / dartsThrown[i] * 3
+        return "Leg %.1f / Match %.1f|%d".format(leg, match, legDarts[i])
     }
 
     override fun playerStats(index: Int): PlayerMatchStats = super.playerStats(index).copy(

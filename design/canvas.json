@@ -1,0 +1,78 @@
+{
+  "artboards": [
+    {
+      "file": "Main.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Dashboard"
+    },
+    {
+      "file": "CreateGame.dc.html",
+      "x": 480,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Create Game"
+    },
+    {
+      "file": "SelectMode.dc.html",
+      "x": 960,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Select Game Mode"
+    },
+    {
+      "file": "Match.dc.html",
+      "x": 1440,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Live Match (beim Werfen)"
+    },
+    {
+      "file": "Lens.dc.html",
+      "x": 1920,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Lens Detection Mode"
+    },
+    {
+      "file": "Statistics.dc.html",
+      "x": 2400,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Statistics"
+    }
+  ],
+  "annotations": [
+    {
+      "id": "style",
+      "x": 0,
+      "y": -190,
+      "w": 560,
+      "text": "Stil nach Vorbild der Autodarts-App: Navy #0B1220 mit diagonalen Flächen, Karten #171C27 (Radius 16), Primär-Blau #2B6BFF, Überschriften Barlow Condensed (uppercase), Text DM Sans. Namens-Ribbons schräg mit Level-Badge (teal 70+, pink 50+). Kategorien: X01 grün, Cricket blau, Practice orange, Party gelbgrün. Match: aktiver Spieler Magenta-Verlauf, Score 66px.\nOhne Winmau-Logo, Fotos und Marke – Symbol und Name sind FreeDarts."
+    },
+    {
+      "id": "next",
+      "x": 1440,
+      "y": -110,
+      "w": 420,
+      "text": "Nächster Schritt: diese Werte ins Compose-Theme der App übernehmen (Farben, Schriften Barlow Condensed + DM Sans, Ribbons, Match-Karte)."
+    },
+    {
+      "id": "live",
+      "x": 1440,
+      "y": -60,
+      "w": 420,
+      "text": "Live-Screen beim Werfen: erkannte Darts als grüne Marker mit Nummer im Kamerabild, Aufnahme-Leiste mit Segmenten (T20, S20) und Zwischensumme, Checkout-Vorschlag, Caller-Einblendung, Lens-Status. Unten: Kamera/Board umschalten, Undo, Next, Korrektur-Stift."
+    }
+  ],
+  "launch": {
+    "view": "canvas"
+  }
+}

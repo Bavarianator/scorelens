@@ -1,0 +1,1 @@
+bg #0A0E17 · surface #141A26 · surfaceHigh #1C2331 · outline #263042 · primary #2F6BFF · primaryDark #1E4FCC · teal #19C6A6 · lime #7CF06B · green #27C26A · greenDark #0F5A34 · red #E5484D · purple #8B5CF6 · purpleDark #3B2A6E · accent #FFC107 · muted #8B95A7 · text #EEF1F6

@@ -39,7 +39,8 @@ import com.freedarts.scorer.ui.theme.DartColors
 fun ModeSelectScreen(vm: AppViewModel) {
     val gs by vm.lobbySettings.collectAsStateWithLifecycle()
     Box(Modifier.fillMaxSize()) {
-        HeaderSwoosh(Modifier.align(Alignment.TopEnd), height = 120)
+        com.freedarts.scorer.ui.components.ScreenBackground()
+        HeaderSwoosh(Modifier.align(Alignment.TopEnd), height = 150)
         Column(Modifier.fillMaxSize()) {
             AdTopBar("", onBack = { vm.back() })
             Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 12.dp)) {
@@ -69,12 +70,13 @@ fun ModeSelectScreen(vm: AppViewModel) {
 private fun ModeCard(mode: GameMode, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
     Column(
         modifier.heightIn(min = 96.dp)
-            .background(if (selected) DartColors.PrimaryDark.copy(alpha = 0.45f) else DartColors.Surface, RoundedCornerShape(12.dp))
-            .border(1.dp, if (selected) DartColors.Primary else DartColors.Outline, RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick).padding(12.dp),
+            .then(if (selected) Modifier.background(androidx.compose.ui.graphics.Brush.linearGradient(listOf(androidx.compose.ui.graphics.Color(0xFF1B3FA8), androidx.compose.ui.graphics.Color(0xFF1E4FD6))), RoundedCornerShape(16.dp))
+                  else Modifier.background(DartColors.Surface, RoundedCornerShape(16.dp)))
+            .clickable(onClick = onClick).padding(14.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(mode.title + (if (selected) " ✓" else ""), fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+            Text(mode.title, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+            if (selected) Text("✓ ", color = DartColors.Green, fontWeight = FontWeight.Bold)
             ModeBadge(mode)
         }
         Spacer(Modifier.height(6.dp))

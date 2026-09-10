@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -61,11 +62,15 @@ fun PlayersScreen(vm: AppViewModel) {
             items(players, key = { it.id }) { p ->
                 val played = matches.count { m -> m.players.any { it.playerId == p.id } }
                 val won = matches.count { it.winnerId == p.id }
+                val x01 = matches.filter { it.mode == com.freedarts.scorer.model.GameMode.X01 }.mapNotNull { m -> m.players.firstOrNull { it.playerId == p.id } }
+                val d = x01.sumOf { it.dartsThrown }
+                val avg = if (d == 0) 0.0 else x01.sumOf { it.pointsScored }.toDouble() / d * 3
+                val (lvl, lvlBg, lvlFg) = com.freedarts.scorer.ui.components.levelOf(avg)
                 Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Avatar(p, 40); Spacer(Modifier.width(12.dp))
+                    Avatar(p, 40); Spacer(Modifier.width(10.dp))
                     Column(Modifier.weight(1f)) {
-                        Text(p.name)
-                        Text("$played Spiele · $won Siege", color = DartColors.TextMuted)
+                        com.freedarts.scorer.ui.components.NameRibbon(p.name, lvl, lvlBg, lvlFg)
+                        Text("$played Spiele · $won Siege · Ø %.1f".format(avg), color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
                     }
                     IconButton(onClick = { editing = p }) { Icon(Icons.Default.Edit, "Bearbeiten") }
                     IconButton(onClick = { vm.removePlayer(p.id) }, enabled = players.size > 1) { Icon(Icons.Default.Delete, "Löschen") }

@@ -101,26 +101,29 @@ class YoloDartModel(context: Context) {
      * @param rgb aufrechtes Bild (0xRRGGBB), [width]×[height]; Ergebnis-Koordinaten in diesem Bild.
      */
     @Synchronized
-    fun detect(rgb: IntArray, width: Int, height: Int, dartConf: Float = 0.4f, calConf: Float = 0.5f): Result? {
+    fun detect(rgb: IntArray, width: Int, height: Int, dartConf: Float = 0.3f, calConf: Float = 0.5f): Result? {
         val interp = interpreter ?: return null
         val output = out ?: return null
         val t0 = System.currentTimeMillis()
         val n = inputSize
-        // Letterbox
+        // Letterbox wie ultralytics (bilineare Skalierung, Rand 114) – bei Verkleinerung zusätzlich
+        // Flächenmittelung, damit dünne Dartspitzen nicht durch Aliasing springen
         val scale = min(n.toDouble() / width, n.toDouble() / height)
         val newW = (width * scale).roundToInt(); val newH = (height * scale).roundToInt()
         val padX = (n - newW) / 2; val padY = (n - newH) / 2
         input.rewind()
         val grayFill = 114f / 255f
         val plane = n * n
+        val inv = 1.0 / scale
+        val box = if (inv > 1.15) inv else 0.0 // Kantenlänge des Quellfensters (px) bei Verkleinerung
         for (y in 0 until n) {
-            val sy = ((y - padY) / scale).toInt()
-            val rowOk = y >= padY && y < padY + newH && sy in 0 until height
+            val rowOk = y >= padY && y < padY + newH
+            val fy = (y - padY + 0.5) * inv - 0.5
             for (x in 0 until n) {
-                val sx = ((x - padX) / scale).toInt()
                 val r: Float; val g: Float; val b: Float
-                if (rowOk && x >= padX && x < padX + newW && sx in 0 until width) {
-                    val p = rgb[sy * width + sx]
+                if (rowOk && x >= padX && x < padX + newW) {
+                    val fx = (x - padX + 0.5) * inv - 0.5
+                    val p = if (box > 0) areaSample(rgb, width, height, fx, fy, box) else bilinear(rgb, width, height, fx, fy)
                     r = (p shr 16 and 0xFF) / 255f; g = (p shr 8 and 0xFF) / 255f; b = (p and 0xFF) / 255f
                 } else { r = grayFill; g = grayFill; b = grayFill }
                 if (channelsFirstInput) {
@@ -164,6 +167,33 @@ class YoloDartModel(context: Context) {
         val darts = kept.filter { it.cls == DART_CLASS && it.conf >= dartConf }.map { toSrc(it) }
             .filter { it.x >= 0 && it.y >= 0 && it.x < width && it.y < height }
         return Result(calibration, darts, System.currentTimeMillis() - t0)
+    }
+
+    /** Bilinear interpolierter Pixel (0xRRGGBB) an der Position (fx, fy). */
+    private fun bilinear(rgb: IntArray, w: Int, h: Int, fx: Double, fy: Double): Int {
+        val x0 = fx.toInt().coerceIn(0, w - 1); val y0 = fy.toInt().coerceIn(0, h - 1)
+        val x1 = min(x0 + 1, w - 1); val y1 = min(y0 + 1, h - 1)
+        val ax = (fx - x0).coerceIn(0.0, 1.0); val ay = (fy - y0).coerceIn(0.0, 1.0)
+        val p00 = rgb[y0 * w + x0]; val p10 = rgb[y0 * w + x1]; val p01 = rgb[y1 * w + x0]; val p11 = rgb[y1 * w + x1]
+        fun ch(shift: Int): Int {
+            val top = (p00 shr shift and 0xFF) * (1 - ax) + (p10 shr shift and 0xFF) * ax
+            val bottom = (p01 shr shift and 0xFF) * (1 - ax) + (p11 shr shift and 0xFF) * ax
+            return (top * (1 - ay) + bottom * ay + 0.5).toInt().coerceIn(0, 255)
+        }
+        return (ch(16) shl 16) or (ch(8) shl 8) or ch(0)
+    }
+
+    /** Mittelwert des Quellfensters mit Kantenlänge [box] um (fx, fy) – Verkleinerung ohne Aliasing. */
+    private fun areaSample(rgb: IntArray, w: Int, h: Int, fx: Double, fy: Double, box: Double): Int {
+        val half = box / 2
+        val x0 = (fx - half + 0.5).toInt().coerceIn(0, w - 1); val x1 = (fx + half + 0.5).toInt().coerceIn(x0 + 1, w)
+        val y0 = (fy - half + 0.5).toInt().coerceIn(0, h - 1); val y1 = (fy + half + 0.5).toInt().coerceIn(y0 + 1, h)
+        var r = 0; var g = 0; var b = 0; var c = 0
+        for (y in y0 until y1) {
+            var i = y * w + x0
+            for (x in x0 until x1) { val p = rgb[i++]; r += p shr 16 and 0xFF; g += p shr 8 and 0xFF; b += p and 0xFF; c++ }
+        }
+        return ((r / c) shl 16) or ((g / c) shl 8) or (b / c)
     }
 
     private fun iou(a: Box, b: Box): Float {

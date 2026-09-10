@@ -1,0 +1,51 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap">
+  <style>
+    body { margin: 0; background: #0B1220; color: #F3F5F9; font-family: "DM Sans", "Segoe UI", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+    a { color: #2B6BFF; } a:hover { color: #1F55D6; }
+    .screen { width: 390px; height: 844px; box-sizing: border-box; position: relative; overflow: hidden; background: #0B1220; background-image: linear-gradient(112deg, rgba(20,34,72,0) 0%, rgba(20,34,72,0) 28%, rgba(22,38,80,0.55) 28%, rgba(22,38,80,0.55) 44%, rgba(20,34,72,0) 44%), linear-gradient(112deg, rgba(20,34,72,0) 0%, rgba(20,34,72,0) 60%, rgba(22,38,80,0.35) 60%, rgba(22,38,80,0.35) 78%, rgba(20,34,72,0) 78%); }
+    .h { font-family: "Barlow Condensed", "Arial Narrow", sans-serif; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+    .card { background: #171C27; border-radius: 16px; }
+    .chip { background: #2A3040; color: #C7CDD8; border-radius: 999px; padding: 6px 12px; font-size: 12px; font-weight: 500; }
+    .badge { border-radius: 999px; padding: 4px 10px; font-size: 12px; font-weight: 600; }
+    .btn { height: 52px; border-radius: 14px; background: #2B6BFF; color: #FFFFFF; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 16px; font-weight: 600; }
+    .btn2 { height: 48px; border-radius: 12px; background: transparent; border: 1px solid #3A4152; color: #FFFFFF; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 14px; font-weight: 600; }
+    .ribbon { display: inline-flex; align-items: center; gap: 8px; background: #0D1119; color: #FFFFFF; font-family: "Barlow Condensed", "Arial Narrow", sans-serif; font-weight: 700; text-transform: uppercase; font-size: 16px; letter-spacing: 0.5px; padding: 6px 14px 6px 10px; clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 100%, 0 100%); }
+    .lvl { font-family: "Barlow Condensed", "Arial Narrow", sans-serif; font-weight: 700; font-size: 15px; padding: 6px 16px 6px 12px; margin-left: -8px; clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 100%, 0 100%); }
+    .muted { color: #9AA3B5; }
+  </style>
+</helmet>
+<div class="screen" style="padding: 48px 12px 0 12px; display: flex; flex-direction: column; gap: 12px;">
+  <div style="position: absolute; top: 0; right: 0; width: 220px; height: 150px; background: linear-gradient(120deg, #1E5BFF 0%, #16B8B0 45%, #7CF06B 100%); clip-path: polygon(42% 0, 100% 0, 100% 40%, 74% 100%, 55% 100%);"></div>
+  <div style="display: flex; align-items: center; height: 44px; position: relative;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#F3F5F9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"></path></svg><div style="flex-grow: 1;"></div></div>
+  <div style="display: flex; align-items: center; gap: 8px; position: relative;"><svg width="24" height="24" viewBox="0 0 24 24"><path d="M12 2l3 7 7 3-7 3-3 7-3-7-7-3 7-3z" fill="#19C6A6"></path><circle cx="12" cy="12" r="2.6" fill="#7CF06B"></circle></svg><div class="h" style="font-size: 26px;">Select Game Mode</div></div>
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;">
+    <div class="card" style="background: linear-gradient(135deg, #1B3FA8, #1E4FD6); padding: 14px; display: flex; flex-direction: column; gap: 8px; min-height: 96px;"><div style="display: flex; align-items: flex-start; gap: 8px;"><div style="font-size: 16px; font-weight: 700; flex-grow: 1;">X01 <span style="color: #22C55E;">✓</span></div><div class="badge" style="background: #123B2A; color: #22C55E;">X01</div></div><div class="muted" style="font-size: 12px; line-height: 1.35;">Von einem Startwert exakt auf null werfen</div></div>
+    <div class="card" style=" padding: 14px; display: flex; flex-direction: column; gap: 8px; min-height: 96px;"><div style="display: flex; align-items: flex-start; gap: 8px;"><div style="font-size: 16px; font-weight: 700; flex-grow: 1;">Cricket/Tactics</div><div class="badge" style="background: #1B2C5E; color: #4C8DFF;">Cricket</div></div><div class="muted" style="font-size: 12px; line-height: 1.35;">Zahlen treffen und schließen, Gegner am Punkten hindern</div></div>
+  </div>
+  <div class="h" style="font-size: 20px; margin-top: 4px;">Practice</div>
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;">
+    <div class="card" style=" padding: 14px; display: flex; flex-direction: column; gap: 8px; min-height: 96px;"><div style="display: flex; align-items: flex-start; gap: 8px;"><div style="font-size: 16px; font-weight: 700; flex-grow: 1;">Count Up</div><div class="badge" style="background: #3A2418; color: #F59E5B;">Practice</div></div><div class="muted" style="font-size: 12px; line-height: 1.35;">So viele Punkte wie möglich in festen Runden</div></div>
+    <div class="card" style=" padding: 14px; display: flex; flex-direction: column; gap: 8px; min-height: 96px;"><div style="display: flex; align-items: flex-start; gap: 8px;"><div style="font-size: 16px; font-weight: 700; flex-grow: 1;">Around the Clock</div><div class="badge" style="background: #3A2418; color: #F59E5B;">Practice</div></div><div class="muted" style="font-size: 12px; line-height: 1.35;">Zahlen 1 bis 20 der Reihe nach treffen</div></div>
+    <div class="card" style=" padding: 14px; display: flex; flex-direction: column; gap: 8px; min-height: 96px;"><div style="display: flex; align-items: flex-start; gap: 8px;"><div style="font-size: 16px; font-weight: 700; flex-grow: 1;">Random Checkout</div><div class="badge" style="background: #3A2418; color: #F59E5B;">Practice</div></div><div class="muted" style="font-size: 12px; line-height: 1.35;">Zufälligen Rest jede Runde auschecken</div></div>
+    <div class="card" style=" padding: 14px; display: flex; flex-direction: column; gap: 8px; min-height: 96px;"><div style="display: flex; align-items: flex-start; gap: 8px;"><div style="font-size: 16px; font-weight: 700; flex-grow: 1;">Shanghai</div><div class="badge" style="background: #3A2418; color: #F59E5B;">Practice</div></div><div class="muted" style="font-size: 12px; line-height: 1.35;">Single, Double und Triple einer Zahl in einer Runde</div></div>
+    <div class="card" style=" padding: 14px; display: flex; flex-direction: column; gap: 8px; min-height: 96px;"><div style="display: flex; align-items: flex-start; gap: 8px;"><div style="font-size: 16px; font-weight: 700; flex-grow: 1;">Bob's 27</div><div class="badge" style="background: #3A2418; color: #F59E5B;">Practice</div></div><div class="muted" style="font-size: 12px; line-height: 1.35;">Doubles treffen, Fehlrunden kosten Punkte</div></div>
+    <div class="card" style=" padding: 14px; display: flex; flex-direction: column; gap: 8px; min-height: 96px;"><div style="display: flex; align-items: flex-start; gap: 8px;"><div style="font-size: 16px; font-weight: 700; flex-grow: 1;">121</div><div class="badge" style="background: #3A2418; color: #F59E5B;">Practice</div></div><div class="muted" style="font-size: 12px; line-height: 1.35;">121 mit neun Darts auschecken</div></div>
+  </div>
+  <div class="h" style="font-size: 20px; margin-top: 4px;">Party</div>
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;">
+    <div class="card" style=" padding: 14px; display: flex; flex-direction: column; gap: 8px; min-height: 96px;"><div style="display: flex; align-items: flex-start; gap: 8px;"><div style="font-size: 16px; font-weight: 700; flex-grow: 1;">Gotcha</div><div class="badge" style="background: #2E3A16; color: #BEF264;">Party</div></div><div class="muted" style="font-size: 12px; line-height: 1.35;">Score eines Gegners treffen und ihn zurücksetzen</div></div>
+    <div class="card" style=" padding: 14px; display: flex; flex-direction: column; gap: 8px; min-height: 96px;"><div style="display: flex; align-items: flex-start; gap: 8px;"><div style="font-size: 16px; font-weight: 700; flex-grow: 1;">Killer</div><div class="badge" style="background: #2E3A16; color: #BEF264;">Party</div></div><div class="muted" style="font-size: 12px; line-height: 1.35;">Gegner über ihre zugewiesene Zahl eliminieren</div></div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

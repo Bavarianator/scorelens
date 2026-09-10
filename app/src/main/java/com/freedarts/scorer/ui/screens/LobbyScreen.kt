@@ -3,6 +3,7 @@
 package com.freedarts.scorer.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -43,6 +44,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -62,7 +64,9 @@ import com.freedarts.scorer.ui.components.AdCard
 import com.freedarts.scorer.ui.components.AdTopBar
 import com.freedarts.scorer.ui.components.Avatar
 import com.freedarts.scorer.ui.components.Chip
-import com.freedarts.scorer.ui.components.LevelBadge
+import com.freedarts.scorer.ui.components.NameRibbon
+import com.freedarts.scorer.ui.components.ScreenBackground
+import com.freedarts.scorer.ui.components.levelOf
 import com.freedarts.scorer.ui.components.ModeBadge
 import com.freedarts.scorer.ui.components.PrimaryButton
 import com.freedarts.scorer.ui.components.SecondaryButton
@@ -89,6 +93,7 @@ fun LobbyScreen(vm: AppViewModel) {
         return if (d == 0) 0.0 else st.sumOf { it.pointsScored }.toDouble() / d * 3
     }
 
+    Box(Modifier.fillMaxSize()) { ScreenBackground() }
     Column(Modifier.fillMaxSize()) {
         AdTopBar("Create Game", onBack = { vm.back() })
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -112,9 +117,10 @@ fun LobbyScreen(vm: AppViewModel) {
                             IconButton(onClick = { vm.moveLobbyPlayer(idx, idx + 1) }, enabled = idx < lobby.size - 1, modifier = Modifier.height(20.dp)) { Icon(Icons.Default.ArrowDownward, null, Modifier.width(14.dp)) }
                         }
                         Spacer(Modifier.width(6.dp))
-                        Avatar(p, 34); Spacer(Modifier.width(10.dp))
-                        Text(p.name.uppercase(), fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                        LevelBadge(avgOf(p))
+                        Avatar(p, 36); Spacer(Modifier.width(8.dp))
+                        val (lvl, lvlBg, lvlFg) = levelOf(avgOf(p))
+                        NameRibbon(p.name, lvl, lvlBg, lvlFg)
+                        Spacer(Modifier.weight(1f))
                         IconButton(onClick = { if (p.isBot) vm.removeBot() else vm.toggleLobbyPlayer(p) }) { Icon(Icons.Default.Close, "Entfernen", tint = DartColors.TextMuted) }
                     }
                 }
@@ -132,7 +138,8 @@ fun LobbyScreen(vm: AppViewModel) {
                     ModeBadge(gs.mode)
                 }
                 Text(gs.mode.description(), color = DartColors.TextMuted, style = MaterialTheme.typography.bodyMedium)
-                Text("ⓘ How to play", color = DartColors.TextMuted, style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(top = 4.dp).clickable { showHowTo = true })
+                Text("ⓘ How to play", color = Color.White, style = MaterialTheme.typography.labelMedium, textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline, modifier = Modifier.padding(top = 4.dp).clickable { showHowTo = true })
+                Spacer(Modifier.height(8.dp)); Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0xFF1F5A46)))
                 Spacer(Modifier.height(8.dp))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     settingsChips(gs).forEach { Chip(it) }
@@ -149,23 +156,28 @@ fun LobbyScreen(vm: AppViewModel) {
                     Switch(checked = lensStatus.running || settings.boardManagerEnabled, onCheckedChange = { on -> if (on) vm.navigate(Screen.Lens) else { vm.stopLens(); vm.disconnectBoard() } })
                 }
                 Spacer(Modifier.height(6.dp))
-                Box(Modifier.fillMaxWidth().background(DartColors.SurfaceHigh, RoundedCornerShape(10.dp)).clickable { vm.navigate(if (settings.boardManagerEnabled) Screen.Board else Screen.Lens) }.padding(10.dp)) {
-                    Column {
-                        Text(if (settings.boardManagerEnabled) "Autodarts Board Manager" else "Lens (Handykamera)", fontWeight = FontWeight.SemiBold)
-                        Text(
-                            when {
-                                lensStatus.running -> lensStatus.message
-                                settings.boardManagerEnabled -> "${settings.boardManagerHost}:${settings.boardManagerPort}"
-                                else -> "Nicht aktiv – manuelle Eingabe"
-                            }, color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall,
-                        )
+                // Geräte wie bei Autodarts: Lens (dieses Handy) und Board Manager, aktives Gerät mit Haken
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Box(Modifier.fillMaxWidth().border(1.dp, if (lensStatus.running) DartColors.Teal else DartColors.Outline, RoundedCornerShape(12.dp)).clickable { vm.navigate(Screen.Lens) }.padding(12.dp)) {
+                        Column {
+                            Text("Lens", fontWeight = FontWeight.SemiBold, color = if (lensStatus.running) Color.White else DartColors.PrimaryLight)
+                            Text(if (lensStatus.running) lensStatus.message else "Kamera dieses Handys", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
+                        }
+                        if (lensStatus.running) Text("✓", color = DartColors.Teal, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.TopEnd))
+                    }
+                    Box(Modifier.fillMaxWidth().border(1.dp, if (settings.boardManagerEnabled) DartColors.Teal else DartColors.Outline, RoundedCornerShape(12.dp)).clickable { vm.navigate(Screen.Board) }.padding(12.dp)) {
+                        Column {
+                            Text("Board Manager", fontWeight = FontWeight.SemiBold, color = if (settings.boardManagerEnabled) Color.White else DartColors.PrimaryLight)
+                            Text(if (settings.boardManagerEnabled) "${settings.boardManagerHost}:${settings.boardManagerPort}" else "Autodarts-Hardware im WLAN", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
+                        }
+                        if (settings.boardManagerEnabled) Text("✓", color = DartColors.Teal, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.TopEnd))
                     }
                 }
             }
             Spacer(Modifier.height(70.dp))
         }
         Box(Modifier.fillMaxWidth().padding(12.dp)) {
-            PrimaryButton("Start Game", Modifier.fillMaxWidth().height(52.dp), enabled = lobby.isNotEmpty()) { vm.startGame() }
+            PrimaryButton("Start Game", Modifier.fillMaxWidth(), enabled = lobby.isNotEmpty(), height = 56) { vm.startGame() }
         }
     }
 

@@ -2,6 +2,7 @@ package com.freedarts.scorer.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -24,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.freedarts.scorer.model.GameMode
 import com.freedarts.scorer.model.MatchRecord
@@ -34,19 +36,20 @@ import com.freedarts.scorer.ui.theme.DartColors
 fun ResultScreen(vm: AppViewModel) {
     val record by vm.lastRecord.collectAsStateWithLifecycle()
     val r = record
+    Box(Modifier.fillMaxSize()) { com.freedarts.scorer.ui.components.ScreenBackground() }
     Column(Modifier.fillMaxSize()) {
         TopBar("Ergebnis", onBack = { vm.goHome() })
         if (r == null) { Text("Kein Ergebnis vorhanden", Modifier.padding(16.dp)); return }
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(16.dp)) {
             val winner = r.players.firstOrNull { it.won }
-            Text(winner?.let { "🏆 ${it.playerName} gewinnt" } ?: "Unentschieden", style = MaterialTheme.typography.headlineMedium)
+            Text((winner?.let { "${it.playerName} gewinnt" } ?: "Unentschieden").uppercase(), fontFamily = com.freedarts.scorer.ui.theme.Condensed, fontWeight = FontWeight.Bold, fontSize = 34.sp, color = DartColors.Lime)
             Text("${r.mode.title} · Spielzeit ${formatDuration(r.durationMillis)}", color = DartColors.TextMuted)
             Spacer(Modifier.height(16.dp))
             StatsTable(r)
         }
         Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            OutlinedButton(onClick = { vm.goHome() }, Modifier.weight(1f).height(50.dp)) { Text("Menü") }
-            Button(onClick = { vm.rematch() }, Modifier.weight(1f).height(50.dp)) { Text("Rematch") }
+            com.freedarts.scorer.ui.components.SecondaryButton("Menü", Modifier.weight(1f)) { vm.goHome() }
+            com.freedarts.scorer.ui.components.PrimaryButton("Rematch", Modifier.weight(1f)) { vm.rematch() }
         }
     }
 }
@@ -70,7 +73,7 @@ fun StatsTable(r: MatchRecord) {
             add("180" to { it.count180.toString() })
         }
     }
-    Column(Modifier.fillMaxWidth().background(DartColors.Surface, RoundedCornerShape(12.dp)).padding(8.dp)) {
+    Column(Modifier.fillMaxWidth().background(DartColors.Surface, RoundedCornerShape(16.dp)).padding(12.dp)) {
         Row(Modifier.fillMaxWidth()) {
             Spacer(Modifier.width(120.dp))
             r.players.forEach { p -> Text(p.playerName, Modifier.weight(1f), textAlign = TextAlign.Center, fontWeight = FontWeight.Bold, maxLines = 1) }

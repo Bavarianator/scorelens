@@ -40,6 +40,7 @@ fun BoardScreen(vm: AppViewModel) {
     var testResult by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
+    androidx.compose.foundation.layout.Box(Modifier.fillMaxSize()) { com.freedarts.scorer.ui.components.ScreenBackground() }
     Column(Modifier.fillMaxSize()) {
         TopBar("Board Manager", onBack = { vm.back() })
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -55,9 +56,9 @@ fun BoardScreen(vm: AppViewModel) {
                     scope.launch { testResult = if (vm.board.testConnection(host, port.toIntOrNull() ?: 3180)) "✓ Board Manager erreichbar" else "✗ Nicht erreichbar" }
                 }, Modifier.weight(1f)) { Text("Testen") }
                 if (connection == BoardManagerClient.Connection.DISCONNECTED) {
-                    Button(onClick = { vm.connectBoard(host, port.toIntOrNull() ?: 3180) }, Modifier.weight(1f)) { Text("Verbinden") }
+                    com.freedarts.scorer.ui.components.PrimaryButton("Verbinden", Modifier.weight(1f), height = 48) { vm.connectBoard(host, port.toIntOrNull() ?: 3180) }
                 } else {
-                    Button(onClick = { vm.disconnectBoard() }, Modifier.weight(1f)) { Text("Trennen") }
+                    com.freedarts.scorer.ui.components.PrimaryButton("Trennen", Modifier.weight(1f), height = 48) { vm.disconnectBoard() }
                 }
             }
             testResult?.let { Text(it) }

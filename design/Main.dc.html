@@ -1,0 +1,79 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap">
+  <style>
+    body { margin: 0; background: #0B1220; color: #F3F5F9; font-family: "DM Sans", "Segoe UI", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+    a { color: #2B6BFF; } a:hover { color: #1F55D6; }
+    .screen { width: 390px; height: 844px; box-sizing: border-box; position: relative; overflow: hidden; background: #0B1220; background-image: linear-gradient(112deg, rgba(20,34,72,0) 0%, rgba(20,34,72,0) 28%, rgba(22,38,80,0.55) 28%, rgba(22,38,80,0.55) 44%, rgba(20,34,72,0) 44%), linear-gradient(112deg, rgba(20,34,72,0) 0%, rgba(20,34,72,0) 60%, rgba(22,38,80,0.35) 60%, rgba(22,38,80,0.35) 78%, rgba(20,34,72,0) 78%); }
+    .h { font-family: "Barlow Condensed", "Arial Narrow", sans-serif; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+    .card { background: #171C27; border-radius: 16px; }
+    .chip { background: #2A3040; color: #C7CDD8; border-radius: 999px; padding: 6px 12px; font-size: 12px; font-weight: 500; }
+    .badge { border-radius: 999px; padding: 4px 10px; font-size: 12px; font-weight: 600; }
+    .btn { height: 52px; border-radius: 14px; background: #2B6BFF; color: #FFFFFF; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 16px; font-weight: 600; }
+    .btn2 { height: 48px; border-radius: 12px; background: transparent; border: 1px solid #3A4152; color: #FFFFFF; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 14px; font-weight: 600; }
+    .ribbon { display: inline-flex; align-items: center; gap: 8px; background: #0D1119; color: #FFFFFF; font-family: "Barlow Condensed", "Arial Narrow", sans-serif; font-weight: 700; text-transform: uppercase; font-size: 16px; letter-spacing: 0.5px; padding: 6px 14px 6px 10px; clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 100%, 0 100%); }
+    .lvl { font-family: "Barlow Condensed", "Arial Narrow", sans-serif; font-weight: 700; font-size: 15px; padding: 6px 16px 6px 12px; margin-left: -8px; clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 100%, 0 100%); }
+    .muted { color: #9AA3B5; }
+  </style>
+</helmet>
+<div class="screen" style="padding: 52px 14px 0 14px; display: flex; flex-direction: column; gap: 14px;">
+  <div style="position: absolute; top: 0; right: 0; width: 260px; height: 200px; background: linear-gradient(120deg, #1E5BFF 0%, #16B8B0 45%, #7CF06B 100%); clip-path: polygon(42% 0, 100% 0, 100% 40%, 74% 100%, 55% 100%); opacity: 0.95;"></div>
+  <div style="display: flex; align-items: center; gap: 10px; position: relative;">
+    <div style="position: relative; width: 40px; height: 40px;"><div style="width: 40px; height: 40px; border-radius: 20px; background: linear-gradient(135deg, #3B82F6, #1E3A8A); border: 2px solid #4C8DFF; box-sizing: border-box; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px;">S1</div><div style="position: absolute; right: -2px; bottom: -2px; width: 12px; height: 12px; border-radius: 6px; background: #22C55E; border: 2px solid #171C27;"></div></div>
+    <div style="flex-grow: 1; display: flex; justify-content: center; align-items: center; gap: 6px;"><svg width="24" height="24" viewBox="0 0 24 24"><path d="M12 2l3 7 7 3-7 3-3 7-3-7-7-3 7-3z" fill="#19C6A6"></path><circle cx="12" cy="12" r="2.6" fill="#7CF06B"></circle></svg><div class="h" style="font-size: 22px; letter-spacing: 1px;">FreeDarts</div></div>
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#F3F5F9" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"></circle><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20a6 6 0 0 0-4-5.6"></path></svg>
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#F3F5F9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 16v-5a6 6 0 0 0-12 0v5l-2 2h16zM10 21a2 2 0 0 0 4 0"></path></svg>
+  </div>
+
+  <div class="card" style="padding: 14px; display: flex; flex-direction: column; gap: 12px; position: relative;">
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <div style="position: relative; width: 40px; height: 40px;"><div style="width: 40px; height: 40px; border-radius: 20px; background: linear-gradient(135deg, #3B82F6, #1E3A8A); border: 2px solid #4C8DFF; box-sizing: border-box; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px;">S1</div><div style="position: absolute; right: -2px; bottom: -2px; width: 12px; height: 12px; border-radius: 6px; background: #22C55E; border: 2px solid #171C27;"></div></div>
+      <div style="display: flex; align-items: center;"><div class="ribbon">Spieler 1</div><div class="lvl" style="background: #19C6A6; color: #04211C;">70+</div></div>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;">
+      <div style="display: flex; flex-direction: column; gap: 2px;"><div style="font-size: 22px; font-weight: 700;">72.4</div><div class="muted" style="font-size: 12px;">3 Dart Avg</div></div>
+      <div style="display: flex; flex-direction: column; gap: 2px;"><div style="font-size: 22px; font-weight: 700;">58.0%</div><div class="muted" style="font-size: 12px;">Win Rate</div></div>
+      <div style="display: flex; flex-direction: column; gap: 2px;"><div style="font-size: 22px; font-weight: 700;">41.2%</div><div class="muted" style="font-size: 12px;">Checkout %</div></div>
+    </div>
+  </div>
+
+  <div style="height: 132px; border-radius: 16px; overflow: hidden; position: relative; background: linear-gradient(100deg, #0E3A8C 0%, #0F6E8F 60%, #16B8B0 100%);">
+    <svg width="150" height="150" viewBox="0 0 150 150" style="position: absolute; right: -10px; top: -9px;"><circle cx="75" cy="75" r="72" fill="#14161B"></circle><circle cx="75" cy="75" r="60" fill="#F1E9D2"></circle><circle cx="75" cy="75" r="52" fill="#14161B"></circle><circle cx="75" cy="75" r="40" fill="#F1E9D2"></circle><circle cx="75" cy="75" r="32" fill="#14161B"></circle><circle cx="75" cy="75" r="13" fill="#27C26A"></circle><circle cx="75" cy="75" r="6" fill="#E5484D"></circle></svg>
+    <div style="position: absolute; left: 16px; top: 22px; display: flex; flex-direction: column; gap: 6px;">
+      <div class="h" style="font-size: 30px; line-height: 1;">Play Now</div>
+      <div style="font-size: 13px; color: #DDE6F5;">Solo, gegen Freunde oder gegen den Bot</div>
+      <div style="display: inline-flex; align-items: center; gap: 6px; background: rgba(0,0,0,0.45); border-radius: 999px; padding: 5px 10px; font-size: 12px; width: fit-content; margin-top: 6px;"><div style="width: 8px; height: 8px; border-radius: 4px; background: #22C55E;"></div>Lens bereit</div>
+    </div>
+  </div>
+
+  <div style="height: 96px; border-radius: 16px; overflow: hidden; position: relative; background: linear-gradient(100deg, #1D2A4A 0%, #22346A 100%);">
+    <div style="position: absolute; left: 16px; top: 18px; display: flex; flex-direction: column; gap: 6px;">
+      <div class="h" style="font-size: 26px; line-height: 1;">Sofort spielen</div>
+      <div style="font-size: 13px; color: #DDE6F5;">X01 501 · First to 3 Legs · Spieler 1 vs Bot</div>
+    </div>
+    <div style="position: absolute; right: 14px; top: 34px;" class="btn2 chip">Last settings</div>
+  </div>
+
+  <div class="h" style="font-size: 18px;">Letzte Matches</div>
+  <div class="card" style="padding: 14px; display: flex; flex-direction: column; gap: 10px;">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <div class="badge" style="border: 1px solid #22C55E; color: #22C55E;">Sieg</div>
+      <div style="font-size: 13px;"><span class="muted">Heute</span> <b>19:42</b></div>
+      <div style="flex-grow: 1;"></div>
+      <div class="chip" style="display: flex; align-items: center; gap: 5px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#C7CDD8" stroke-width="2"><circle cx="12" cy="8" r="4"></circle><path d="M4 21a8 8 0 0 1 16 0"></path></svg>2 Spieler</div>
+    </div>
+    <div style="font-size: 18px; font-weight: 700;">Spieler 1 vs Bot Stufe 6</div>
+    <div class="muted" style="font-size: 14px;">501 <span style="color: #4C8DFF;">•</span> First to 3 Legs <span style="color: #4C8DFF;">•</span> Ø 72.4</div>
+    <div style="display: flex; gap: 6px; flex-wrap: wrap;"><div class="chip">Double Out</div><div class="chip">Lens</div><div class="chip">6:12 min</div></div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

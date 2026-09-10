@@ -29,6 +29,17 @@ Alle Daten bleiben auf dem Gerät.
   KI-Keypoints, verfeinert über Ring-Kanten/Drähte (Sub-Millimeter), zeitlicher Median; Fokus/Belichtung/Weißabgleich
   nach der Kalibrierung gesperrt; gemittelte Referenzbilder; Takeout klassisch und KI-bestätigt; Drift-Korrektur.
   Das Live-Bild wird auf die Scheibe zugeschnitten (Match-Ansicht, Lens-Screen umschaltbar).
+- **Detection Mode** wie bei Autodarts: Vollbild mit Live-Bild, Status-Pill „Detecting“, drei Dart-Symbolen und Tipps;
+  grüner Rahmen plus Vibration, sobald das Board erkannt und die Referenz gesetzt ist; Positionierungs-Meldungen
+  („Das ganze Board muss sichtbar sein“, „Näher“, „Mehr von vorn“, „Mehr von der Seite“).
+- **Remote Scoring**: Das Handy bleibt als Kamera am Board, die Spielansicht läuft im Browser eines zweiten Geräts
+  (`http://<Handy-IP>:8765`, Undo/Next aus dem Browser). Eingebauter Mini-HTTP-Server, nur im lokalen Netz.
+- **Dart-Korrektur im Match**: Dart-Slot antippen, richtiges Segment auf dem virtuellen Board wählen oder „Bouncer“;
+  gilt für die laufende und die zuletzt abgeschlossene Aufnahme, das Spiel wird neu abgespielt.
+- **Kamerabewegung**: Wird das Handy im Match bewegt, kalibriert Lens still nach und ordnet die Darts auf dem Board
+  neu zu; neu sichtbare (vorher verdeckte) Darts werden nachgetragen.
+- **Beschleunigung**: TensorFlow Lite mit GPU-Delegate (Rückfall CPU/XNNPACK); Objektivverzerrung wird, wenn der
+  Kamera-HAL es unterstützt, korrigiert.
 - **Board Manager**: optional Anbindung an einen Autodarts Board Manager im WLAN (`http://<ip>:3180/api/state`);
   Start/Stop/Reset/Kalibrieren aus der App.
 - **Bots**: elf Stufen (Ø ca. 25 bis 105), simulierte Streuung auf echter Board-Geometrie.
@@ -75,7 +86,23 @@ app/src/main/java/com/freedarts/scorer/
   ui/        AppViewModel (Navigation, Match-Logik), screens/, components/, theme/
 ```
 
+## Design
+
+Das Design (Canvas unter `design/`, Artboards als `.dc.html`) folgt dem Stil der Autodarts-App: Navy `#0B1220` mit
+diagonalen Flächen, Karten `#171C27` (Radius 16), Primär-Blau `#2B6BFF`, Überschriften in Barlow Condensed, Text in
+DM Sans, schräge Namens-Ribbons mit Level-Badge, Kategorie-Badges (X01 grün, Cricket blau, Practice orange, Party
+gelbgrün), Live-Match mit Magenta-Spielerkarte, Aufnahme-Leiste und Overlays im Kamerabild (Detecting, Darts-Zähler,
+Checkout, Caller). Umgesetzt in `ui/theme/Theme.kt`, `ui/components/AdWidgets.kt` und den Screens.
+
+## Umstieg von Autodarts
+
+Avatar-Menü mit **Devices** (Lens: „Start Lens Detection Mode“, Board Manager, Remote Scoring), Onboarding beim ersten
+Start (Profil anlegen, Devices, Play Now), „Gegner finden“ als Bot auf dem eigenen Niveau und eine Hilfeseite
+„Umstieg von Autodarts“, die Begriffe und Wege gegenüberstellt.
+
 ## Lizenzen / Danksagung
+
+- Schriften Barlow Condensed und DM Sans (`app/src/main/res/font`), SIL Open Font License 1.1.
 
 - KI-Modell aus [dart-sense](https://github.com/bnww/dart-sense) (Ben Willshaw), Lizenz **CC BY-NC 4.0**: Nutzung nur
   nicht-kommerziell, mit Namensnennung. Damit ist FreeDarts inklusive Modell ausschließlich für den privaten,

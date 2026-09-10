@@ -21,6 +21,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -32,12 +33,18 @@ import com.freedarts.scorer.model.Segment
 import com.freedarts.scorer.ui.theme.DartColors
 
 @Composable
-fun Avatar(player: Player, size: Int = 36) {
-    Box(
-        modifier = Modifier.size(size.dp).background(Color(player.color), CircleShape),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(if (player.isBot) "🤖" else player.initials, color = Color.White, fontWeight = FontWeight.Bold, fontSize = (size / 2.4).sp)
+fun Avatar(player: Player, size: Int = 36, online: Boolean = size >= 32) {
+    Box(Modifier.size(size.dp)) {
+        Box(
+            modifier = Modifier.size(size.dp).background(Color(player.color), CircleShape)
+                .border((size / 18).coerceAtLeast(1).dp, Color(player.color).copy(alpha = 0.55f).compositeOver(Color.White), CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(if (player.isBot) "B" else player.initials, color = Color.White, fontWeight = FontWeight.Bold, fontSize = (size / 2.4).sp)
+        }
+        if (online && !player.isBot) Box(
+            Modifier.align(Alignment.BottomEnd).size((size / 3.2).dp).background(DartColors.Green, CircleShape).border(2.dp, DartColors.Surface, CircleShape),
+        )
     }
 }
 

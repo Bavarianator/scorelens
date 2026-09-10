@@ -27,7 +27,6 @@ class YoloDartModel(context: Context) {
 
     companion object {
         const val ASSET = "dartsense_yolov8n.tflite"
-        const val INPUT = 640
         const val DART_CLASS = 4
         /** Board-Winkel (im Uhrzeigersinn ab oben) der Kalibrierpunkte je Klasse: 20, 3, 11, 6, (dart), 9, 15. */
         val CLASS_ANGLES = mapOf(0 to -9.0, 1 to 171.0, 2 to 261.0, 3 to 81.0, 5 to 297.0, 6 to 117.0)
@@ -53,7 +52,9 @@ class YoloDartModel(context: Context) {
     private var gpuDelegate: GpuDelegate? = null
     /** "GPU" oder "CPU" – welcher Beschleuniger aktiv ist. */
     var backend: String = "-"; private set
-    private val input: ByteBuffer = ByteBuffer.allocateDirect(4 * INPUT * INPUT * 3).order(ByteOrder.nativeOrder())
+    /** Kantenlänge des quadratischen Modelleingangs, aus dem Modell gelesen (dart-sense: 800). */
+    var inputSize = 640; private set
+    private var input: ByteBuffer = ByteBuffer.allocateDirect(0)
     private var outShape: IntArray = intArrayOf(1, 11, 8400)
     private var out: Array<Array<FloatArray>>? = null
     /** true = Eingabe [1,3,H,W] (PyTorch-Layout), false = [1,H,W,3]. */
@@ -84,7 +85,10 @@ class YoloDartModel(context: Context) {
             interpreter = created.also {
                 outShape = it.getOutputTensor(0).shape()
                 out = Array(1) { Array(outShape[1]) { FloatArray(outShape[2]) } }
-                channelsFirstInput = it.getInputTensor(0).shape().let { sh -> sh.size == 4 && sh[1] == 3 }
+                val sh = it.getInputTensor(0).shape()
+                channelsFirstInput = sh.size == 4 && sh[1] == 3
+                inputSize = if (channelsFirstInput) sh[2] else sh[1]
+                input = ByteBuffer.allocateDirect(4 * inputSize * inputSize * 3).order(ByteOrder.nativeOrder())
             }
         } catch (e: Exception) {
             interpreter = null
@@ -101,17 +105,18 @@ class YoloDartModel(context: Context) {
         val interp = interpreter ?: return null
         val output = out ?: return null
         val t0 = System.currentTimeMillis()
+        val n = inputSize
         // Letterbox
-        val scale = min(INPUT.toDouble() / width, INPUT.toDouble() / height)
+        val scale = min(n.toDouble() / width, n.toDouble() / height)
         val newW = (width * scale).roundToInt(); val newH = (height * scale).roundToInt()
-        val padX = (INPUT - newW) / 2; val padY = (INPUT - newH) / 2
+        val padX = (n - newW) / 2; val padY = (n - newH) / 2
         input.rewind()
         val grayFill = 114f / 255f
-        val plane = INPUT * INPUT
-        for (y in 0 until INPUT) {
+        val plane = n * n
+        for (y in 0 until n) {
             val sy = ((y - padY) / scale).toInt()
             val rowOk = y >= padY && y < padY + newH && sy in 0 until height
-            for (x in 0 until INPUT) {
+            for (x in 0 until n) {
                 val sx = ((x - padX) / scale).toInt()
                 val r: Float; val g: Float; val b: Float
                 if (rowOk && x >= padX && x < padX + newW && sx in 0 until width) {
@@ -119,7 +124,7 @@ class YoloDartModel(context: Context) {
                     r = (p shr 16 and 0xFF) / 255f; g = (p shr 8 and 0xFF) / 255f; b = (p and 0xFF) / 255f
                 } else { r = grayFill; g = grayFill; b = grayFill }
                 if (channelsFirstInput) {
-                    val i = y * INPUT + x
+                    val i = y * n + x
                     input.putFloat(i * 4, r); input.putFloat((plane + i) * 4, g); input.putFloat((2 * plane + i) * 4, b)
                 } else { input.putFloat(r); input.putFloat(g); input.putFloat(b) }
             }
@@ -136,7 +141,7 @@ class YoloDartModel(context: Context) {
         var maxCoord = 0f
         for (i in 0 until nBoxes step 97) maxCoord = max(maxCoord, max(v(0, i), v(1, i)))
         val normalized = maxCoord <= 1.5f
-        val f = if (normalized) INPUT.toFloat() else 1f
+        val f = if (normalized) n.toFloat() else 1f
 
         val boxes = ArrayList<Box>()
         for (i in 0 until nBoxes) {

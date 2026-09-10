@@ -16,12 +16,19 @@ Alle Daten bleiben auf dem Gerät.
 - **KI-Erkennung**: liegt `app/src/main/assets/dartsense_yolov8n.tflite` vor (Export aus
   [dart-sense](https://github.com/bnww/dart-sense), YOLOv8n, CC BY-NC 4.0), erkennt ein neuronales Netz Dartspitzen und die
   vier Kalibrierpunkte direkt auf dem Gerät. Die klassische Erkennung übernimmt Bewegungs-/Takeout-Logik und dient als Rückfall.
-  Export: `tools/export_model.sh` (benötigt Python 3.11, ultralytics, tensorflow-cpu).
+  Das Modell läuft mit seiner Trainingsgröße 800×800 px (nicht 640) und FP16-Gewichten (halbe Dateigröße, keine
+  messbare Genauigkeitseinbuße; INT8 würde die Erkennung kleiner Spitzen verschlechtern). Die Eingabegröße wird zur
+  Laufzeit aus dem Modell gelesen. Export: `tools/export_model.sh` (benötigt Python 3.11, ultralytics, tensorflow-cpu).
 - **Erkennungs-Pipeline (Autodarts-Niveau angestrebt)**: Kamera 1280×960; Bewegungs- und Stabilitätslogik auf einem
-  360×480-Graubild; KI-Spitzenerkennung auf dem hochaufgelösten Board-Ausschnitt, jeder Dart über mehrere Frames
-  bestätigt; Kalibrierung aus sechs KI-Keypoints, verfeinert über Ring-Kanten/Drähte (Sub-Millimeter), zeitlicher Median;
-  Fokus/Belichtung/Weißabgleich nach der Kalibrierung gesperrt; gemittelte Referenzbilder; Takeout klassisch und
-  KI-bestätigt; Drift-Korrektur. Das Live-Bild wird auf die Scheibe zugeschnitten (Match-Ansicht, Lens-Screen umschaltbar).
+  360×480-Graubild; KI-Spitzenerkennung auf dem hochaufgelösten Board-Ausschnitt, auf einem eigenen Thread (die
+  Bewegungslogik verpasst keine Frames). Jeder Dart wird über mindestens drei Auswertungen gemessen und der **Median**
+  verwendet (einzelne Fehlmessungen fallen heraus); nahe an einem Draht (< 1,5 mm) fünf, bei einem KI-Fund ohne
+  Bewegungsereignis vier. Gezählte Darts werden **verfolgt**: neue Spitzen werden per Nächster-Nachbar-Zuordnung von den
+  bekannten getrennt, sodass auch eng gruppierte Darts (T20-Gruppe, wenige Millimeter Abstand) einzeln zählen. Landet
+  Dart 2, bevor Dart 1 fertig bestätigt ist, wird Dart 1 mit dem bisherigen Stand abgeschlossen. Kalibrierung aus sechs
+  KI-Keypoints, verfeinert über Ring-Kanten/Drähte (Sub-Millimeter), zeitlicher Median; Fokus/Belichtung/Weißabgleich
+  nach der Kalibrierung gesperrt; gemittelte Referenzbilder; Takeout klassisch und KI-bestätigt; Drift-Korrektur.
+  Das Live-Bild wird auf die Scheibe zugeschnitten (Match-Ansicht, Lens-Screen umschaltbar).
 - **Board Manager**: optional Anbindung an einen Autodarts Board Manager im WLAN (`http://<ip>:3180/api/state`);
   Start/Stop/Reset/Kalibrieren aus der App.
 - **Bots**: elf Stufen (Ø ca. 25 bis 105), simulierte Streuung auf echter Board-Geometrie.
@@ -61,7 +68,9 @@ app/src/main/java/com/freedarts/scorer/
   engine/    Board-Geometrie, Checkout-Rechner, Bot, DartGame-Basis, games/ (alle Modi)
   data/      Repository (JSON-Dateien im App-Speicher)
   board/     BoardManagerClient (Autodarts Board Manager, Port 3180)
-  lens/      Homography, DartDetector (Bildverarbeitung), LensController (CameraX)
+  lens/      LensController (CameraX, Ablauf), FrameConverter (YUV → Bild), BoardFinder + CalibrationTracker
+             (Kalibrierung), DartDetector (Differenzbild), YoloDartModel + TipTracker (KI-Spitzen), Homography
+  remote/    RemoteServer (Mini-HTTP-Server für Remote Scoring)
   audio/     Caller (TextToSpeech, Töne)
   ui/        AppViewModel (Navigation, Match-Logik), screens/, components/, theme/
 ```

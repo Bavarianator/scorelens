@@ -2,9 +2,11 @@ package com.freedarts.scorer.engine
 
 import com.freedarts.scorer.model.Segment
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.floor
+import kotlin.math.min
 import kotlin.math.sin
 import kotlin.math.sqrt
 
@@ -62,6 +64,21 @@ object Board {
 
     /** Startwinkel (Grad, im Uhrzeigersinn ab oben) des Sektors mit Index i. */
     fun sectorStartDeg(index: Int): Double = index * SECTOR_DEG - SECTOR_DEG / 2
+
+    private val RING_RADII = doubleArrayOf(BULL_RADIUS, OUTER_BULL_RADIUS, TRIPLE_INNER, TRIPLE_OUTER, DOUBLE_INNER, DOUBLE_OUTER)
+
+    /** Abstand (mm) von (x, y) zur nächsten Segmentgrenze – Ringkante oder Sektordraht. */
+    fun distanceToWire(x: Double, y: Double): Double {
+        val r = sqrt(x * x + y * y)
+        var d = RING_RADII.minOf { abs(r - it) }
+        if (r > OUTER_BULL_RADIUS) {
+            var deg = Math.toDegrees(atan2(x, y))
+            if (deg < 0) deg += 360.0
+            val offset = (deg + SECTOR_DEG / 2) % SECTOR_DEG
+            d = min(d, r * Math.toRadians(min(offset, SECTOR_DEG - offset)))
+        }
+        return d
+    }
 
     fun deg2rad(d: Double) = d * PI / 180.0
 }

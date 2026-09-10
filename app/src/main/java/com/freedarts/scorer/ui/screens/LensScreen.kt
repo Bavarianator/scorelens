@@ -144,7 +144,7 @@ fun LensScreen(vm: AppViewModel) {
                     Text(status.guidance.ifEmpty { status.message }, fontWeight = FontWeight.Bold)
                     Text(
                         (if (ready) status.message + " · ${status.fps} fps" else "Status: ${status.message}") +
-                            (if (status.ai) " · KI ${status.aiBackend}" + (if (status.aiMs > 0) " ${status.aiMs} ms" else "") else " · klassisch") +
+                            (if (status.ai) " · KI ${status.aiBackend} ${status.aiInput}px" + (if (status.aiMs > 0) " ${status.aiMs} ms" else "") else " · klassisch") +
                             (status.calibResidualMm?.let { " · Kalibrierung ±%.1f mm".format(it) } ?: "") +
                             (if (status.cameraSize.isNotEmpty()) " · ${status.cameraSize}" else ""),
                         color = Color(0xFFDDE6F5), style = MaterialTheme.typography.bodySmall,
@@ -245,7 +245,7 @@ private fun DetectionMode(
         }
     }
     Text(
-        (if (status.ai) "KI ${status.aiBackend}" + (if (status.aiMs > 0) " · ${status.aiMs} ms" else "") else "Klassische Erkennung") +
+        (if (status.ai) "KI ${status.aiBackend} ${status.aiInput}px" + (if (status.aiMs > 0) " · ${status.aiMs} ms" else "") else "Klassische Erkennung") +
             " · ${status.fps} fps" + (status.calibResidualMm?.let { " · Kalibrierung ±%.1f mm".format(it) } ?: "") +
             (if (status.cameraSize.isNotEmpty()) " · ${status.cameraSize}" else ""),
         color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall,

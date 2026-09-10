@@ -7,6 +7,7 @@ import com.freedarts.scorer.model.GameSettings
 import com.freedarts.scorer.model.HitMode
 import com.freedarts.scorer.model.OutMode
 import com.freedarts.scorer.model.Player
+import com.freedarts.scorer.model.PlayerMatchStats
 import com.freedarts.scorer.model.Segment
 
 /** Gemeinsame Basis für rundenbasierte Modi ("Runde x / y", höchste Punktzahl gewinnt). */
@@ -120,6 +121,8 @@ class AroundTheClockGame(players: List<Player>, settings: GameSettings, seed: Lo
             else -> Segment.single(t)
         }
     }
+
+    override fun playerStats(index: Int): PlayerMatchStats = super.playerStats(index).copy(hits = progress[index])
 
     override fun buildSnapshot(): GameState = GameState(
         players = players.indices.map { i ->
@@ -247,6 +250,7 @@ class SegmentTrainingGame(players: List<Player>, settings: GameSettings, seed: L
         return false
     }
     override fun botTarget(): Segment = if (t == 25) Segment.BULL else Segment.triple(t)
+    override fun playerStats(index: Int): PlayerMatchStats = super.playerStats(index).copy(hits = score[index])
     override fun detail(i: Int): String {
         val d = dartsThrown[i]
         return if (d == 0) "Trefferquote –" else "Trefferquote %.0f %%".format(100.0 * score[i] / d)
@@ -278,12 +282,15 @@ class OneTwentyOneGame(players: List<Player>, settings: GameSettings, seed: Long
     private val attemptDarts = IntArray(players.size)
     private val attemptsDone = IntArray(players.size)
     private val successes = IntArray(players.size)
+    private val busts = IntArray(players.size)
     private var visitStart = 0
     init { resetState() }
 
     override fun resetState() {
-        target.fill(121); remaining.fill(121); attemptDarts.fill(0); attemptsDone.fill(0); successes.fill(0)
+        target.fill(121); remaining.fill(121); attemptDarts.fill(0); attemptsDone.fill(0); successes.fill(0); busts.fill(0)
     }
+
+    override fun playerStats(index: Int): PlayerMatchStats = super.playerStats(index).copy(busts = busts[index])
 
     private fun endAttempt(p: Int, success: Boolean) {
         attemptsDone[p]++
@@ -305,6 +312,7 @@ class OneTwentyOneGame(players: List<Player>, settings: GameSettings, seed: Long
             // Bust: Aufnahme zählt nicht, die restlichen Darts der Aufnahme sind verbraucht
             remaining[p] = visitStart
             attemptDarts[p] = ((attemptDarts[p] + 2) / 3) * 3
+            busts[p]++; flagBust()
             banner = "Bust"
             if (attemptDarts[p] >= 9) endAttempt(p, false)
             return true

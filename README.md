@@ -1,6 +1,6 @@
-# FreeDarts
+# Scorelens
 
-Kostenloser Darts-Scorer für Android (Kotlin, Jetpack Compose). Kein Konto, kein Abo, keine Cloud.
+(vormals FreeDarts) Kostenloser Darts-Scorer für Android (Kotlin, Jetpack Compose). Kein Konto, kein Abo, keine Cloud.
 Alle Daten bleiben auf dem Gerät.
 
 ## Funktionen

@@ -58,7 +58,7 @@ fun OnboardingScreen(vm: AppViewModel) {
         HeaderSwoosh(Modifier.align(Alignment.TopEnd), height = 220)
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
             Spacer(Modifier.height(40.dp))
-            BrandTitle("FreeDarts", size = 30)
+            BrandTitle("Scorelens", size = 30)
             Spacer(Modifier.height(6.dp))
             Text("JUST PLAY", fontFamily = Condensed, fontWeight = FontWeight.Bold, fontSize = 44.sp, lineHeight = 44.sp)
             Text("Autoscoring mit der Handykamera, alle Spielmodi, keine Abos. Lokal auf deinem Gerät.", color = DartColors.TextMuted, style = MaterialTheme.typography.bodyMedium)

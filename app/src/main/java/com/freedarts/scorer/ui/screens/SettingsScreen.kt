@@ -92,12 +92,12 @@ fun SettingsScreen(vm: AppViewModel) {
                 valueRange = 200f..2000f)
 
             SectionLabel("Über")
-            Text("FreeDarts ist ein kostenloser, lokaler Darts-Scorer ohne Konto, Abo oder Cloud. " +
+            Text("Scorelens ist ein kostenloser, lokaler Darts-Scorer ohne Konto, Abo oder Cloud. " +
                 "Eingabe über Lens (Handykamera), virtuelles Board, Gesamtscore oder Dart für Dart – optional über einen Autodarts Board Manager im lokalen Netzwerk.",
                 style = MaterialTheme.typography.bodyMedium, color = DartColors.TextMuted)
             Spacer(Modifier.height(8.dp))
             Text("KI-Modell: „dart-sense“ von Ben Willshaw (YOLOv8n), Lizenz CC BY-NC 4.0 – nur nicht-kommerzielle Nutzung. " +
-                "Board-Erkennung, Spielmodi und Oberfläche: FreeDarts.", style = MaterialTheme.typography.bodySmall, color = DartColors.TextMuted)
+                "Board-Erkennung, Spielmodi und Oberfläche: Scorelens.", style = MaterialTheme.typography.bodySmall, color = DartColors.TextMuted)
         }
     }
 }
@@ -144,7 +144,7 @@ private fun CloudRemoteSection(vm: AppViewModel) {
         Spacer(Modifier.height(10.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             SecondaryButton("Teilen", Modifier.weight(1f)) {
-                val send = Intent(Intent.ACTION_SEND).apply { type = "text/plain"; putExtra(Intent.EXTRA_TEXT, "FreeDarts Live: $link") }
+                val send = Intent(Intent.ACTION_SEND).apply { type = "text/plain"; putExtra(Intent.EXTRA_TEXT, "Scorelens Live: $link") }
                 runCatching { context.startActivity(Intent.createChooser(send, "Link teilen").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
             }
             SecondaryButton("Kopieren", Modifier.weight(1f)) { clipboard.setText(AnnotatedString(link)) }

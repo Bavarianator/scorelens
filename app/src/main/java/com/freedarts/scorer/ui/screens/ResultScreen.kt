@@ -66,12 +66,19 @@ fun StatsTable(r: MatchRecord) {
             add("First-9-Average" to { "%.2f".format(it.first9Average) })
             add("Checkout %" to { "%.1f %% (${it.checkouts}/${it.dartsAtDouble})".format(it.checkoutRate) })
             add("Höchstes Finish" to { it.highestCheckout.toString() })
+            add("Höchster Score" to { it.highestVisit.toString() })
+            add("Bestes Leg" to { if (it.bestLegDarts > 0) "${it.bestLegDarts} Darts" else "–" })
+            add("Schlechtestes Leg" to { if (it.worstLegDarts > 0) "${it.worstLegDarts} Darts" else "–" })
+            add("Busts" to { it.busts.toString() })
             add("60+" to { it.count60Plus.toString() })
             add("100+" to { it.count100Plus.toString() })
             add("140+" to { it.count140Plus.toString() })
             add("170+" to { it.count170Plus.toString() })
             add("180" to { it.count180.toString() })
         }
+        if (r.mode == GameMode.CRICKET) add("MPR" to { "%.2f".format(it.mpr) })
+        if (r.mode == GameMode.AROUND_THE_CLOCK || r.mode == GameMode.SEGMENT_TRAINING) add("Trefferquote" to { "%.0f %% (${it.hits}/${it.dartsThrown})".format(it.hitRate) })
+        if (r.mode == GameMode.GOTCHA || r.mode == GameMode.ONE_TWENTY_ONE) add("Busts" to { it.busts.toString() })
     }
     Column(Modifier.fillMaxWidth().background(DartColors.Surface, RoundedCornerShape(16.dp)).padding(12.dp)) {
         Row(Modifier.fillMaxWidth()) {

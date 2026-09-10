@@ -38,7 +38,7 @@ fun HelpScreen(vm: AppViewModel) {
         Triple("Autodarts X / Board Manager", "Devices → Board Manager", "Vorhandene Hardware im WLAN weiterverwenden."),
         Triple("Statistics · Overview / Match History", "Statistics", "Gleiche Tabs, Performance, Breakdown, Verlauf."),
         Triple("Plus: Killer, 121, Lens unbegrenzt", "Kostenlos enthalten", "Alle Modi und Lens ohne Limit."),
-        Triple("Referee, Turniere, Online-Play", "Nicht vorhanden", "Braucht Server und Konto. FreeDarts läuft komplett lokal."),
+        Triple("Referee, Turniere, Online-Play", "Nicht vorhanden", "Braucht Server und Konto. Scorelens läuft komplett lokal."),
         Triple("Caller Huw Ware", "Sprachausgabe des Systems", "Ansage von Scores, Bust und Game Shot über die Android-Sprachausgabe."),
     )
     Box(Modifier.fillMaxSize()) {
@@ -56,7 +56,7 @@ fun HelpScreen(vm: AppViewModel) {
                             }
                             Spacer(Modifier.width(10.dp))
                             Column(Modifier.weight(1f)) {
-                                Text("FREEDARTS", fontSize = 10.sp, color = DartColors.PrimaryLight, letterSpacing = 1.sp)
+                                Text("SCORELENS", fontSize = 10.sp, color = DartColors.PrimaryLight, letterSpacing = 1.sp)
                                 Text(fd, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                             }
                         }

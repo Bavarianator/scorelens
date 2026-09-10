@@ -4,6 +4,7 @@ import com.freedarts.scorer.engine.DartGame
 import com.freedarts.scorer.engine.GameState
 import com.freedarts.scorer.model.GameSettings
 import com.freedarts.scorer.model.Player
+import com.freedarts.scorer.model.PlayerMatchStats
 import com.freedarts.scorer.model.Segment
 
 /**
@@ -59,10 +60,13 @@ class GotchaGame(players: List<Player>, settings: GameSettings, seed: Long = Sys
     private var visitStart = 0
     private var visitPoints = 0
     private var closed = false
+    private val busts = IntArray(players.size)
     init { resetState() }
     private val target get() = settings.gotchaTarget
 
-    override fun resetState() { score.fill(0); visitStart = 0; visitPoints = 0; closed = false }
+    override fun resetState() { score.fill(0); visitStart = 0; visitPoints = 0; closed = false; busts.fill(0) }
+
+    override fun playerStats(index: Int): PlayerMatchStats = super.playerStats(index).copy(busts = busts[index])
 
     override fun onDart(segment: Segment): Boolean {
         val p = current
@@ -71,6 +75,7 @@ class GotchaGame(players: List<Player>, settings: GameSettings, seed: Long = Sys
         if (after > target) {
             score[p] = visitStart
             pointsScored[p] -= visitPoints; visitPoints = 0
+            busts[p]++; flagBust()
             banner = "Bust"; closed = true
             addHistory(p, "Bust", score[p].toString())
             return true

@@ -72,6 +72,8 @@ class LensController(private val context: Context) {
     )
 
     data class Detection(val segment: Segment, val imageX: Float, val imageY: Float)
+    /** Erkannter Wurf mit Auftreffpunkt in Board-Millimetern (Mitte 0/0). */
+    data class Throw(val segment: Segment, val boardX: Float, val boardY: Float)
 
     val detector = DartDetector(frameWidth, frameHeight)
     private val finder = BoardFinder(frameWidth, frameHeight)
@@ -85,8 +87,8 @@ class LensController(private val context: Context) {
     val status: StateFlow<Status> = _status
     private val _detections = MutableStateFlow<List<Detection>>(emptyList())
     val detections: StateFlow<List<Detection>> = _detections
-    private val _throws = MutableSharedFlow<Segment>(extraBufferCapacity = 8)
-    val throws: SharedFlow<Segment> = _throws
+    private val _throws = MutableSharedFlow<Throw>(extraBufferCapacity = 8)
+    val throws: SharedFlow<Throw> = _throws
     private val _takeout = MutableSharedFlow<Unit>(extraBufferCapacity = 4)
     val takeout: SharedFlow<Unit> = _takeout
 
@@ -327,7 +329,7 @@ class LensController(private val context: Context) {
         when (ev) {
             is DartDetector.Event.Dart -> {
                 _detections.value = (_detections.value + Detection(ev.segment, ev.imageX, ev.imageY)).takeLast(3)
-                _throws.tryEmit(ev.segment)
+                _throws.tryEmit(Throw(ev.segment, ev.boardX.toFloat(), ev.boardY.toFloat()))
             }
             DartDetector.Event.Takeout -> { _detections.value = emptyList(); tips.reset(); _takeout.tryEmit(Unit) }
             DartDetector.Event.ReferenceUpdated, DartDetector.Event.Bounce, null -> {}

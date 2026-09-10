@@ -11,12 +11,14 @@ import com.freedarts.scorer.model.OutMode
 import com.freedarts.scorer.model.Player
 import com.freedarts.scorer.model.PlayerMatchStats
 import com.freedarts.scorer.model.Segment
+import com.freedarts.scorer.model.WinMode
 
 class X01Game(players: List<Player>, settings: GameSettings, seed: Long = System.currentTimeMillis()) :
     DartGame(players, settings, seed) {
 
     private val scores = IntArray(players.size)
     private val opened = BooleanArray(players.size)
+    /** Legs im laufenden Set. */
     private val legsWon = IntArray(players.size)
     private val setsWon = IntArray(players.size)
     private var legStarter = 0
@@ -25,30 +27,44 @@ class X01Game(players: List<Player>, settings: GameSettings, seed: Long = System
     private var legDarts = IntArray(players.size)
     private val legPoints = IntArray(players.size)
     private var legNumber = 1
+    /** Gespielte Legs im laufenden Set bzw. gespielte Sets (für "Best of"). */
+    private var legsPlayed = 0
+    private var setsPlayed = 0
 
     // Statistik
+    private val legsWonTotal = IntArray(players.size)
     private val first9Points = IntArray(players.size)
     private val first9Darts = IntArray(players.size)
     private val checkouts = IntArray(players.size)
     private val dartsAtDouble = IntArray(players.size)
     private val highestCheckout = IntArray(players.size)
+    private val highestVisit = IntArray(players.size)
+    private val busts = IntArray(players.size)
+    private val bestLeg = IntArray(players.size)
+    private val worstLeg = IntArray(players.size)
     private val c60 = IntArray(players.size)
     private val c100 = IntArray(players.size)
     private val c140 = IntArray(players.size)
     private val c170 = IntArray(players.size)
     private val c180 = IntArray(players.size)
 
+    override val currentSet: Int get() = setsPlayed + 1
+    override val currentLeg: Int get() = legNumber
+
     init { resetState() }
 
     override fun resetState() {
         scores.fill(settings.baseScore)
         opened.fill(settings.inMode == InMode.STRAIGHT)
-        legsWon.fill(0); setsWon.fill(0)
-        legStarter = 0; visitStart = settings.baseScore; visitPoints = 0
-        legDarts.fill(0); legPoints.fill(0); legNumber = 1
+        legsWon.fill(0); setsWon.fill(0); legsWonTotal.fill(0)
+        legStarter = starter; visitStart = settings.baseScore; visitPoints = 0
+        legDarts.fill(0); legPoints.fill(0); legNumber = 1; legsPlayed = 0; setsPlayed = 0
         first9Points.fill(0); first9Darts.fill(0); checkouts.fill(0); dartsAtDouble.fill(0); highestCheckout.fill(0)
+        highestVisit.fill(0); busts.fill(0); bestLeg.fill(0); worstLeg.fill(0)
         c60.fill(0); c100.fill(0); c140.fill(0); c170.fill(0); c180.fill(0)
     }
+
+    override fun onStarterDecided(index: Int) { legStarter = index }
 
     private fun effective(seg: Segment): Segment =
         if (settings.bullMode == BullMode.B50_50 && seg == Segment.OUTER_BULL) Segment.BULL else seg
@@ -86,6 +102,8 @@ class X01Game(players: List<Player>, settings: GameSettings, seed: Long = System
             if (legDarts[p] <= 9) first9Points[p] -= visitPoints
             visitPoints = 0
             scores[p] = visitStart
+            busts[p]++
+            flagBust()
             banner = "Bust"
             addHistory(p, "Bust", scores[p].toString())
             visitClosed = true
@@ -118,6 +136,7 @@ class X01Game(players: List<Player>, settings: GameSettings, seed: Long = System
 
     private fun countVisit(p: Int) {
         val v = visitPoints
+        if (v > highestVisit[p]) highestVisit[p] = v
         if (v >= 60) c60[p]++
         if (v >= 100) c100[p]++
         if (v >= 140) c140[p]++
@@ -126,19 +145,45 @@ class X01Game(players: List<Player>, settings: GameSettings, seed: Long = System
     }
 
     private fun legWon(p: Int) {
-        legsWon[p]++
+        legsWon[p]++; legsWonTotal[p]++
+        val d = legDarts[p]
+        if (bestLeg[p] == 0 || d < bestLeg[p]) bestLeg[p] = d
+        if (d > worstLeg[p]) worstLeg[p] = d
+        legsPlayed++
         if (settings.matchMode == MatchMode.SETS) {
-            if (legsWon[p] >= settings.legs) {
-                setsWon[p]++
-                legsWon.fill(0)
-                if (setsWon[p] >= settings.sets) { finish(p, "Game Shot"); return }
-                banner = "Set gewonnen"
-            } else banner = "Leg gewonnen"
+            if (legsWon[p] >= settings.legsToWin) { setWon(p); return }
+            if (settings.winMode == WinMode.BEST_OF && legsPlayed >= settings.legs) { setDrawn(); return }
+            banner = "Leg gewonnen"
         } else {
-            if (legsWon[p] >= settings.legs) { finish(p, "Game Shot"); return }
+            if (legsWon[p] >= settings.legsToWin) { finish(p, "Game Shot"); return }
+            if (settings.winMode == WinMode.BEST_OF && legsPlayed >= settings.legs) { finish(null, "Unentschieden"); return }
             banner = "Leg gewonnen"
         }
         nextLeg()
+    }
+
+    private fun setWon(p: Int) {
+        setsWon[p]++; setsPlayed++
+        legsWon.fill(0); legsPlayed = 0
+        if (setsWon[p] >= settings.setsToWin) { finish(p, "Game Shot"); return }
+        if (settings.winMode == WinMode.BEST_OF && setsPlayed >= settings.sets) { endBySets(); return }
+        banner = "Set gewonnen"
+        nextLeg()
+    }
+
+    /** "Best of" mit gerader Leg-Zahl: Set ohne Sieger. */
+    private fun setDrawn() {
+        setsPlayed++
+        legsWon.fill(0); legsPlayed = 0
+        if (setsPlayed >= settings.sets) { endBySets(); return }
+        banner = "Set unentschieden"
+        nextLeg()
+    }
+
+    private fun endBySets() {
+        val best = setsWon.max()
+        val w = players.indices.filter { setsWon[it] == best }
+        finish(if (w.size == 1) w.first() else null, if (w.size == 1) "Game Shot" else "Unentschieden")
     }
 
     private fun nextLeg() {
@@ -161,6 +206,7 @@ class X01Game(players: List<Player>, settings: GameSettings, seed: Long = System
             if (winners.size == 1) {
                 legWon(winners.first())
             } else {
+                legsPlayed++
                 banner = "Unentschieden – neues Leg"
                 nextLeg()
             }
@@ -181,7 +227,7 @@ class X01Game(players: List<Player>, settings: GameSettings, seed: Long = System
         val left = 3 - visit.size
         val hint = if (finished) null else Checkout.describe(Checkout.bestRoute(scores[current], left.coerceAtLeast(1), settings.outMode))
         val headline = buildString {
-            if (settings.matchMode == MatchMode.SETS) append("Set ${setsWon.sum() + 1} · ")
+            if (settings.matchMode == MatchMode.SETS) append("Set ${setsPlayed + 1} · ")
             append("Leg $legNumber · Runde $round")
             if (settings.maxRounds > 0) append(" / ${settings.maxRounds}")
         }
@@ -212,11 +258,15 @@ class X01Game(players: List<Player>, settings: GameSettings, seed: Long = System
     override fun playerStats(index: Int): PlayerMatchStats = super.playerStats(index).copy(
         first9Points = first9Points[index],
         first9Darts = first9Darts[index],
-        legsWon = legsWon[index],
+        legsWon = legsWonTotal[index],
         setsWon = setsWon[index],
         checkouts = checkouts[index],
         dartsAtDouble = dartsAtDouble[index],
         highestCheckout = highestCheckout[index],
+        highestVisit = highestVisit[index],
+        busts = busts[index],
+        bestLegDarts = bestLeg[index],
+        worstLegDarts = worstLeg[index],
         count60Plus = c60[index],
         count100Plus = c100[index],
         count140Plus = c140[index],

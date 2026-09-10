@@ -100,9 +100,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     init {
         applyAudioSettings()
-        viewModelScope.launch { board.throws.collect { seg -> onBoardThrow(seg) } }
+        viewModelScope.launch { board.throws.collect { seg -> onBoardThrow(seg, null, null) } }
         viewModelScope.launch { board.takeout.collect { onBoardTakeout() } }
-        viewModelScope.launch { lens.throws.collect { seg -> onBoardThrow(seg) } }
+        viewModelScope.launch { lens.throws.collect { t -> onBoardThrow(t.segment, t.boardX, t.boardY) } }
         viewModelScope.launch { lens.takeout.collect { onBoardTakeout() } }
         lens.setSensitivity(settings.value.lensSensitivity)
         val s = settings.value
@@ -193,8 +193,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val lensStatus = lens.status.value
         if (g == null || st == null) return RemoteServer.RemoteState(false, lens = if (lensStatus.running) "Lens: ${lensStatus.message}" else "")
         val title = g.settings.mode.title + (if (g.settings.mode == GameMode.X01) " ${g.settings.baseScore}" else "")
+        val headline = st.headline + (if (st.visitLocked) " · Darts entnehmen" else "")
         return RemoteServer.RemoteState(
-            hasGame = true, title = title, headline = st.headline, banner = st.banner, checkout = st.checkoutHint,
+            hasGame = true, title = title, headline = headline, banner = st.banner, checkout = st.checkoutHint,
             visit = st.currentVisit.map { it.name }, visitSum = st.currentVisit.sumOf { it.score },
             players = st.players.mapIndexed { i, p ->
                 RemoteServer.RemotePlayer(p.player.name, p.score, p.detail, p.legs, p.sets, i == st.currentPlayer && !st.finished, p.isOut, p.history.map { it.label })
@@ -330,26 +331,35 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     // ---------- Match ----------
 
-    fun throwDart(segment: Segment) {
+    /**
+     * Dart eintragen. Manuelle Eingabe ([fromBoard] = false) schließt die Aufnahme nach dem dritten Dart, Bust oder
+     * Checkout sofort ab. Autoscoring (Lens / Board Manager) lässt die Aufnahme gesperrt, bis der Takeout erkannt
+     * wird – weitere erkannte Darts werden bis dahin ignoriert (wie bei Autodarts).
+     */
+    fun throwDart(segment: Segment, x: Float? = null, y: Float? = null, fromBoard: Boolean = false) {
         val g = game ?: return
-        if (g.finished) return
+        if (g.finished || g.visitComplete) return
         val before = g.snapshot()
-        g.throwDart(segment)
+        val botTurn = g.players[g.current].isBot
+        g.throwDart(segment, x, y)
+        if (!fromBoard || botTurn) autoNext(g)
         afterEvent(before)
     }
+
+    /** Abgeschlossene Aufnahme sofort beenden (manuelle Eingabe, Bots). */
+    private fun autoNext(g: DartGame) { if (!g.finished && g.visitComplete) g.next(auto = true) }
 
     /** Gesamtscore einer Aufnahme (Total-Score-Eingabe). Zerlegt in bis zu 3 Darts. */
     fun enterVisitTotal(total: Int) {
         val g = game ?: return
-        if (g.finished || g.visit.isNotEmpty()) return
+        if (g.finished || g.visit.isNotEmpty() || g.visitComplete || g.bullOffActive) return
         val darts = decompose(total, g)
         val before = g.snapshot()
         for (d in darts) {
-            if (g.finished) break
-            val cur = g.current
+            if (g.finished || g.visitComplete) break
             g.throwDart(d)
-            if (g.current != cur || g.visit.isEmpty()) break
         }
+        autoNext(g)
         afterEvent(before)
     }
 
@@ -415,10 +425,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             recordMatch()
             return
         }
+        if (before.bullOff) {
+            // Ausbullen: Ergebnis bzw. nächsten Werfer ansagen
+            after.banner?.let { caller.say(it) } ?: caller.say("Bull-off: ${after.players[after.currentPlayer].player.name}")
+            if (g.players[g.current].isBot) scheduleBot()
+            return
+        }
         val visitEnded = after.currentPlayer != before.currentPlayer || after.currentVisit.isEmpty()
         when {
             after.banner == "Bust" -> { caller.error(); caller.callBust() }
             after.banner == "Leg gewonnen" || after.banner == "Set gewonnen" -> { caller.ding(); caller.callLeg(playerName) }
+            after.banner == "Set unentschieden" -> { caller.ding(); caller.say(after.banner) }
             visitEnded && g.settings.mode == GameMode.X01 -> {
                 val lastVisit = before.players[before.currentPlayer].let { p -> after.players[before.currentPlayer].history.lastOrNull() }
                 val score = lastVisit?.label?.toIntOrNull()
@@ -443,9 +460,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             delay(delayMs)
             while (!g.finished && g.players[g.current].isBot) {
                 val bot = g.players[g.current]
-                val seg = Bot.throwAt(g.botTarget(), bot.botLevel)
+                val seg = Bot.throwAt(g.botAim(), bot.botLevel)
                 val before = g.snapshot()
                 g.throwDart(seg)
+                autoNext(g)
                 afterEventQuiet(before)
                 if (g.finished) break
                 delay(delayMs)
@@ -463,6 +481,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             caller.ding(); caller.callGameShot(after.winnerIndex?.let { g.players[it].name } ?: "Niemand")
             recordMatch(); return
         }
+        if (before.bullOff) { after.banner?.let { caller.say(it) }; return }
         val visitEnded = after.currentPlayer != before.currentPlayer || after.currentVisit.isEmpty()
         if (after.banner == "Bust") caller.callBust()
         else if (visitEnded && g.settings.mode == GameMode.X01 && settings.value.callerCallsEveryVisit) {
@@ -486,6 +505,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             finishedAt = System.currentTimeMillis(),
             winnerId = g.winner?.let { g.players[it].id },
             players = g.players.indices.map { g.playerStats(it) },
+            throws = g.throwLog,
         )
         repo.addMatch(record)
         _lastRecord.value = record
@@ -508,17 +528,18 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         board.disconnect()
     }
 
-    private fun onBoardThrow(seg: Segment) {
+    private fun onBoardThrow(seg: Segment, x: Float?, y: Float?) {
         val g = game ?: return
         if (_screen.value != Screen.Match || g.finished) return
         if (g.players[g.current].isBot) return
-        throwDart(seg)
+        throwDart(seg, x, y, fromBoard = true)
     }
 
+    /** Takeout erkannt: gesperrte oder angefangene Aufnahme beenden, nächster Spieler. */
     private fun onBoardTakeout() {
         val g = game ?: return
-        if (_screen.value != Screen.Match || g.finished) return
-        if (g.visit.isNotEmpty() && !g.players[g.current].isBot) nextPlayer()
+        if (_screen.value != Screen.Match || g.finished || g.bullOffActive) return
+        if ((g.visit.isNotEmpty() || g.visitComplete) && !g.players[g.current].isBot) nextPlayer()
     }
 
     // ---------- Lens (Kamera) ----------

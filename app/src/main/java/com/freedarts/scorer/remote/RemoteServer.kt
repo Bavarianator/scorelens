@@ -108,7 +108,7 @@ class RemoteServer(private val stateProvider: () -> RemoteState, private val onC
     }
 
     private val PAGE = """<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>FreeDarts Remote</title>
+<title>Scorelens Remote</title>
 <style>
 body{margin:0;background:#0A0E17;color:#EEF1F6;font-family:system-ui,sans-serif}
 .top{display:flex;justify-content:space-between;align-items:center;padding:12px 18px;color:#8B95A7}
@@ -129,7 +129,7 @@ body{margin:0;background:#0A0E17;color:#EEF1F6;font-family:system-ui,sans-serif}
 button{flex:1;background:#1C2331;color:#fff;border:1px solid #263042;border-radius:10px;padding:14px;font-size:18px}
 button.p{background:#2F6BFF;border-color:#2F6BFF}
 </style></head><body>
-<div class="top"><div id="title">FreeDarts</div><div id="lens"></div></div>
+<div class="top"><div id="title">Scorelens</div><div id="lens"></div></div>
 <div id="banner" class="banner" style="display:none"></div>
 <div class="players" id="players"></div>
 <div class="visit" id="visit"></div>

@@ -95,7 +95,7 @@ fun HomeScreen(vm: AppViewModel) {
                         }
                     }
                 }
-                Box(Modifier.weight(1f), contentAlignment = Alignment.Center) { BrandTitle("FreeDarts", size = 22) }
+                Box(Modifier.weight(1f), contentAlignment = Alignment.Center) { BrandTitle("Scorelens", size = 22) }
                 IconButton(onClick = { vm.navigate(Screen.Players) }) { Icon(Icons.Default.Group, "Spieler") }
                 IconButton(onClick = { vm.navigate(Screen.Settings) }) { Icon(Icons.Default.Settings, "Einstellungen") }
             }

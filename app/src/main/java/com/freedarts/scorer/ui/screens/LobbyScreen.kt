@@ -50,6 +50,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.freedarts.scorer.model.BullMode
+import com.freedarts.scorer.model.BullOff
 import com.freedarts.scorer.model.CricketVariant
 import com.freedarts.scorer.model.GameMode
 import com.freedarts.scorer.model.GameSettings
@@ -58,6 +59,7 @@ import com.freedarts.scorer.model.InMode
 import com.freedarts.scorer.model.MatchMode
 import com.freedarts.scorer.model.OutMode
 import com.freedarts.scorer.model.Player
+import com.freedarts.scorer.model.WinMode
 import com.freedarts.scorer.ui.AppViewModel
 import com.freedarts.scorer.ui.Screen
 import com.freedarts.scorer.ui.components.AdCard
@@ -238,15 +240,29 @@ fun LobbyScreen(vm: AppViewModel) {
     }
 }
 
+/** "First to 3 Legs" / "Best of 5 Sets" wie in der Autodarts-Lobby. */
+fun matchTitle(gs: GameSettings): String {
+    val prefix = if (gs.winMode == WinMode.BEST_OF) "Best of" else "First to"
+    return if (gs.matchMode == MatchMode.SETS) "$prefix ${gs.sets} Set" + (if (gs.sets > 1) "s" else "")
+    else "$prefix ${gs.legs} Leg" + (if (gs.legs > 1) "s" else "")
+}
+
+private fun starterChips(gs: GameSettings): List<String> = when {
+    gs.bullOff == BullOff.OFFICIAL -> listOf("Bull-off (offiziell)")
+    gs.bullOff == BullOff.NORMAL -> listOf("Bull-off")
+    gs.randomStarter -> listOf("Zufälliger Start")
+    else -> emptyList()
+}
+
 fun settingsChips(gs: GameSettings): List<String> = when (gs.mode) {
     GameMode.X01 -> listOf(
         gs.baseScore.toString(),
-        if (gs.matchMode == MatchMode.SETS) "First to ${gs.sets} Sets" else "First to ${gs.legs} Leg" + if (gs.legs > 1) "s" else "",
+        matchTitle(gs),
         when (gs.inMode) { InMode.STRAIGHT -> "Straight In"; InMode.DOUBLE -> "Double In"; InMode.MASTER -> "Master In" },
         when (gs.outMode) { OutMode.STRAIGHT -> "Straight Out"; OutMode.DOUBLE -> "Double Out"; OutMode.MASTER -> "Master Out" },
         if (gs.bullMode == BullMode.B25_50) "Bull 25/50" else "Bull 50/50",
-    ) + (if (gs.maxRounds > 0) listOf("Max ${gs.maxRounds} Runden") else emptyList())
-    GameMode.CRICKET -> listOf(when (gs.cricketVariant) { CricketVariant.STANDARD -> "Standard"; CricketVariant.CUT_THROAT -> "Cut Throat"; CricketVariant.TACTICS -> "Tactics" }) + (if (gs.maxRounds > 0) listOf("Max ${gs.maxRounds} Runden") else emptyList())
+    ) + (if (gs.maxRounds > 0) listOf("Max ${gs.maxRounds} Runden") else emptyList()) + starterChips(gs)
+    GameMode.CRICKET -> listOf(when (gs.cricketVariant) { CricketVariant.STANDARD -> "Standard"; CricketVariant.CUT_THROAT -> "Cut Throat"; CricketVariant.TACTICS -> "Tactics" }) + (if (gs.maxRounds > 0) listOf("Max ${gs.maxRounds} Runden") else emptyList()) + starterChips(gs)
     GameMode.AROUND_THE_CLOCK -> listOf(when (gs.hitMode) { HitMode.ANY -> "Beliebig"; HitMode.SINGLE -> "Single"; HitMode.DOUBLE -> "Double"; HitMode.TRIPLE -> "Triple" }, if (gs.includeBull) "Mit Bull" else "Ohne Bull", if (gs.randomOrder) "Zufällig" else "1–20")
     GameMode.COUNT_UP, GameMode.SHANGHAI, GameMode.SEGMENT_TRAINING -> listOf("${gs.rounds} Runden") + (if (gs.mode == GameMode.SEGMENT_TRAINING) listOf("Ziel " + (if (gs.trainingSegment == 25) "Bull" else gs.trainingSegment.toString())) else emptyList())
     GameMode.ROUND_THE_WORLD -> listOf("1–${gs.rounds}", if (gs.includeBull) "Mit Bull" else "Ohne Bull")
@@ -294,6 +310,13 @@ private fun NumberRow(label: String, value: Int, range: IntRange, step: Int = 1,
     }
 }
 
+/** Startspieler: Bull-off (Aus / Normal / Offiziell) oder zufällig – wie in der Autodarts-Lobby. */
+@Composable
+private fun StarterSettings(gs: GameSettings, onChange: (GameSettings) -> Unit) {
+    OptionRow("Bull-off", listOf(BullOff.OFF to "Aus", BullOff.NORMAL to "Normal", BullOff.OFFICIAL to "Offiziell"), gs.bullOff) { onChange(gs.copy(bullOff = it)) }
+    if (gs.bullOff == BullOff.OFF) SwitchRow("Zufälliger Startspieler", gs.randomStarter) { onChange(gs.copy(randomStarter = it)) }
+}
+
 @Composable
 private fun SwitchRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
     Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -307,16 +330,20 @@ fun ModeSettings(gs: GameSettings, onChange: (GameSettings) -> Unit) {
         GameMode.X01 -> {
             OptionRow("Startwert", listOf(121, 170, 301, 501, 701, 901, 1001).map { it to it.toString() }, gs.baseScore) { onChange(gs.copy(baseScore = it)) }
             OptionRow("Match-Modus", listOf(MatchMode.LEGS to "Legs", MatchMode.SETS to "Sets"), gs.matchMode) { onChange(gs.copy(matchMode = it)) }
-            NumberRow(if (gs.matchMode == MatchMode.SETS) "Legs pro Set (First to)" else "Legs (First to)", gs.legs, 1..21) { onChange(gs.copy(legs = it)) }
-            if (gs.matchMode == MatchMode.SETS) NumberRow("Sets (First to)", gs.sets, 1..13) { onChange(gs.copy(sets = it)) }
+            OptionRow("Wertung", listOf(WinMode.FIRST_TO to "First to", WinMode.BEST_OF to "Best of"), gs.winMode) { onChange(gs.copy(winMode = it)) }
+            val winLabel = if (gs.winMode == WinMode.BEST_OF) "Best of" else "First to"
+            NumberRow(if (gs.matchMode == MatchMode.SETS) "Legs pro Set ($winLabel)" else "Legs ($winLabel)", gs.legs, 1..21) { onChange(gs.copy(legs = it)) }
+            if (gs.matchMode == MatchMode.SETS) NumberRow("Sets ($winLabel)", gs.sets, 1..13) { onChange(gs.copy(sets = it)) }
             OptionRow("In-Modus", listOf(InMode.STRAIGHT to "Straight In", InMode.DOUBLE to "Double In", InMode.MASTER to "Master In"), gs.inMode) { onChange(gs.copy(inMode = it)) }
             OptionRow("Out-Modus", listOf(OutMode.STRAIGHT to "Straight Out", OutMode.DOUBLE to "Double Out", OutMode.MASTER to "Master Out"), gs.outMode) { onChange(gs.copy(outMode = it)) }
             OptionRow("Bull-Modus", listOf(BullMode.B25_50 to "25 / 50", BullMode.B50_50 to "50 / 50"), gs.bullMode) { onChange(gs.copy(bullMode = it)) }
             NumberRow("Max. Runden (0 = ∞)", gs.maxRounds, 0..50) { onChange(gs.copy(maxRounds = it)) }
+            StarterSettings(gs, onChange)
         }
         GameMode.CRICKET -> {
             OptionRow("Variante", listOf(CricketVariant.STANDARD to "Standard", CricketVariant.CUT_THROAT to "Cut Throat", CricketVariant.TACTICS to "Tactics (10–20)"), gs.cricketVariant) { onChange(gs.copy(cricketVariant = it)) }
             NumberRow("Max. Runden (0 = ∞)", gs.maxRounds, 0..50) { onChange(gs.copy(maxRounds = it)) }
+            StarterSettings(gs, onChange)
         }
         GameMode.AROUND_THE_CLOCK -> {
             OptionRow("Trefferart", listOf(HitMode.ANY to "Beliebig", HitMode.SINGLE to "Single", HitMode.DOUBLE to "Double", HitMode.TRIPLE to "Triple"), gs.hitMode) { onChange(gs.copy(hitMode = it)) }

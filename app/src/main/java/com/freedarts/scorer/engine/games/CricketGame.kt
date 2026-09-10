@@ -5,6 +5,7 @@ import com.freedarts.scorer.engine.GameState
 import com.freedarts.scorer.model.CricketVariant
 import com.freedarts.scorer.model.GameSettings
 import com.freedarts.scorer.model.Player
+import com.freedarts.scorer.model.PlayerMatchStats
 import com.freedarts.scorer.model.Segment
 
 class CricketGame(players: List<Player>, settings: GameSettings, seed: Long = System.currentTimeMillis()) :
@@ -97,6 +98,9 @@ class CricketGame(players: List<Player>, settings: GameSettings, seed: Long = Sy
         headline = "Runde $round" + if (settings.maxRounds > 0) " / ${settings.maxRounds}" else "",
         cricketTargets = targets,
     )
+
+    override fun playerStats(index: Int): PlayerMatchStats =
+        super.playerStats(index).copy(marks = marks[index].values.sum())
 
     /** Marks per Round. */
     private fun mpr(i: Int): String {

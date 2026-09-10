@@ -36,8 +36,11 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.freedarts.scorer.engine.Board
 import com.freedarts.scorer.model.GameMode
 import com.freedarts.scorer.model.MatchRecord
+import com.freedarts.scorer.model.PlayerMatchStats
+import java.util.Calendar
 import com.freedarts.scorer.ui.AppViewModel
 import com.freedarts.scorer.ui.components.AdCard
 import com.freedarts.scorer.ui.components.AdTopBar
@@ -62,7 +65,18 @@ fun StatsScreen(vm: AppViewModel, startTab: Int = 0) {
     var tab by remember { mutableIntStateOf(startTab) }
     var selected by remember { mutableStateOf(settings.profilePlayerId ?: players.firstOrNull()?.id) }
     var modeFilter by remember { mutableStateOf(GameMode.X01) }
+    /** Zeitraum: 0 = heute, 1 = 7 Tage, 2 = 30 Tage, 3 = gesamt (wie der Zeitraum-Filter bei Autodarts). */
+    var range by remember { mutableIntStateOf(3) }
     val df = remember { SimpleDateFormat("dd.MM.yy HH:mm", Locale.GERMANY) }
+    val since = remember(range) {
+        val now = System.currentTimeMillis()
+        when (range) {
+            0 -> Calendar.getInstance().apply { set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0) }.timeInMillis
+            1 -> now - 7 * 86_400_000L
+            2 -> now - 30 * 86_400_000L
+            else -> 0L
+        }
+    }
 
     Box(Modifier.fillMaxSize()) {
         com.freedarts.scorer.ui.components.ScreenBackground()
@@ -80,12 +94,16 @@ fun StatsScreen(vm: AppViewModel, startTab: Int = 0) {
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     players.forEach { p -> Chip(p.name, selected = selected == p.id) { selected = p.id } }
                 }
+                Spacer(Modifier.height(6.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    listOf("Heute", "7 Tage", "30 Tage", "Gesamt").forEachIndexed { i, label -> Chip(label, selected = range == i) { range = i } }
+                }
                 Spacer(Modifier.height(8.dp))
 
-                val mine = matches.filter { m -> m.players.any { it.playerId == selected } }
+                val mine = matches.filter { m -> m.finishedAt >= since && m.players.any { it.playerId == selected } }
                 if (tab == 0) {
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        listOf(GameMode.X01, GameMode.CRICKET, GameMode.COUNT_UP, GameMode.RANDOM_CHECKOUT, GameMode.AROUND_THE_CLOCK, GameMode.SHANGHAI, GameMode.KILLER).forEach { m ->
+                        GameMode.values().forEach { m ->
                             Chip(m.title, selected = modeFilter == m) { modeFilter = m }
                         }
                     }
@@ -132,8 +150,12 @@ fun StatsScreen(vm: AppViewModel, startTab: Int = 0) {
                             StatLine("First-9 Average", "%.2f".format(stats.filter { it.first9Darts > 0 }.let { l -> val d = l.sumOf { it.first9Darts }; if (d == 0) 0.0 else l.sumOf { it.first9Points }.toDouble() / d * 3 }))
                             StatLine("Checkout-Quote", "%.1f %%".format(coOf(stats)))
                             StatLine("Höchstes Finish", (stats.maxOfOrNull { it.highestCheckout } ?: 0).toString())
+                            StatLine("Höchster Score", (stats.maxOfOrNull { it.highestVisit } ?: 0).toString())
+                            StatLine("Bestes Leg", stats.filter { it.bestLegDarts > 0 }.minOfOrNull { it.bestLegDarts }?.let { "$it Darts" } ?: "–")
+                            StatLine("Schlechtestes Leg", stats.maxOfOrNull { it.worstLegDarts }?.takeIf { it > 0 }?.let { "$it Darts" } ?: "–")
                             StatLine("180er", stats.sumOf { it.count180 }.toString())
                             StatLine("170+ / 140+ / 100+ / 60+", "${stats.sumOf { it.count170Plus }} / ${stats.sumOf { it.count140Plus }} / ${stats.sumOf { it.count100Plus }} / ${stats.sumOf { it.count60Plus }}")
+                            StatLine("Busts", stats.sumOf { it.busts }.toString())
                             StatLine("Darts geworfen", darts.toString())
                         }
                     } else {
@@ -142,7 +164,34 @@ fun StatsScreen(vm: AppViewModel, startTab: Int = 0) {
                             StatLine("Spiele / Siege", "${filtered.size} / ${stats.count { it.won }}")
                             StatLine("Darts geworfen", stats.sumOf { it.dartsThrown }.toString())
                             StatLine("Bestes Ergebnis", stats.maxByOrNull { it.finalScore.toIntOrNull() ?: 0 }?.finalScore ?: "–")
+                            when (modeFilter) {
+                                GameMode.CRICKET -> {
+                                    val d = stats.sumOf { it.dartsThrown }
+                                    StatLine("MPR (Marks per Round)", "%.2f".format(if (d == 0) 0.0 else stats.sumOf { it.marks }.toDouble() / d * 3))
+                                    StatLine("Beste MPR", "%.2f".format(stats.maxOfOrNull { it.mpr } ?: 0.0))
+                                }
+                                GameMode.AROUND_THE_CLOCK, GameMode.SEGMENT_TRAINING -> {
+                                    val d = stats.sumOf { it.dartsThrown }
+                                    StatLine("Trefferquote", "%.1f %%".format(if (d == 0) 0.0 else 100.0 * stats.sumOf { it.hits } / d))
+                                    StatLine("Beste Trefferquote", "%.1f %%".format(stats.maxOfOrNull { it.hitRate } ?: 0.0))
+                                }
+                                GameMode.COUNT_UP, GameMode.ROUND_THE_WORLD, GameMode.SHANGHAI, GameMode.BERMUDA -> {
+                                    val d = stats.sumOf { it.dartsThrown }
+                                    StatLine("3-Dart Average", "%.2f".format(if (d == 0) 0.0 else stats.sumOf { it.pointsScored }.toDouble() / d * 3))
+                                }
+                                GameMode.GOTCHA, GameMode.ONE_TWENTY_ONE -> StatLine("Busts", stats.sumOf { it.busts }.toString())
+                                else -> {}
+                            }
                         }
+                    }
+                    // Trefferbild aus dem Wurfprotokoll (nur Würfe mit Position, d.h. Lens / Board Manager)
+                    val points = filtered.flatMap { m ->
+                        val idx = m.players.indexOfFirst { it.playerId == selected }
+                        m.throws.filter { it.player == idx && it.leg > 0 && it.x != null && it.y != null }.map { it.x!! to it.y!! }
+                    }
+                    if (points.isNotEmpty()) {
+                        SectionLabel("Trefferbild", trailing = { Chip("${points.size} Darts") })
+                        AdCard { HitMap(points, Modifier.fillMaxWidth().aspectRatio(1f)) }
                     }
                 } else {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -160,7 +209,9 @@ fun StatsScreen(vm: AppViewModel, startTab: Int = 0) {
 @Composable
 private fun MatchRow(m: MatchRecord, selectedId: String?, df: SimpleDateFormat) {
     val me = m.players.firstOrNull { it.playerId == selectedId } ?: return
-    AdCard(Modifier.padding(bottom = 8.dp), padding = 10) {
+    var open by remember(m.id) { mutableStateOf(false) }
+    val legs = remember(m.id) { if (m.mode == GameMode.X01) m.legs() else emptyList() }
+    AdCard(Modifier.padding(bottom = 8.dp), padding = 10, onClick = if (legs.isNotEmpty()) ({ open = !open }) else null) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(m.players.joinToString(" vs ") { it.playerName }, fontWeight = FontWeight.SemiBold)
@@ -168,6 +219,45 @@ private fun MatchRow(m: MatchRecord, selectedId: String?, df: SimpleDateFormat) 
                     color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
             }
             Badge(if (me.won) "Sieg" else if (m.winnerId == null) "Remis" else "Niederlage", Color.White, if (me.won) DartColors.GreenDark else if (m.winnerId == null) DartColors.SurfaceHigh else DartColors.RedDark)
+        }
+        // Leg-für-Leg-Verlauf aus dem Wurfprotokoll
+        if (open) {
+            Spacer(Modifier.height(6.dp))
+            legs.forEach { leg ->
+                val label = (if (m.settings.sets > 1 || leg.set > 1) "Set ${leg.set} · " else "") + "Leg ${leg.leg}"
+                val detail = m.players.indices.joinToString("   ") { p ->
+                    "${m.players[p].playerName.take(10)} ${leg.darts[p]} Darts Ø %.1f".format(leg.average(p)) + (if (leg.winner == p) " ✓" else "")
+                }
+                Row(Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
+                    Text(label, Modifier.width(90.dp), color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
+                    Text(detail, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        }
+    }
+}
+
+/** Trefferbild: alle Auftreffpunkte (Board-mm) auf einer schematischen Scheibe. */
+@Composable
+fun HitMap(points: List<Pair<Float, Float>>, modifier: Modifier = Modifier) {
+    Canvas(modifier) {
+        val cx = size.width / 2; val cy = size.height / 2
+        val scale = (minOf(size.width, size.height) / 2) / Board.DOUBLE_OUTER.toFloat() * 0.96f
+        val ringColor = DartColors.Outline
+        listOf(Board.DOUBLE_OUTER, Board.DOUBLE_INNER, Board.TRIPLE_OUTER, Board.TRIPLE_INNER, Board.OUTER_BULL_RADIUS, Board.BULL_RADIUS).forEach { r ->
+            drawCircle(ringColor, radius = r.toFloat() * scale, center = androidx.compose.ui.geometry.Offset(cx, cy), style = Stroke(1.5f))
+        }
+        // Sektorlinien
+        for (i in 0 until 20) {
+            val a = Math.toRadians(Board.sectorStartDeg(i))
+            val r0 = Board.OUTER_BULL_RADIUS.toFloat() * scale; val r1 = Board.DOUBLE_OUTER.toFloat() * scale
+            drawLine(ringColor,
+                androidx.compose.ui.geometry.Offset(cx + (Math.sin(a) * r0).toFloat(), cy - (Math.cos(a) * r0).toFloat()),
+                androidx.compose.ui.geometry.Offset(cx + (Math.sin(a) * r1).toFloat(), cy - (Math.cos(a) * r1).toFloat()), strokeWidth = 1f)
+        }
+        val dot = DartColors.Lime.copy(alpha = 0.55f)
+        points.forEach { (x, y) ->
+            drawCircle(dot, radius = 3.5f, center = androidx.compose.ui.geometry.Offset(cx + x * scale, cy - y * scale))
         }
     }
 }

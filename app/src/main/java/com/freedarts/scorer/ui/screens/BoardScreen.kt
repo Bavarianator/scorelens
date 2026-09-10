@@ -44,7 +44,7 @@ fun BoardScreen(vm: AppViewModel) {
     Column(Modifier.fillMaxSize()) {
         TopBar("Board Manager", onBack = { vm.back() })
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("Verbinde FreeDarts mit einem Autodarts Board Manager im selben WLAN (Standard-Port 3180). " +
+            Text("Verbinde Scorelens mit einem Autodarts Board Manager im selben WLAN (Standard-Port 3180). " +
                 "Erkannte Würfe werden automatisch in das laufende Spiel übernommen – die Kamera-Erkennung selbst bleibt kostenlos.",
                 style = MaterialTheme.typography.bodyMedium, color = DartColors.TextMuted)
             OutlinedTextField(value = host, onValueChange = { host = it }, label = { Text("IP-Adresse / Hostname") }, singleLine = true, modifier = Modifier.fillMaxWidth())

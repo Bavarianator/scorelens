@@ -85,7 +85,7 @@ fun LensScreen(vm: AppViewModel) {
             if (!granted) {
                 AdCard {
                     Text("Kamera-Zugriff", style = MaterialTheme.typography.titleMedium)
-                    Text("FreeDarts erkennt deine Darts mit der Handykamera – direkt auf dem Gerät, ohne Konto und ohne Limit.", color = DartColors.TextMuted)
+                    Text("Scorelens erkennt deine Darts mit der Handykamera – direkt auf dem Gerät, ohne Konto und ohne Limit.", color = DartColors.TextMuted)
                     Spacer(Modifier.height(10.dp))
                     PrimaryButton("Kamera-Zugriff erlauben", Modifier.fillMaxWidth(), icon = Icons.Default.CameraAlt) { launcher.launch(Manifest.permission.CAMERA) }
                 }

@@ -117,7 +117,7 @@ fun MatchScreen(vm: AppViewModel) {
     } else emptySet()
     val gs = game.settings
     val title = when (gs.mode) {
-        GameMode.X01 -> if (gs.matchMode == MatchMode.SETS) "First to ${gs.sets} Sets" else "First to ${gs.legs} Leg" + (if (gs.legs > 1) "s" else "")
+        GameMode.X01 -> matchTitle(gs)
         else -> gs.mode.title
     }
     val lensOn = lensStatus.running
@@ -138,7 +138,7 @@ fun MatchScreen(vm: AppViewModel) {
         // Kopfzeile
         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = { confirmAbort = true }) { Icon(Icons.Default.Close, "Spiel beenden") }
-            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) { Chip("$title · ${s.headline}") }
+            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) { Chip("$title · ${s.headline}" + if (s.visitLocked) " · Darts entnehmen" else "") }
             if (lensOn) StatusPill("Lens", when (lensStatus.phase) {
                 DartDetector.Phase.TAKEOUT -> DartColors.Accent; DartDetector.Phase.MOTION -> DartColors.PrimaryLight
                 DartDetector.Phase.NO_REFERENCE -> DartColors.Red; else -> DartColors.Green

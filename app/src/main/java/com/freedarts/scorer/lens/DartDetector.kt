@@ -66,8 +66,13 @@ class DartDetector(val width: Int, val height: Int) {
     var handFraction = 0.10
     /** Mindestgröße eines Dart-Blobs (Pixel). */
     var minBlob = 18
+    /** Höchstgröße eines Dart-Blobs (Pixel); größere Änderungen sind Hand, Arm oder Licht. Wird bei der Kalibrierung gesetzt. */
+    var maxBlob = Int.MAX_VALUE
     /** Frames ohne Änderung, bis ein Ereignis ausgewertet wird. */
     var stableNeeded = 3
+    /** Frames in Folge mit Hand im Bild, bevor ein Takeout beginnt (ein Dart, der einen anderen trifft, ist nur kurz „groß“). */
+    var minHandFrames = 2
+    private var handFrames = 0
 
     /** Kalibrierung setzen: 4 Bildpunkte (Pixelkoordinaten des Graubilds) in Reihenfolge [CALIBRATION_LABELS]. */
     fun calibrate(imagePoints: List<Pair<Double, Double>>): Boolean = calibrateWith(imagePoints, boardPoints())
@@ -87,6 +92,7 @@ class DartDetector(val width: Int, val height: Int) {
             if (bx * bx + by * by <= 185.0 * 185.0) { r[y * width + x] = true; c++ }
         }
         roi = r; roiCount = c
+        maxBlob = (boardRadiusPx * boardRadiusPx * 0.08).toInt().coerceAtLeast(200)
         return c > 100
     }
 
@@ -177,12 +183,16 @@ class DartDetector(val width: Int, val height: Int) {
 
         when (phase) {
             Phase.IDLE -> {
-                if (changed >= minBlob) { phase = Phase.MOTION; stableFrames = 0; motionFrames = 0 }
+                if (changed >= minBlob) {
+                    phase = Phase.MOTION; stableFrames = 0; motionFrames = 0
+                    handFrames = if (changed > roiCount * handFraction) 1 else 0
+                }
                 return null
             }
             Phase.MOTION -> {
-                // Hand im Bild → sofort Takeout-Phase
-                if (changed > roiCount * handFraction) { phase = Phase.TAKEOUT; stableFrames = 0; return null }
+                // Hand im Bild: erst nach [minHandFrames] Frames in Folge Takeout-Phase
+                if (changed > roiCount * handFraction) handFrames++ else handFrames = 0
+                if (handFrames >= minHandFrames) { phase = Phase.TAKEOUT; stableFrames = 0; handFrames = 0; return null }
                 if (stableFrames < stableNeeded) return null
                 // Stabil: auswerten
                 return when {
@@ -273,7 +283,7 @@ class DartDetector(val width: Int, val height: Int) {
             }
             if (size > bestSize) { bestSize = size; bestLabel = label }
         }
-        if (bestSize < minBlob) return null
+        if (bestSize < minBlob || bestSize > maxBlob) return null
 
         // Pixel des Blobs sammeln
         val xs = DoubleArray(bestSize); val ys = DoubleArray(bestSize)

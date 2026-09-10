@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Der Autodarts Board Manager im LAN spricht nur HTTP (Port 3180). -->
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

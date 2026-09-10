@@ -1,0 +1,90 @@
+package com.freedarts.scorer.ui.screens
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.freedarts.scorer.model.GameMode
+import com.freedarts.scorer.model.MatchRecord
+import com.freedarts.scorer.ui.AppViewModel
+import com.freedarts.scorer.ui.theme.DartColors
+
+@Composable
+fun ResultScreen(vm: AppViewModel) {
+    val record by vm.lastRecord.collectAsStateWithLifecycle()
+    val r = record
+    Column(Modifier.fillMaxSize()) {
+        TopBar("Ergebnis", onBack = { vm.goHome() })
+        if (r == null) { Text("Kein Ergebnis vorhanden", Modifier.padding(16.dp)); return }
+        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(16.dp)) {
+            val winner = r.players.firstOrNull { it.won }
+            Text(winner?.let { "🏆 ${it.playerName} gewinnt" } ?: "Unentschieden", style = MaterialTheme.typography.headlineMedium)
+            Text("${r.mode.title} · Spielzeit ${formatDuration(r.durationMillis)}", color = DartColors.TextMuted)
+            Spacer(Modifier.height(16.dp))
+            StatsTable(r)
+        }
+        Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            OutlinedButton(onClick = { vm.goHome() }, Modifier.weight(1f).height(50.dp)) { Text("Menü") }
+            Button(onClick = { vm.rematch() }, Modifier.weight(1f).height(50.dp)) { Text("Rematch") }
+        }
+    }
+}
+
+@Composable
+fun StatsTable(r: MatchRecord) {
+    val x01 = r.mode == GameMode.X01
+    val rows: List<Pair<String, (com.freedarts.scorer.model.PlayerMatchStats) -> String>> = buildList {
+        add("Ergebnis" to { it.finalScore })
+        if (r.settings.legs > 1 || r.settings.sets > 1) add("Legs / Sets" to { "${it.legsWon} / ${it.setsWon}" })
+        add("Darts" to { it.dartsThrown.toString() })
+        if (x01 || r.mode == GameMode.COUNT_UP) add("3-Dart-Average" to { "%.2f".format(it.average3) })
+        if (x01) {
+            add("First-9-Average" to { "%.2f".format(it.first9Average) })
+            add("Checkout %" to { "%.1f %% (${it.checkouts}/${it.dartsAtDouble})".format(it.checkoutRate) })
+            add("Höchstes Finish" to { it.highestCheckout.toString() })
+            add("60+" to { it.count60Plus.toString() })
+            add("100+" to { it.count100Plus.toString() })
+            add("140+" to { it.count140Plus.toString() })
+            add("170+" to { it.count170Plus.toString() })
+            add("180" to { it.count180.toString() })
+        }
+    }
+    Column(Modifier.fillMaxWidth().background(DartColors.Surface, RoundedCornerShape(12.dp)).padding(8.dp)) {
+        Row(Modifier.fillMaxWidth()) {
+            Spacer(Modifier.width(120.dp))
+            r.players.forEach { p -> Text(p.playerName, Modifier.weight(1f), textAlign = TextAlign.Center, fontWeight = FontWeight.Bold, maxLines = 1) }
+        }
+        rows.forEach { (label, f) ->
+            Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(label, Modifier.width(120.dp), color = DartColors.TextMuted)
+                r.players.forEach { p -> Text(f(p), Modifier.weight(1f), textAlign = TextAlign.Center) }
+            }
+        }
+    }
+}
+
+fun formatDuration(ms: Long): String {
+    val s = ms / 1000
+    return "%d:%02d min".format(s / 60, s % 60)
+}

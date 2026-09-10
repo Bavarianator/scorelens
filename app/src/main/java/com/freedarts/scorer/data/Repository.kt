@@ -1,0 +1,81 @@
+package com.freedarts.scorer.data
+
+import android.content.Context
+import com.freedarts.scorer.model.AppSettings
+import com.freedarts.scorer.model.MatchRecord
+import com.freedarts.scorer.model.Player
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.json.Json
+import java.io.File
+
+/**
+ * Einfache, lokale Persistenz als JSON-Dateien im App-Speicher.
+ * Keine Cloud, kein Konto – alles bleibt auf dem Gerät.
+ */
+class Repository private constructor(context: Context) {
+
+    private val dir: File = context.filesDir
+    private val json = Json { ignoreUnknownKeys = true; prettyPrint = false; encodeDefaults = true }
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    private val _players = MutableStateFlow(load("players.json", ListSerializer(Player.serializer())) ?: defaultPlayers())
+    val players: StateFlow<List<Player>> = _players
+
+    private val _settings = MutableStateFlow(load("settings.json", AppSettings.serializer()) ?: AppSettings())
+    val settings: StateFlow<AppSettings> = _settings
+
+    private val _matches = MutableStateFlow(load("matches.json", ListSerializer(MatchRecord.serializer())) ?: emptyList())
+    val matches: StateFlow<List<MatchRecord>> = _matches
+
+    private fun defaultPlayers() = listOf(Player(name = "Spieler 1", color = Player.AVATAR_COLORS[0]))
+
+    fun addPlayer(player: Player) { _players.update { it + player }; persistPlayers() }
+    fun updatePlayer(player: Player) { _players.update { list -> list.map { if (it.id == player.id) player else it } }; persistPlayers() }
+    fun removePlayer(id: String) { _players.update { list -> list.filter { it.id != id } }; persistPlayers() }
+
+    fun updateSettings(transform: (AppSettings) -> AppSettings) {
+        _settings.update(transform)
+        save("settings.json", AppSettings.serializer(), _settings.value)
+    }
+
+    fun addMatch(record: MatchRecord) {
+        _matches.update { (it + record).takeLast(500) }
+        save("matches.json", ListSerializer(MatchRecord.serializer()), _matches.value)
+    }
+
+    fun clearMatches() {
+        _matches.value = emptyList()
+        save("matches.json", ListSerializer(MatchRecord.serializer()), emptyList())
+    }
+
+    private fun persistPlayers() = save("players.json", ListSerializer(Player.serializer()), _players.value)
+
+    private fun <T> load(name: String, serializer: kotlinx.serialization.KSerializer<T>): T? = try {
+        val f = File(dir, name)
+        if (f.exists()) json.decodeFromString(serializer, f.readText()) else null
+    } catch (e: Exception) { null }
+
+    private fun <T> save(name: String, serializer: kotlinx.serialization.KSerializer<T>, value: T) {
+        val text = json.encodeToString(serializer, value)
+        scope.launch {
+            val f = File(dir, name)
+            val tmp = File(dir, "$name.tmp")
+            tmp.writeText(text)
+            tmp.renameTo(f)
+        }
+    }
+
+    companion object {
+        @Volatile private var instance: Repository? = null
+        fun get(context: Context): Repository = instance ?: synchronized(this) {
+            instance ?: Repository(context.applicationContext).also { instance = it }
+        }
+    }
+}

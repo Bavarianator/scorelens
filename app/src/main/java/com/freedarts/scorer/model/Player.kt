@@ -1,0 +1,34 @@
+package com.freedarts.scorer.model
+
+import kotlinx.serialization.Serializable
+import java.util.UUID
+
+@Serializable
+data class Player(
+    val id: String = UUID.randomUUID().toString(),
+    val name: String,
+    /** ARGB-Farbe für Avatar. */
+    val color: Long = 0xFF3F51B5,
+    /** 0 = Mensch, 1..11 = Bot-Stufe (wie bei Autodarts elf Stufen). */
+    val botLevel: Int = 0,
+) {
+    val isBot: Boolean get() = botLevel > 0
+    val initials: String get() = name.trim().split(" ").filter { it.isNotBlank() }.take(2).joinToString("") { it.first().uppercase() }
+
+    companion object {
+        val AVATAR_COLORS = listOf(
+            0xFF3F51B5, 0xFFE53935, 0xFF43A047, 0xFFFB8C00, 0xFF8E24AA,
+            0xFF00ACC1, 0xFFD81B60, 0xFF6D4C41, 0xFF039BE5, 0xFF7CB342,
+        )
+
+        fun bot(level: Int): Player = Player(
+            id = "bot-$level",
+            name = "Bot Stufe $level",
+            color = 0xFF546E7A,
+            botLevel = level,
+        )
+
+        /** Ungefährer 3-Dart-Average der Bot-Stufen (an Autodarts angelehnt). */
+        fun botAverage(level: Int): Int = listOf(0, 25, 32, 40, 47, 55, 62, 70, 78, 86, 95, 105)[level.coerceIn(0, 11)]
+    }
+}

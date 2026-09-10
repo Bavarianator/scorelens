@@ -7,6 +7,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -66,6 +67,9 @@ fun LensScreen(vm: AppViewModel) {
     var manual by remember { mutableStateOf(false) }
     var showAdvanced by remember { mutableStateOf(false) }
     var cropView by remember { mutableStateOf(true) }
+    var showTools by remember { mutableStateOf(false) }
+    val remoteUrl by vm.remoteUrl.collectAsStateWithLifecycle()
+    val gameState by vm.gameState.collectAsStateWithLifecycle()
     var calibration by remember { mutableStateOf(settings.lensCalibration.takeIf { it.size == 8 } ?: defaultCalibration()) }
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
         granted = ok
@@ -100,12 +104,22 @@ fun LensScreen(vm: AppViewModel) {
                 return@Column
             }
 
+            // ---- Detection Mode (wie Autodarts): nur Kamera, Status-Pill, drei Dart-Symbole, Tipps ----
+            if (!showTools && !manual) {
+                DetectionMode(
+                    vm, status, detections, calibration, cropView, remoteUrl,
+                    visitCount = gameState?.currentVisit?.size ?: detections.size,
+                    onTools = { showTools = true },
+                )
+                return@Column
+            }
             LensPreview(
                 vm.lens, calibration, detections, editable = manual, status = status,
                 cropToBoard = cropView && !manual && status.setup == LensController.Setup.READY,
                 onTap = { nx, ny -> vm.lens.hintTop(nx, ny) },
                 onCalibrationChange = { calibration = it },
             )
+            TextButton(onClick = { showTools = false; manual = false; vm.setLensCalibration(calibration) }) { Text("← Zurück zum Detection Mode") }
             if (status.setup == LensController.Setup.READY && !manual) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Live-Bild auf die Scheibe zuschneiden", Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = DartColors.TextMuted)
@@ -182,6 +196,86 @@ fun LensScreen(vm: AppViewModel) {
             }
             Spacer(Modifier.height(24.dp))
         }
+    }
+}
+
+@Composable
+private fun DetectionMode(
+    vm: AppViewModel,
+    status: LensController.Status,
+    detections: List<LensController.Detection>,
+    calibration: List<Float>,
+    crop: Boolean,
+    remoteUrl: String?,
+    visitCount: Int,
+    onTools: () -> Unit,
+) {
+    val ready = status.setup == LensController.Setup.READY
+    Box {
+        LensPreview(vm.lens, calibration, detections, editable = false, status = status,
+            cropToBoard = crop && ready, onTap = { nx, ny -> vm.lens.hintTop(nx, ny) })
+        // Status-Pill oben
+        Row(
+            Modifier.padding(12.dp).background(if (ready) DartColors.GreenDark else DartColors.SurfaceHigh, RoundedCornerShape(20.dp))
+                .border(1.dp, if (ready) DartColors.Lime else DartColors.Accent, RoundedCornerShape(20.dp)).padding(horizontal = 12.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(if (ready) Icons.Default.CheckCircle else Icons.Default.Search, null, tint = if (ready) DartColors.Lime else DartColors.Accent, modifier = Modifier.width(18.dp))
+            Spacer(Modifier.width(6.dp))
+            Text(if (ready) "Detecting" else "Suche Board", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
+        }
+    }
+    // Meldung (Positionierung / Bereit)
+    Text(status.guidance.ifEmpty { status.message }, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium,
+        color = if (ready) DartColors.Lime else Color.White)
+    // Drei Dart-Symbole der aktuellen Aufnahme
+    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+        for (i in 0 until 3) {
+            val d = detections.getOrNull(i)
+            val filled = i < visitCount || d != null
+            Row(
+                Modifier.weight(1f).background(if (filled) DartColors.PrimaryDark else DartColors.Surface, RoundedCornerShape(10.dp))
+                    .border(1.dp, if (filled) DartColors.Primary else DartColors.Outline, RoundedCornerShape(10.dp)).padding(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("🎯", style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.width(6.dp))
+                Text(d?.segment?.name ?: if (filled) "✓" else "—", fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+    Text(
+        (if (status.ai) "KI ${status.aiBackend}" + (if (status.aiMs > 0) " · ${status.aiMs} ms" else "") else "Klassische Erkennung") +
+            " · ${status.fps} fps" + (status.calibResidualMm?.let { " · Kalibrierung ±%.1f mm".format(it) } ?: "") +
+            (if (status.cameraSize.isNotEmpty()) " · ${status.cameraSize}" else ""),
+        color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall,
+    )
+    if (remoteUrl != null) {
+        AdCard(padding = 10) {
+            Text("Remote Scoring aktiv", fontWeight = FontWeight.Bold)
+            Text("Spielansicht im Browser eines zweiten Geräts: $remoteUrl", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
+        }
+    }
+    Text(
+        when {
+            !ready -> "Tipp: Stativ nutzen, ganzes Board ins Bild, leicht seitlich, gleichmäßiges Licht. Liegt das Gitter falsch, auf die 20 tippen."
+            else -> "Tipp: Verdeckt ein Dart einen anderen, den vorderen ziehen oder das Handy leicht drehen – der fehlende Dart wird nachgetragen. App offen lassen."
+        },
+        color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall,
+    )
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (vm.game != null) PrimaryButton("Zum Match", Modifier.weight(1f)) { vm.navigate(Screen.Match) }
+        else PrimaryButton("Spiel starten", Modifier.weight(1f)) { vm.navigate(Screen.Lobby) }
+        SecondaryButton("Done", Modifier.weight(1f)) { vm.back() }
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        SecondaryButton("Neu erkennen", Modifier.weight(1f), icon = Icons.Default.Refresh) { vm.lens.startSearch() }
+        SecondaryButton(if (status.torch) "Licht aus" else "Licht", Modifier.weight(1f), icon = Icons.Default.FlashlightOn) { vm.lens.setTorch(!status.torch) }
+        SecondaryButton("Werkzeuge", Modifier.weight(1f)) { onTools() }
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        SecondaryButton(if (remoteUrl != null) "Remote aus" else "Remote Scoring", Modifier.weight(1f)) { if (remoteUrl != null) vm.stopRemote() else vm.startRemote() }
+        SecondaryButton("Kamera stoppen", Modifier.weight(1f)) { vm.stopLens() }
     }
 }
 

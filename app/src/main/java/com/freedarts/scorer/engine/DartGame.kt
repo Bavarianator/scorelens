@@ -39,6 +39,28 @@ abstract class DartGame(
     val startedAt: Long = System.currentTimeMillis()
     val eventCount: Int get() = events.size
     val canUndo: Boolean get() = events.isNotEmpty()
+    /** Anzahl Darts der zuletzt abgeschlossenen Aufnahme (für Korrekturen nach dem dritten Dart). */
+    var lastVisitThrows = 0; private set
+
+    /** Darts, die korrigiert werden können: laufende Aufnahme, sonst die zuletzt abgeschlossene. */
+    fun correctableDarts(): List<Segment> {
+        if (visit.isNotEmpty()) return visit.toList()
+        val idx = lastThrowIndices(lastVisitThrows)
+        return idx.map { (events[it] as GameEvent.Throw).segment }
+    }
+
+    private fun lastThrowIndices(n: Int): List<Int> =
+        events.indices.reversed().filter { events[it] is GameEvent.Throw }.take(n).reversed()
+
+    /** Ersetzt den Dart mit Index [index] (siehe [correctableDarts]) und spielt das Spiel neu ab. */
+    fun correctDart(index: Int, segment: Segment): Boolean {
+        val n = if (visit.isNotEmpty()) visit.size else lastVisitThrows
+        val idx = lastThrowIndices(n)
+        if (index !in idx.indices) return false
+        events[idx[index]] = GameEvent.Throw(segment)
+        rebuild()
+        return true
+    }
 
     init {
         // Unterklassen rufen resetState() im eigenen init auf.
@@ -72,7 +94,7 @@ abstract class DartGame(
         val copy = events.toList()
         events.clear()
         random = Random(seed)
-        visit.clear(); current = 0; round = 1; finished = false; winner = null; banner = null; turnOverridden = false
+        visit.clear(); current = 0; round = 1; finished = false; winner = null; banner = null; turnOverridden = false; lastVisitThrows = 0
         history.forEach { it.clear() }
         out.fill(false); dartsThrown.fill(0); pointsScored.fill(0)
         resetState()
@@ -86,6 +108,7 @@ abstract class DartGame(
     /** Beendet die aktuelle Aufnahme und gibt den nächsten Spieler frei. */
     protected fun completeVisit() {
         onVisitEnd()
+        lastVisitThrows = visit.size
         visit.clear()
         if (finished) return
         if (turnOverridden) { turnOverridden = false; return }

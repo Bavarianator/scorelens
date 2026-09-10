@@ -85,6 +85,7 @@ fun MatchScreen(vm: AppViewModel) {
     var showSettings by remember { mutableStateOf(false) }
     var confirmAbort by remember { mutableStateOf(false) }
     var showCamera by remember { mutableStateOf(true) }
+    var correctIndex by remember { mutableStateOf(-1) }
     val s = state ?: return
     val game = vm.game ?: return
 
@@ -143,7 +144,8 @@ fun MatchScreen(vm: AppViewModel) {
                 }
                 Spacer(Modifier.height(8.dp))
                 // Dart-Slots der Aufnahme
-                DartSlots(s.currentVisit)
+                val correctable = if (s.currentVisit.isNotEmpty()) s.currentVisit else vm.correctableDarts()
+                DartSlots(correctable, onTap = { i -> if (!s.finished && i < correctable.size) correctIndex = i })
                 Banner(s.banner, Modifier.padding(top = 6.dp))
                 s.cricketTargets?.let { Spacer(Modifier.height(6.dp)); CricketTable(s.players, it) }
                 if (settings.showCheckoutGuide && s.checkoutHint != null && !s.finished) {
@@ -255,6 +257,25 @@ fun MatchScreen(vm: AppViewModel) {
             confirmButton = { TextButton(onClick = { showSettings = false }) { Text("Schließen") } },
         )
     }
+    if (correctIndex >= 0) {
+        val darts = if (s.currentVisit.isNotEmpty()) s.currentVisit else vm.correctableDarts()
+        val current = darts.getOrNull(correctIndex)
+        AlertDialog(
+            onDismissRequest = { correctIndex = -1 },
+            title = { Text("Dart ${correctIndex + 1} korrigieren" + (current?.let { " (${it.name})" } ?: "")) },
+            text = {
+                Column {
+                    Text("Tippe auf das richtige Segment, oder markiere den Dart als Bouncer.", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
+                    Spacer(Modifier.height(8.dp))
+                    Dartboard(Modifier.fillMaxWidth(), darts = current?.let { listOf(it) } ?: emptyList(), enabled = true) { seg ->
+                        vm.correctDart(correctIndex, seg); correctIndex = -1
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { vm.correctDart(correctIndex, Segment.MISS); correctIndex = -1 }) { Text("Bouncer / Miss", color = DartColors.Red) } },
+            dismissButton = { TextButton(onClick = { correctIndex = -1 }) { Text("Abbrechen") } },
+        )
+    }
     if (confirmAbort) {
         AlertDialog(
             onDismissRequest = { confirmAbort = false },
@@ -307,14 +328,14 @@ private fun LegCounter(n: Int, unit: String) {
 }
 
 @Composable
-private fun DartSlots(darts: List<Segment>) {
+private fun DartSlots(darts: List<Segment>, onTap: (Int) -> Unit = {}) {
     Row(
         Modifier.fillMaxWidth().background(DartColors.Surface, RoundedCornerShape(12.dp)).border(1.dp, DartColors.Outline, RoundedCornerShape(12.dp)).padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         for (i in 0 until 3) {
             val d = darts.getOrNull(i)
-            Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.weight(1f).clickable(enabled = d != null) { onTap(i) }, verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.width(10.dp).height(10.dp).background(if (d != null) DartColors.Primary else DartColors.Outline, RoundedCornerShape(5.dp)))
                 Spacer(Modifier.width(6.dp))
                 Text(d?.name ?: "—", fontWeight = FontWeight.Bold, color = if (d != null) Color.White else DartColors.TextMuted)

@@ -90,6 +90,8 @@ class LensController(private val context: Context) {
     val takeout: SharedFlow<Unit> = _takeout
 
     var onCalibrationChanged: ((List<Float>) -> Unit)? = null
+    /** Wird aufgerufen, sobald Lens nach einer Suche bereit ist (z.B. für Vibration). */
+    var onReady: (() -> Unit)? = null
 
     @Volatile var lastFrame: ByteArray = ByteArray(frameWidth * frameHeight); private set
     private val executor = Executors.newSingleThreadExecutor()
@@ -122,6 +124,7 @@ class LensController(private val context: Context) {
     private var lastAiPoll = 0L
     private var calibResidual: Double? = null
     private var cameraW = 0; private var cameraH = 0
+    private var lastImg: ImageProxy? = null
 
     /** Bereits gezählte Dartspitzen der aktuellen Aufnahme (Analyse-Koordinaten). */
     private val knownTips = ArrayList<Pair<Double, Double>>()
@@ -293,7 +296,7 @@ class LensController(private val context: Context) {
             lastFrameTime = now
             lastRotation = img.imageInfo.rotationDegrees
             cameraW = img.width; cameraH = img.height
-            val idleStill = detector.phase == DartDetector.Phase.IDLE && detector.dartsOnBoard == 0 && detector.lastMotionFraction < 0.003
+            val idleStill = detector.phase == DartDetector.Phase.IDLE && detector.lastMotionFraction < 0.003 && candidate == null
             val wantColor = autoCalibrate && (setup == Setup.SEARCHING || (setup == Setup.READY && now - lastFinderTime > 4000 && idleStill))
             val (gray, rgb) = extract(img, wantColor)
             lastFrame = gray
@@ -347,9 +350,11 @@ class LensController(private val context: Context) {
         }
         detector.setReference(if (n >= 2) avg else gray)
         lockCamera(true)
+        val wasReady = setup == Setup.READY
         setup = Setup.READY
         stillFrames = 0
         knownTips.clear(); candidate = null; aiEmptyPolls = 0
+        if (!wasReady) onReady?.invoke()
     }
 
     /**
@@ -444,6 +449,7 @@ class LensController(private val context: Context) {
     // ---------- Kalibrierung ----------
 
     private fun calibrateFromFrame(img: ImageProxy, rgb: IntArray, gray: ByteArray) {
+        lastImg = img
         var fit: BoardFinder.Fit? = null
         if (yolo.available) {
             val (full, w, h, ox, oy) = extractBoardRgb(img, onlyIfCalibrated = setup == Setup.READY) ?: return
@@ -502,17 +508,49 @@ class LensController(private val context: Context) {
                 }
                 driftCount = if (moved) driftCount + 1 else 0
                 if (driftCount >= 2) {
+                    // Kamera wurde bewegt: neu kalibrieren, Darts auf dem Board neu zuordnen (nichts geht verloren)
+                    val oldInv = detector.imageToBoard
+                    val boardTips = knownTips.mapNotNull { t -> oldInv?.map(t.first, t.second) }
                     calibrationNormalized = norm
                     detector.calibrate(median)
                     calibResidual = fit.residualMm
                     applyAutoBlob()
-                    detector.setReference(gray)
-                    knownTips.clear(); candidate = null
+                    detector.setReferenceKeepingDarts(gray)
                     driftCount = 0
                     onCalibrationChanged?.invoke(norm)
+                    resyncTips(boardTips)
                 }
             }
             else -> {}
+        }
+    }
+
+    /**
+     * Nach einer Kamerabewegung: bekannte Darts (in Board-mm) den aktuell sichtbaren KI-Spitzen zuordnen.
+     * Neu sichtbare Darts (vorher verdeckt) werden als Kandidat nachgetragen.
+     */
+    private fun resyncTips(boardTips: List<Pair<Double, Double>>) {
+        val img = lastImg ?: return
+        val inv = detector.imageToBoard ?: return
+        val b2i = detector.boardToImage ?: return
+        knownTips.clear()
+        val seen = if (yolo.available) {
+            val (rgb, w, h, ox, oy) = extractBoardRgb(img) ?: return
+            val res = yolo.detect(rgb, w, h) ?: return
+            res.darts.map { toAnalysis(it.x + ox, it.y + oy) }
+        } else emptyList()
+        val unmatched = ArrayList(seen)
+        for (bt in boardTips) {
+            val (px, py) = b2i.map(bt.first, bt.second)
+            val near = unmatched.minByOrNull { hypot(it.first - px, it.second - py) }
+            if (near != null) {
+                val (bx, by) = inv.map(near.first, near.second)
+                if (hypot(bx - bt.first, by - bt.second) < 14.0) { knownTips.add(near); unmatched.remove(near); continue }
+            }
+            knownTips.add(px to py) // nicht (mehr) sichtbar: alte Position beibehalten
+        }
+        if (unmatched.isNotEmpty() && detector.dartsOnBoard < 3) {
+            candidate = Candidate(unmatched.first().first, unmatched.first().second, 1, 1, null, System.currentTimeMillis())
         }
     }
 
@@ -529,10 +567,13 @@ class LensController(private val context: Context) {
             setup == Setup.FOUND -> "Board erkannt ✓ – kurz ruhig halten"
             fit == null -> if (yolo.available) "Suche Board … ganzes Board ins Bild, gutes Licht" else "Board nicht gefunden: ganzes Board ins Bild, mehr Licht"
             else -> when (fit.quality) {
-                BoardFinder.Quality.GOOD -> "Board erkannt ✓"
-                BoardFinder.Quality.PARTIAL -> "Weiter weg – das ganze Board muss sichtbar sein"
+                BoardFinder.Quality.GOOD -> {
+                    val ratio = if (fit.ellipse.a > 0) minOf(fit.ellipse.a, fit.ellipse.b) / maxOf(fit.ellipse.a, fit.ellipse.b) else 0.85
+                    if (ratio > 0.97) "Board erkannt ✓ – etwas mehr von der Seite ist besser" else "Board erkannt ✓"
+                }
+                BoardFinder.Quality.PARTIAL -> "Das ganze Board muss sichtbar sein – weiter zurück"
                 BoardFinder.Quality.TOO_SMALL -> "Näher ans Board"
-                BoardFinder.Quality.TOO_SKEWED -> "Weniger schräg aufstellen"
+                BoardFinder.Quality.TOO_SKEWED -> "Mehr von vorn – weniger schräg"
                 BoardFinder.Quality.INACCURATE -> "Ruhig halten, Licht gleichmäßiger"
                 BoardFinder.Quality.NOT_FOUND -> "Board nicht gefunden: ganzes Board ins Bild, mehr Licht"
             }

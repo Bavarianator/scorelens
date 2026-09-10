@@ -53,7 +53,7 @@ fun FreeDartsApp(vm: AppViewModel, onKeepScreenOn: (Boolean) -> Unit) {
     val screen by vm.screen.collectAsStateWithLifecycle()
     val settings by vm.settings.collectAsStateWithLifecycle()
 
-    LaunchedEffect(screen, settings.keepScreenOn) { onKeepScreenOn(screen == Screen.Match && settings.keepScreenOn) }
+    LaunchedEffect(screen, settings.keepScreenOn) { onKeepScreenOn((screen == Screen.Match || screen == Screen.Lens) && settings.keepScreenOn) }
 
     BackHandler(enabled = screen != Screen.Home) {
         if (screen == Screen.Match) return@BackHandler // Abbruch nur über den Button im Match

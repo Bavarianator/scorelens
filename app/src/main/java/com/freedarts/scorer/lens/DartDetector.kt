@@ -104,6 +104,16 @@ class DartDetector(val width: Int, val height: Int) {
         stableFrames = 0
     }
 
+    /** Neue Referenz (z.B. nach Kamerabewegung), Darts bleiben gezählt; leeres Board bleibt unbekannt bis zum Takeout. */
+    fun setReferenceKeepingDarts(gray: ByteArray) {
+        System.arraycopy(gray, 0, reference, 0, reference.size)
+        System.arraycopy(gray, 0, previous, 0, previous.size)
+        if (dartsOnBoard == 0) System.arraycopy(gray, 0, emptyBoard, 0, emptyBoard.size)
+        refVsEmpty = if (dartsOnBoard == 0) 0 else countDiff(reference, emptyBoard, pixelThreshold)
+        phase = Phase.IDLE
+        stableFrames = 0
+    }
+
     fun reset() { phase = if (hasEmpty) Phase.IDLE else Phase.NO_REFERENCE; dartsOnBoard = 0; stableFrames = 0 }
 
     /** Ein extern (KI) erkannter Dart: aktuelles Bild wird Referenz, Zähler steigt. */

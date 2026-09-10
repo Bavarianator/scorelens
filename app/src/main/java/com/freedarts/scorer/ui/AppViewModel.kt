@@ -12,6 +12,11 @@ import com.freedarts.scorer.engine.DartGame
 import com.freedarts.scorer.engine.GameFactory
 import com.freedarts.scorer.engine.GameState
 import com.freedarts.scorer.lens.LensController
+import com.freedarts.scorer.remote.RemoteServer
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import androidx.lifecycle.LifecycleOwner
 import com.freedarts.scorer.model.AppSettings
 import com.freedarts.scorer.model.GameMode
@@ -49,6 +54,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val caller = Caller(app)
     val board = BoardManagerClient(viewModelScope)
     val lens = LensController(app)
+    val remote = RemoteServer({ remoteState() }) { cmd -> viewModelScope.launch { when (cmd) { "undo" -> undo(); "next" -> nextPlayer() } } }
+    private val _remoteUrl = MutableStateFlow<String?>(null)
+    val remoteUrl: StateFlow<String?> = _remoteUrl
 
     val players: StateFlow<List<Player>> = repo.players
     val settings: StateFlow<AppSettings> = repo.settings
@@ -87,7 +95,58 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         lens.setSensitivity(settings.value.lensSensitivity)
         val s = settings.value
         if (s.boardManagerEnabled) board.connect(s.boardManagerHost, s.boardManagerPort)
+        if (s.remoteEnabled) startRemote()
+        lens.onReady = { vibrate() }
     }
+
+    // ---------- Remote Scoring ----------
+
+    fun startRemote() {
+        if (remote.start()) {
+            _remoteUrl.value = remote.localAddress()?.let { "http://$it:${RemoteServer.PORT}" } ?: "http://<IP>:${RemoteServer.PORT}"
+            repo.updateSettings { it.copy(remoteEnabled = true) }
+        }
+    }
+
+    fun stopRemote() {
+        remote.stop(); _remoteUrl.value = null
+        repo.updateSettings { it.copy(remoteEnabled = false) }
+    }
+
+    private fun remoteState(): RemoteServer.RemoteState {
+        val g = game; val st = _gameState.value
+        val lensStatus = lens.status.value
+        if (g == null || st == null) return RemoteServer.RemoteState(false, lens = if (lensStatus.running) "Lens: ${lensStatus.message}" else "")
+        val title = g.settings.mode.title + (if (g.settings.mode == GameMode.X01) " ${g.settings.baseScore}" else "")
+        return RemoteServer.RemoteState(
+            hasGame = true, title = title, headline = st.headline, banner = st.banner, checkout = st.checkoutHint,
+            visit = st.currentVisit.map { it.name }, visitSum = st.currentVisit.sumOf { it.score },
+            players = st.players.mapIndexed { i, p ->
+                RemoteServer.RemotePlayer(p.player.name, p.score, p.detail, p.legs, p.sets, i == st.currentPlayer && !st.finished, p.isOut, p.history.map { it.label })
+            },
+            finished = st.finished,
+            lens = if (lensStatus.running) "Lens: ${lensStatus.message}" else "",
+        )
+    }
+
+    private fun vibrate() {
+        try {
+            val app = getApplication<Application>()
+            val v = if (Build.VERSION.SDK_INT >= 31) (app.getSystemService(Application.VIBRATOR_MANAGER_SERVICE) as VibratorManager).defaultVibrator
+            else @Suppress("DEPRECATION") app.getSystemService(Application.VIBRATOR_SERVICE) as Vibrator
+            v.vibrate(VibrationEffect.createOneShot(90, VibrationEffect.DEFAULT_AMPLITUDE))
+        } catch (_: Exception) { }
+    }
+
+    /** Dart der laufenden (oder zuletzt abgeschlossenen) Aufnahme korrigieren – wie die Dart-Korrektur bei Autodarts. */
+    fun correctDart(index: Int, segment: Segment) {
+        val g = game ?: return
+        botJob?.cancel()
+        if (g.correctDart(index, segment)) { refresh(); caller.beep() }
+        if (g.players[g.current].isBot && !g.finished) scheduleBot()
+    }
+
+    fun correctableDarts(): List<Segment> = game?.correctableDarts() ?: emptyList()
 
     // ---------- Navigation ----------
 
@@ -398,5 +457,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         caller.shutdown()
         board.disconnect()
         lens.stop()
+        remote.stop()
     }
 }

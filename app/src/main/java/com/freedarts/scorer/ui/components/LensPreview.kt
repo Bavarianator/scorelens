@@ -186,6 +186,13 @@ fun LensPreview(
                 }
             }
 
+            // Rahmen wie bei Autodarts: grün = bereit, blau = kalibriert (wartet auf Ruhe)
+            when (status?.setup) {
+                LensController.Setup.READY -> drawRect(DartColors.Lime, style = Stroke(10f))
+                LensController.Setup.FOUND -> drawRect(DartColors.Primary, style = Stroke(10f))
+                else -> {}
+            }
+
             // Erkannte Darts
             detections.forEachIndexed { idx, d ->
                 val p = toView(d.imageX.toDouble(), d.imageY.toDouble())

@@ -51,6 +51,12 @@ fun SettingsScreen(vm: AppViewModel) {
             SettingSwitch("Checkout-Guide", s.showCheckoutGuide) { v -> vm.updateSettings { it.copy(showCheckoutGuide = v) } }
             SettingSwitch("Bildschirm im Match anlassen", s.keepScreenOn) { v -> vm.updateSettings { it.copy(keepScreenOn = v) } }
 
+            SectionLabel("Remote Scoring")
+            val remoteUrl by vm.remoteUrl.collectAsStateWithLifecycle()
+            SettingSwitch("Spielansicht im Browser (zweites Gerät)", remoteUrl != null) { on -> if (on) vm.startRemote() else vm.stopRemote() }
+            Text(remoteUrl?.let { "Im WLAN öffnen: $it" } ?: "Das Handy bleibt als Lens-Kamera am Board, Scores laufen auf Tablet, PC oder TV.",
+                color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
+
             SectionLabel("Bot")
             Text("Wurfpause: ${s.botDelayMillis} ms", color = DartColors.TextMuted)
             Slider(value = s.botDelayMillis.toFloat(), onValueChange = { v -> vm.updateSettings { it.copy(botDelayMillis = (v / 100).toInt() * 100L) } },

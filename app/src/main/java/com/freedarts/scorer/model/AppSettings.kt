@@ -30,6 +30,9 @@ data class AppSettings(
     val lensSensitivity: Int = 50,
     val lensUseFrontCamera: Boolean = false,
 
+    /** Remote Scoring: Spielansicht im Browser eines zweiten Geräts (Port 8765). */
+    val remoteEnabled: Boolean = false,
+
     /** Spieler, dessen Statistiken auf dem Dashboard erscheinen (Profil). */
     val profilePlayerId: String? = null,
 

@@ -3,6 +3,8 @@ package com.freedarts.scorer.lens
 import android.content.Context
 import com.freedarts.scorer.engine.Board
 import org.tensorflow.lite.Interpreter
+import org.tensorflow.lite.gpu.CompatibilityList
+import org.tensorflow.lite.gpu.GpuDelegate
 import java.io.FileInputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -48,19 +50,41 @@ class YoloDartModel(context: Context) {
     private class Box(val cls: Int, val conf: Float, val cx: Float, val cy: Float, val w: Float, val h: Float)
 
     private var interpreter: Interpreter? = null
+    private var gpuDelegate: GpuDelegate? = null
+    /** "GPU" oder "CPU" – welcher Beschleuniger aktiv ist. */
+    var backend: String = "-"; private set
     private val input: ByteBuffer = ByteBuffer.allocateDirect(4 * INPUT * INPUT * 3).order(ByteOrder.nativeOrder())
-    private var outShape: IntArray = intArrayOf(1, 9, 8400)
+    private var outShape: IntArray = intArrayOf(1, 11, 8400)
     private var out: Array<Array<FloatArray>>? = null
+    /** true = Eingabe [1,3,H,W] (PyTorch-Layout), false = [1,H,W,3]. */
+    private var channelsFirstInput = false
 
     init {
         try {
             val afd = context.assets.openFd(ASSET)
             val channel = FileInputStream(afd.fileDescriptor).channel
             val buffer = channel.map(FileChannel.MapMode.READ_ONLY, afd.startOffset, afd.declaredLength)
-            val opts = Interpreter.Options().apply { setNumThreads(4) }
-            interpreter = Interpreter(buffer, opts).also {
+            // Wie Autodarts Lens: Beschleuniger (GPU) nutzen, wenn das Gerät ihn unterstützt; sonst CPU (XNNPACK)
+            var created: Interpreter? = null
+            try {
+                val compat = CompatibilityList()
+                if (compat.isDelegateSupportedOnThisDevice) {
+                    val delegate = GpuDelegate(compat.bestOptionsForThisDevice)
+                    created = Interpreter(buffer, Interpreter.Options().addDelegate(delegate))
+                    gpuDelegate = delegate
+                    backend = "GPU"
+                }
+            } catch (e: Throwable) {
+                created = null; gpuDelegate = null
+            }
+            if (created == null) {
+                created = Interpreter(buffer, Interpreter.Options().apply { setNumThreads(4) })
+                backend = "CPU"
+            }
+            interpreter = created.also {
                 outShape = it.getOutputTensor(0).shape()
                 out = Array(1) { Array(outShape[1]) { FloatArray(outShape[2]) } }
+                channelsFirstInput = it.getInputTensor(0).shape().let { sh -> sh.size == 4 && sh[1] == 3 }
             }
         } catch (e: Exception) {
             interpreter = null
@@ -83,15 +107,21 @@ class YoloDartModel(context: Context) {
         val padX = (INPUT - newW) / 2; val padY = (INPUT - newH) / 2
         input.rewind()
         val grayFill = 114f / 255f
+        val plane = INPUT * INPUT
         for (y in 0 until INPUT) {
             val sy = ((y - padY) / scale).toInt()
             val rowOk = y >= padY && y < padY + newH && sy in 0 until height
             for (x in 0 until INPUT) {
                 val sx = ((x - padX) / scale).toInt()
+                val r: Float; val g: Float; val b: Float
                 if (rowOk && x >= padX && x < padX + newW && sx in 0 until width) {
                     val p = rgb[sy * width + sx]
-                    input.putFloat((p shr 16 and 0xFF) / 255f); input.putFloat((p shr 8 and 0xFF) / 255f); input.putFloat((p and 0xFF) / 255f)
-                } else { input.putFloat(grayFill); input.putFloat(grayFill); input.putFloat(grayFill) }
+                    r = (p shr 16 and 0xFF) / 255f; g = (p shr 8 and 0xFF) / 255f; b = (p and 0xFF) / 255f
+                } else { r = grayFill; g = grayFill; b = grayFill }
+                if (channelsFirstInput) {
+                    val i = y * INPUT + x
+                    input.putFloat(i * 4, r); input.putFloat((plane + i) * 4, g); input.putFloat((2 * plane + i) * 4, b)
+                } else { input.putFloat(r); input.putFloat(g); input.putFloat(b) }
             }
         }
         input.rewind()
@@ -140,5 +170,5 @@ class YoloDartModel(context: Context) {
         return if (union <= 0f) 0f else inter / union
     }
 
-    fun close() { interpreter?.close(); interpreter = null }
+    fun close() { interpreter?.close(); interpreter = null; gpuDelegate?.close(); gpuDelegate = null }
 }

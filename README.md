@@ -17,6 +17,11 @@ Alle Daten bleiben auf dem Gerät.
   [dart-sense](https://github.com/bnww/dart-sense), YOLOv8n, CC BY-NC 4.0), erkennt ein neuronales Netz Dartspitzen und die
   vier Kalibrierpunkte direkt auf dem Gerät. Die klassische Erkennung übernimmt Bewegungs-/Takeout-Logik und dient als Rückfall.
   Export: `tools/export_model.sh` (benötigt Python 3.11, ultralytics, tensorflow-cpu).
+- **Erkennungs-Pipeline (Autodarts-Niveau angestrebt)**: Kamera 1280×960; Bewegungs- und Stabilitätslogik auf einem
+  360×480-Graubild; KI-Spitzenerkennung auf dem hochaufgelösten Board-Ausschnitt, jeder Dart über mehrere Frames
+  bestätigt; Kalibrierung aus sechs KI-Keypoints, verfeinert über Ring-Kanten/Drähte (Sub-Millimeter), zeitlicher Median;
+  Fokus/Belichtung/Weißabgleich nach der Kalibrierung gesperrt; gemittelte Referenzbilder; Takeout klassisch und
+  KI-bestätigt; Drift-Korrektur. Das Live-Bild wird auf die Scheibe zugeschnitten (Match-Ansicht, Lens-Screen umschaltbar).
 - **Board Manager**: optional Anbindung an einen Autodarts Board Manager im WLAN (`http://<ip>:3180/api/state`);
   Start/Stop/Reset/Kalibrieren aus der App.
 - **Bots**: elf Stufen (Ø ca. 25 bis 105), simulierte Streuung auf echter Board-Geometrie.

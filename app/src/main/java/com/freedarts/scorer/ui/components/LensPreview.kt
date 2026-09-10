@@ -5,9 +5,15 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.requiredSize
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -21,6 +27,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.viewinterop.AndroidView
 import com.freedarts.scorer.engine.Board
@@ -44,6 +51,8 @@ fun LensPreview(
     editable: Boolean,
     modifier: Modifier = Modifier,
     status: LensController.Status? = null,
+    /** Live-Bild auf die Scheibe zuschneiden (quadratisch), sobald kalibriert. */
+    cropToBoard: Boolean = false,
     onTap: ((Float, Float) -> Unit)? = null,
     onCalibrationChange: (List<Float>) -> Unit = {},
 ) {
@@ -57,9 +66,30 @@ fun LensPreview(
         onDispose { lens.attachPreview(null, owner) }
     }
 
-    Box(modifier.fillMaxWidth().aspectRatio(3f / 4f)) {
+    val b2i = if (lens.detector.isCalibrated()) lens.detector.boardToImage else null
+    // Ausschnitt: Quadrat um das Board (Radius 170 mm = boardRadiusPx, plus Zahlenring)
+    val crop = if (cropToBoard && b2i != null && lens.detector.boardRadiusPx > 0) {
+        val (cx, cy) = b2i.map(0.0, 0.0)
+        val r = lens.detector.boardRadiusPx * 1.32
+        Triple(cx, cy, r)
+    } else null
+    BoxWithConstraints(modifier.fillMaxWidth().aspectRatio(if (crop != null) 1f else 3f / 4f).clipToBounds()) {
+        val outerW = maxWidth
+        val innerW = outerW
+        val innerH = outerW * 4f / 3f
+        val innerWpx = with(LocalDensity.current) { innerW.toPx() }
+        // Frame → innere Box: Faktor k; Zuschnitt: Skalierung s und Verschiebung t (Ursprung oben links)
+        val k = innerWpx / lens.frameWidth
+        val scale = if (crop != null) (lens.frameWidth / (2 * crop.third)).toFloat() else 1f
+        val tx = if (crop != null) (innerWpx / 2 - scale * crop.first * k).toFloat() else 0f
+        val ty = if (crop != null) (innerWpx / 2 - scale * crop.second * k).toFloat() else 0f
+        Box(
+            Modifier.requiredSize(innerW, innerH).graphicsLayer {
+                transformOrigin = TransformOrigin(0f, 0f)
+                scaleX = scale; scaleY = scale; translationX = tx; translationY = ty
+            },
+        ) {
         AndroidView(factory = { previewView }, modifier = Modifier.fillMaxSize())
-        val b2i = if (lens.detector.isCalibrated()) lens.detector.boardToImage else null
         val textPaint = remember {
             android.graphics.Paint().apply { color = android.graphics.Color.WHITE; textAlign = android.graphics.Paint.Align.CENTER; isAntiAlias = true; textSize = 30f; isFakeBoldText = true; setShadowLayer(4f, 0f, 0f, android.graphics.Color.BLACK) }
         }
@@ -99,6 +129,11 @@ fun LensPreview(
             val w = size.width; val h = size.height
             fun toView(ix: Double, iy: Double) = Offset((ix / lens.frameWidth * w).toFloat(), (iy / lens.frameHeight * h).toFloat())
 
+            // Positionierungshilfe während der Suche: Zielkreis, in den das Board passen soll
+            if (status?.setup == LensController.Setup.SEARCHING && b2i == null) {
+                drawCircle(Color(0x80FFFFFF), radius = w * 0.36f, center = Offset(w / 2, h / 2),
+                    style = Stroke(3f, pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(18f, 14f))))
+            }
             // Erkannte Ellipse (Suchphase)
             val ell = status?.ellipse
             if (ell != null && b2i == null) {
@@ -159,6 +194,7 @@ fun LensPreview(
                 drawContext.canvas.nativeCanvas.drawText("${idx + 1}", p.x, p.y + 10f, textPaint)
                 drawContext.canvas.nativeCanvas.drawText(d.segment.name, p.x, p.y - 22f, textPaint)
             }
+        }
         }
     }
 }

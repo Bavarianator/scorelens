@@ -170,10 +170,10 @@ fun MatchScreen(vm: AppViewModel) {
                     InputMethod.BOARD -> Column(Modifier.padding(6.dp)) {
                         if (lensStatus.running && showCamera) {
                             Box(Modifier.background(DartColors.Surface, RoundedCornerShape(14.dp)).border(1.dp, DartColors.Outline, RoundedCornerShape(14.dp)).padding(4.dp)) {
-                                LensPreview(vm.lens, settings.lensCalibration, lensDetections, editable = false)
+                                LensPreview(vm.lens, settings.lensCalibration, lensDetections, editable = false, status = lensStatus, cropToBoard = true)
                             }
                             Spacer(Modifier.height(6.dp))
-                            Dartboard(Modifier.padding(horizontal = 70.dp).fillMaxWidth(), darts = s.currentVisit, highlight = highlight, enabled = inputEnabled) { vm.throwDart(it) }
+                            Dartboard(Modifier.padding(horizontal = 90.dp).fillMaxWidth(), darts = s.currentVisit, highlight = highlight, enabled = inputEnabled) { vm.throwDart(it) }
                         } else {
                             Box(Modifier.background(DartColors.Surface, RoundedCornerShape(14.dp)).border(1.dp, DartColors.Outline, RoundedCornerShape(14.dp)).padding(8.dp)) {
                                 Dartboard(Modifier.fillMaxWidth(), darts = s.currentVisit, highlight = highlight, enabled = inputEnabled) { vm.throwDart(it) }

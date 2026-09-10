@@ -67,6 +67,7 @@ class LensController(private val context: Context) {
         val autoSensitivity: Boolean = true,
         val ai: Boolean = false,
         val aiMs: Long = 0,
+        val aiBackend: String = "-",
         /** Mittlerer Kalibrierfehler in mm (null = unbekannt). */
         val calibResidualMm: Double? = null,
         val cameraSize: String = "",
@@ -247,7 +248,7 @@ class LensController(private val context: Context) {
         try {
             camera = p.bindToLifecycle(owner, CameraSelector.DEFAULT_BACK_CAMERA, *useCases.toTypedArray())
             if (torchOn) camera?.cameraControl?.enableTorch(true)
-            if (setup == Setup.READY) lockCamera(true)
+            lockCamera(setup == Setup.READY)
             publish()
         } catch (e: Exception) {
             _status.value = _status.value.copy(running = false, message = "Kamera-Fehler: ${e.message}")
@@ -262,6 +263,8 @@ class LensController(private val context: Context) {
             val opts = CaptureRequestOptions.Builder()
                 .setCaptureRequestOption(CaptureRequest.CONTROL_AE_LOCK, lock)
                 .setCaptureRequestOption(CaptureRequest.CONTROL_AWB_LOCK, lock)
+                // Objektivverzerrung vom Kamera-HAL korrigieren lassen (falls unterstützt)
+                .setCaptureRequestOption(CaptureRequest.DISTORTION_CORRECTION_MODE, CaptureRequest.DISTORTION_CORRECTION_MODE_HIGH_QUALITY)
                 .build()
             Camera2CameraControl.from(cam.cameraControl).setCaptureRequestOptions(opts)
             val a = analysis
@@ -560,6 +563,7 @@ class LensController(private val context: Context) {
             autoSensitivity = autoSensitivity,
             ai = yolo.available,
             aiMs = lastAiMs,
+            aiBackend = yolo.backend,
             calibResidualMm = calibResidual,
             cameraSize = if (cameraW > 0) "${cameraW}×${cameraH}" else "",
         )

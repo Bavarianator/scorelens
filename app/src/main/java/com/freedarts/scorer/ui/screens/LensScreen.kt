@@ -65,6 +65,7 @@ fun LensScreen(vm: AppViewModel) {
     var granted by remember { mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) }
     var manual by remember { mutableStateOf(false) }
     var showAdvanced by remember { mutableStateOf(false) }
+    var cropView by remember { mutableStateOf(true) }
     var calibration by remember { mutableStateOf(settings.lensCalibration.takeIf { it.size == 8 } ?: defaultCalibration()) }
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
         granted = ok
@@ -101,9 +102,16 @@ fun LensScreen(vm: AppViewModel) {
 
             LensPreview(
                 vm.lens, calibration, detections, editable = manual, status = status,
+                cropToBoard = cropView && !manual && status.setup == LensController.Setup.READY,
                 onTap = { nx, ny -> vm.lens.hintTop(nx, ny) },
                 onCalibrationChange = { calibration = it },
             )
+            if (status.setup == LensController.Setup.READY && !manual) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Live-Bild auf die Scheibe zuschneiden", Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = DartColors.TextMuted)
+                    Switch(checked = cropView, onCheckedChange = { cropView = it })
+                }
+            }
 
             // Statuskarte
             val ready = status.setup == LensController.Setup.READY
@@ -122,7 +130,7 @@ fun LensScreen(vm: AppViewModel) {
                     Text(status.guidance.ifEmpty { status.message }, fontWeight = FontWeight.Bold)
                     Text(
                         (if (ready) status.message + " · ${status.fps} fps" else "Status: ${status.message}") +
-                            (if (status.ai) " · KI" + (if (status.aiMs > 0) " ${status.aiMs} ms" else "") else " · klassisch") +
+                            (if (status.ai) " · KI ${status.aiBackend}" + (if (status.aiMs > 0) " ${status.aiMs} ms" else "") else " · klassisch") +
                             (status.calibResidualMm?.let { " · Kalibrierung ±%.1f mm".format(it) } ?: "") +
                             (if (status.cameraSize.isNotEmpty()) " · ${status.cameraSize}" else ""),
                         color = Color(0xFFDDE6F5), style = MaterialTheme.typography.bodySmall,

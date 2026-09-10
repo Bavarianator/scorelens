@@ -69,7 +69,8 @@ class TipTracker(private val detector: DartDetector) {
     fun step(ev: DartDetector.Event?, gray: ByteArray, now: Long): DartDetector.Event? = when (ev) {
         is DartDetector.Event.Dart -> {
             val previous = candidate?.takeIf { it.prompted || it.samples.size >= 2 }?.let { finish(it, gray) }
-            candidate = Candidate(ev, ev.imageX.toDouble() to ev.imageY.toDouble(), 0L)
+            // Mehr als drei Darts gibt es nicht: weitere klassische Ereignisse (Schatten, Lichtwechsel) werden nicht Kandidat
+            candidate = if (known.size < MAX_DARTS) Candidate(ev, ev.imageX.toDouble() to ev.imageY.toDouble(), 0L) else null
             previous
         }
         DartDetector.Event.Takeout -> { reset(); ev }

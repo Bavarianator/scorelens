@@ -134,6 +134,19 @@ class TipTrackerTest {
         assertEquals(2, t.knownTips.size)
     }
 
+    @Test fun ignoresFourthDartEvent() {
+        val d = detector(); val t = TipTracker(d)
+        var now = 10_000L
+        val tips = listOf(tip(0.0, 103.0), tip(-8.0, 100.0), tip(6.0, 101.0))
+        for (tp in tips) {
+            t.step(classic(tp, Segment.triple(20)), gray, now)
+            repeat(3) { now += 130; feed(t, tips.take(tips.indexOf(tp) + 1), now) }
+        }
+        assertEquals(3, t.knownTips.size)
+        assertNull(t.step(classic(tip(0.0, 50.0), Segment.single(20)), gray, now))
+        assertFalse(t.checking)
+    }
+
     @Test fun aiConfirmsTakeout() {
         val d = detector(); val t = TipTracker(d)
         val t20 = tip(0.0, 103.0)

@@ -75,6 +75,7 @@ import com.freedarts.scorer.ui.components.CricketTable
 import com.freedarts.scorer.ui.components.DartByDartPad
 import com.freedarts.scorer.ui.components.Dartboard
 import com.freedarts.scorer.ui.components.LensPreview
+import com.freedarts.scorer.ui.components.LensSnapshot
 import com.freedarts.scorer.ui.components.PrimaryButton
 import com.freedarts.scorer.ui.components.SecondaryButton
 import com.freedarts.scorer.ui.components.TotalScorePad
@@ -293,6 +294,10 @@ fun MatchScreen(vm: AppViewModel) {
             text = {
                 var useBoard by remember { mutableStateOf(false) }
                 Column {
+                    // Referee-Bild: Kamera-Ausschnitt der erkannten Spitze, wenn dieser Dart von Lens kam
+                    lensDetections.getOrNull(correctIndex)
+                        ?.takeIf { s.currentVisit.isNotEmpty() && lensDetections.size == s.currentVisit.size && it.snapshot != null }
+                        ?.let { det -> LensSnapshot(det, Modifier.fillMaxWidth()); Spacer(Modifier.height(8.dp)) }
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("Quick Correction: ein Tap = neuer Dart.", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
                         Chip(if (useBoard) "Grid" else "Board", selected = false) { useBoard = !useBoard }

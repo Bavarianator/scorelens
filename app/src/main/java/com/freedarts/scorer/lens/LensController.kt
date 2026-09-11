@@ -1,6 +1,7 @@
 package com.freedarts.scorer.lens
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.hardware.camera2.CaptureRequest
 import android.util.Size
 import androidx.camera.camera2.interop.Camera2CameraControl
@@ -71,7 +72,11 @@ class LensController(private val context: Context) {
         val cameraSize: String = "",
     )
 
-    data class Detection(val segment: Segment, val imageX: Float, val imageY: Float)
+    /**
+     * Erkannter Dart in Analyse-Koordinaten. [snapshot] = Kamera-Ausschnitt um die Spitze (Referee-Bild),
+     * [tipX]/[tipY] = Lage der Spitze darin (0..1).
+     */
+    data class Detection(val segment: Segment, val imageX: Float, val imageY: Float, val snapshot: Bitmap? = null, val tipX: Float = 0.5f, val tipY: Float = 0.5f)
     /** Erkannter Wurf mit Auftreffpunkt in Board-Millimetern (Mitte 0/0). */
     data class Throw(val segment: Segment, val boardX: Float, val boardY: Float)
 
@@ -101,6 +106,8 @@ class LensController(private val context: Context) {
     /** KI-Inferenz läuft getrennt vom Analyse-Thread, damit die Bewegungslogik keine Frames verpasst. */
     private val aiExecutor = Executors.newSingleThreadExecutor()
     @Volatile private var aiBusy = false
+    /** Letzter Board-Ausschnitt in Kameraauflösung (Quelle für Referee-Bilder). */
+    @Volatile private var lastCrop: RgbFrame? = null
     private var provider: ProcessCameraProvider? = null
     private var camera: Camera? = null
     private var analysis: ImageAnalysis? = null
@@ -312,6 +319,7 @@ class LensController(private val context: Context) {
             if (yolo.available && setup == Setup.READY) {
                 ev = tips.step(ev, gray, now)
                 if (!aiBusy && tips.wantsInference(now)) boardRgb(img)?.let { crop ->
+                    lastCrop = crop
                     aiBusy = true
                     aiExecutor.execute { inferAsync(crop) }
                 }
@@ -328,7 +336,8 @@ class LensController(private val context: Context) {
     private fun emit(ev: DartDetector.Event?) {
         when (ev) {
             is DartDetector.Event.Dart -> {
-                _detections.value = (_detections.value + Detection(ev.segment, ev.imageX, ev.imageY)).takeLast(3)
+                val snap = snapshot(ev.imageX, ev.imageY)
+                _detections.value = (_detections.value + Detection(ev.segment, ev.imageX, ev.imageY, snap?.first, snap?.second ?: 0.5f, snap?.third ?: 0.5f)).takeLast(3)
                 _throws.tryEmit(Throw(ev.segment, ev.boardX.toFloat(), ev.boardY.toFloat()))
             }
             DartDetector.Event.Takeout -> { _detections.value = emptyList(); tips.reset(); _takeout.tryEmit(Unit) }
@@ -368,9 +377,38 @@ class LensController(private val context: Context) {
         if (!wasReady) onReady?.invoke()
     }
 
+    /**
+     * Referee-Bild: Ausschnitt um die Spitze (Analyse-Koordinaten [ax]/[ay]) aus dem letzten Board-Ausschnitt in
+     * Kameraauflösung, sonst aus dem Graubild. Liefert Bitmap und Lage der Spitze darin (0..1).
+     */
+    private fun snapshot(ax: Float, ay: Float): Triple<Bitmap, Float, Float>? = try {
+        val crop = lastCrop
+        val rotW = if (lastRotation == 90 || lastRotation == 270) cameraH else cameraW
+        val rotH = if (lastRotation == 90 || lastRotation == 270) cameraW else cameraH
+        if (crop != null && rotW > 0) {
+            val px = ax * rotW / frameWidth - crop.offsetX; val py = ay * rotH / frameHeight - crop.offsetY
+            val half = (detector.boardRadiusPx * rotW / frameWidth * 0.16).toInt().coerceIn(40, 400)
+            window(crop.pixels, crop.width, crop.height, px.toInt(), py.toInt(), half)
+        } else {
+            val gray = lastFrame
+            val argb = IntArray(gray.size) { val v = gray[it].toInt() and 0xFF; (v shl 16) or (v shl 8) or v }
+            window(argb, frameWidth, frameHeight, ax.toInt(), ay.toInt(), (detector.boardRadiusPx * 0.16).toInt().coerceIn(20, 200))
+        }
+    } catch (e: Exception) { null }
+
+    private fun window(src: IntArray, w: Int, h: Int, cx: Int, cy: Int, half: Int): Triple<Bitmap, Float, Float> {
+        val x0 = (cx - half).coerceIn(0, w - 1); val x1 = (cx + half).coerceIn(x0 + 1, w)
+        val y0 = (cy - half).coerceIn(0, h - 1); val y1 = (cy + half).coerceIn(y0 + 1, h)
+        val ww = x1 - x0; val hh = y1 - y0
+        val out = IntArray(ww * hh)
+        for (y in 0 until hh) for (x in 0 until ww) out[y * ww + x] = src[(y + y0) * w + x + x0] or (0xFF shl 24)
+        return Triple(Bitmap.createBitmap(out, ww, hh, Bitmap.Config.ARGB_8888), (cx - x0).toFloat() / ww, (cy - y0).toFloat() / hh)
+    }
+
     /** KI-Spitzen im Board-Ausschnitt, synchron, in Analyse-Koordinaten (null = keine Inferenz möglich). */
     private fun aiTips(img: ImageProxy): List<TipTracker.Tip>? {
         val rgb = boardRgb(img) ?: return null
+        lastCrop = rgb
         val res = yolo.detect(rgb.pixels, rgb.width, rgb.height) ?: return null
         lastAiMs = res.inferenceMs
         return res.darts.map { p -> toAnalysis(p.x + rgb.offsetX, p.y + rgb.offsetY).let { (x, y) -> TipTracker.Tip(x, y, p.conf) } }

@@ -36,7 +36,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.freedarts.scorer.engine.Board
+import com.freedarts.scorer.engine.Statistics
 import com.freedarts.scorer.model.GameMode
 import com.freedarts.scorer.model.MatchRecord
 import com.freedarts.scorer.model.PlayerMatchStats
@@ -48,8 +48,11 @@ import com.freedarts.scorer.ui.components.Avatar
 import com.freedarts.scorer.ui.components.Badge
 import com.freedarts.scorer.ui.components.BrandTitle
 import com.freedarts.scorer.ui.components.Chip
+import com.freedarts.scorer.ui.components.HeadToHeadRow
 import com.freedarts.scorer.ui.components.HeaderSwoosh
+import com.freedarts.scorer.ui.components.HeatmapBoard
 import com.freedarts.scorer.ui.components.SectionLabel
+import com.freedarts.scorer.ui.components.topSegments
 import com.freedarts.scorer.ui.components.StatTile
 import com.freedarts.scorer.ui.theme.DartColors
 import java.text.SimpleDateFormat
@@ -184,14 +187,24 @@ fun StatsScreen(vm: AppViewModel, startTab: Int = 0) {
                             }
                         }
                     }
-                    // Trefferbild aus dem Wurfprotokoll (nur Würfe mit Position, d.h. Lens / Board Manager)
-                    val points = filtered.flatMap { m ->
-                        val idx = m.players.indexOfFirst { it.playerId == selected }
-                        m.throws.filter { it.player == idx && it.leg > 0 && it.x != null && it.y != null }.map { it.x!! to it.y!! }
-                    }
-                    if (points.isNotEmpty()) {
-                        SectionLabel("Trefferbild", trailing = { Chip("${points.size} Darts") })
-                        AdCard { HitMap(points, Modifier.fillMaxWidth().aspectRatio(1f)) }
+                    val playerId = selected
+                    if (playerId != null) {
+                        // Trefferbild aus dem Wurfprotokoll: Segmente nach Häufigkeit, Auftreffpunkte bei Lens / Board Manager
+                        val heat = remember(filtered, playerId) { Statistics.heatmap(filtered, playerId) }
+                        if (heat.darts > 0) {
+                            SectionLabel("Trefferbild", trailing = { Chip("${heat.darts} Darts") })
+                            AdCard {
+                                HeatmapBoard(heat, Modifier.padding(4.dp))
+                                Text(topSegments(heat), fontWeight = FontWeight.SemiBold)
+                                Text("Rot = oft, Blau = selten" + (if (heat.points.isNotEmpty()) " · Punkte = Auftreffpunkte (Lens)" else ""),
+                                    color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                        val h2h = remember(mine, playerId) { Statistics.headToHead(mine, playerId) }
+                        if (h2h.isNotEmpty()) {
+                            SectionLabel("Head-to-Head")
+                            AdCard { h2h.forEach { HeadToHeadRow(it) } }
+                        }
                     }
                 } else {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -233,31 +246,6 @@ private fun MatchRow(m: MatchRecord, selectedId: String?, df: SimpleDateFormat) 
                     Text(detail, style = MaterialTheme.typography.bodySmall)
                 }
             }
-        }
-    }
-}
-
-/** Trefferbild: alle Auftreffpunkte (Board-mm) auf einer schematischen Scheibe. */
-@Composable
-fun HitMap(points: List<Pair<Float, Float>>, modifier: Modifier = Modifier) {
-    Canvas(modifier) {
-        val cx = size.width / 2; val cy = size.height / 2
-        val scale = (minOf(size.width, size.height) / 2) / Board.DOUBLE_OUTER.toFloat() * 0.96f
-        val ringColor = DartColors.Outline
-        listOf(Board.DOUBLE_OUTER, Board.DOUBLE_INNER, Board.TRIPLE_OUTER, Board.TRIPLE_INNER, Board.OUTER_BULL_RADIUS, Board.BULL_RADIUS).forEach { r ->
-            drawCircle(ringColor, radius = r.toFloat() * scale, center = androidx.compose.ui.geometry.Offset(cx, cy), style = Stroke(1.5f))
-        }
-        // Sektorlinien
-        for (i in 0 until 20) {
-            val a = Math.toRadians(Board.sectorStartDeg(i))
-            val r0 = Board.OUTER_BULL_RADIUS.toFloat() * scale; val r1 = Board.DOUBLE_OUTER.toFloat() * scale
-            drawLine(ringColor,
-                androidx.compose.ui.geometry.Offset(cx + (Math.sin(a) * r0).toFloat(), cy - (Math.cos(a) * r0).toFloat()),
-                androidx.compose.ui.geometry.Offset(cx + (Math.sin(a) * r1).toFloat(), cy - (Math.cos(a) * r1).toFloat()), strokeWidth = 1f)
-        }
-        val dot = DartColors.Lime.copy(alpha = 0.55f)
-        points.forEach { (x, y) ->
-            drawCircle(dot, radius = 3.5f, center = androidx.compose.ui.geometry.Offset(cx + x * scale, cy - y * scale))
         }
     }
 }

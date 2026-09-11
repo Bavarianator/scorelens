@@ -36,7 +36,9 @@ Alle Daten bleiben auf dem Gerät.
 - **Remote Scoring**: Das Handy bleibt als Kamera am Board, die Spielansicht läuft im Browser eines zweiten Geräts
   (`http://<Handy-IP>:8765`, Undo/Next aus dem Browser). Eingebauter Mini-HTTP-Server, nur im lokalen Netz.
 - **Dart-Korrektur im Match**: Dart-Slot antippen, richtiges Segment auf dem virtuellen Board wählen oder „Bouncer“;
-  gilt für die laufende und die zuletzt abgeschlossene Aufnahme, das Spiel wird neu abgespielt.
+  gilt für die laufende und die zuletzt abgeschlossene Aufnahme, das Spiel wird neu abgespielt. Kam der Dart von Lens,
+  zeigt der Dialog das **Referee-Bild**: den Kamera-Ausschnitt der erkannten Spitze mit Markierung (offline-Ersatz für
+  den AI Referee von Autodarts).
 - **Kamerabewegung**: Wird das Handy im Match bewegt, kalibriert Lens still nach und ordnet die Darts auf dem Board
   neu zu; neu sichtbare (vorher verdeckte) Darts werden nachgetragen.
 - **Beschleunigung**: TensorFlow Lite mit GPU-Delegate (Rückfall CPU/XNNPACK); Objektivverzerrung wird, wenn der
@@ -47,7 +49,8 @@ Alle Daten bleiben auf dem Gerät.
 - **Match-Ansicht**: Spielerkarten mit Rest, Average, Legs/Sets; Chalkboard; Checkout-Guide mit
   Segment-Hervorhebung; Undo; „Weiter“; Game-Shot-Banner; Caller per Sprachausgabe (TTS).
 - **Ergebnis & Statistik**: 3-Dart-Average, First-9, Checkout-Quote, höchstes Finish, 60+/100+/140+/170+/180,
-  Spielzeit, Rematch; Verlauf pro Spieler.
+  Spielzeit, Rematch; Verlauf pro Spieler; **Trefferbild** (Segmente nach Häufigkeit eingefärbt, Auftreffpunkte aus
+  Lens) und **Head-to-Head** (Bilanz, Legs und Averages gegen jeden Gegner).
 
 ## Oberfläche
 

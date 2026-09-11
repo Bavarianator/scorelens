@@ -2,21 +2,28 @@ package com.freedarts.scorer.engine.games
 
 import com.freedarts.scorer.engine.DartGame
 import com.freedarts.scorer.engine.GameState
+import com.freedarts.scorer.model.CricketBoard
 import com.freedarts.scorer.model.CricketVariant
 import com.freedarts.scorer.model.GameSettings
 import com.freedarts.scorer.model.Player
 import com.freedarts.scorer.model.PlayerMatchStats
 import com.freedarts.scorer.model.Segment
 
+/**
+ * Cricket / Tactics wie bei Autodarts: Zahlen 15–20 + Bull (Cricket), 10–20 + Bull (Tactics) oder sieben
+ * zufällige Zahlen, die bis zum ersten Treffer verdeckt bleiben (Hidden Cricket). Wertung Standard
+ * (Punkte für sich), Cut Throat (Punkte an die Gegner, wenigste gewinnen) oder No Score (nur Schließen zählt).
+ */
 class CricketGame(players: List<Player>, settings: GameSettings, seed: Long = System.currentTimeMillis()) :
     DartGame(players, settings, seed) {
 
-    val targets: List<Int> = when (settings.cricketVariant) {
-        CricketVariant.TACTICS -> (20 downTo 10).toList() + 25
-        else -> listOf(20, 19, 18, 17, 16, 15, 25)
-    }
-    private val cutThroat get() = settings.cricketVariant == CricketVariant.CUT_THROAT
+    private val board = settings.effectiveCricketBoard
+    private val scoring = settings.cricketScoring
+    private val cutThroat get() = scoring == CricketVariant.CUT_THROAT
+    private val noScore get() = scoring == CricketVariant.NO_SCORE
 
+    var targets: List<Int> = emptyList(); private set
+    private val revealed = HashSet<Int>()
     private val marks = Array(players.size) { HashMap<Int, Int>() }
     private val points = IntArray(players.size)
     private var visitPoints = 0
@@ -24,6 +31,12 @@ class CricketGame(players: List<Player>, settings: GameSettings, seed: Long = Sy
     init { resetState() }
 
     override fun resetState() {
+        targets = when (board) {
+            CricketBoard.TACTICS -> (20 downTo 10).toList() + 25
+            CricketBoard.HIDDEN -> ((1..20).toList() + 25).shuffled(random).take(7).sortedWith(compareBy({ it == 25 }, { -it }))
+            CricketBoard.CRICKET -> listOf(20, 19, 18, 17, 16, 15, 25)
+        }
+        revealed.clear()
         marks.forEach { m -> m.clear(); targets.forEach { t -> m[t] = 0 } }
         points.fill(0); visitPoints = 0
     }
@@ -35,13 +48,14 @@ class CricketGame(players: List<Player>, settings: GameSettings, seed: Long = Sy
         if (visit.size == 1) visitPoints = 0
         val n = segment.number
         if (n !in targets) return false
+        revealed.add(n)
         var hits = segment.multiplier
         val have = marks[p][n] ?: 0
         val toClose = (3 - have).coerceAtLeast(0)
         val used = minOf(hits, toClose)
         marks[p][n] = have + used
         hits -= used
-        if (hits > 0 && !closedByAllOthers(p, n)) {
+        if (hits > 0 && !noScore && !closedByAllOthers(p, n)) {
             val gained = hits * n
             if (cutThroat) {
                 players.indices.filter { it != p && (marks[it][n] ?: 0) < 3 }.forEach { points[it] += gained }
@@ -78,16 +92,14 @@ class CricketGame(players: List<Player>, settings: GameSettings, seed: Long = Sy
     override fun botTarget(): Segment {
         val p = current
         // Erst eigene Zahlen schließen (höchste zuerst), dann punkten auf offenen Zahlen
-        targets.firstOrNull { (marks[p][it] ?: 0) < 3 && !(closedByAllOthers(p, it) && (marks[p][it] ?: 0) >= 3) }?.let {
-            return if (it == 25) Segment.BULL else Segment.triple(it)
-        }
+        targets.firstOrNull { (marks[p][it] ?: 0) < 3 }?.let { return if (it == 25) Segment.BULL else Segment.triple(it) }
         targets.firstOrNull { !closedByAllOthers(p, it) }?.let { return if (it == 25) Segment.BULL else Segment.triple(it) }
         return Segment.triple(20)
     }
 
     override fun buildSnapshot(): GameState = GameState(
         players = players.indices.map { i ->
-            playerState(i, points[i].toString(), mpr(i), marks = marks[i].toMap())
+            playerState(i, if (noScore) "${targets.count { (marks[i][it] ?: 0) >= 3 }} / ${targets.size}" else points[i].toString(), mpr(i), marks = marks[i].toMap())
         },
         currentPlayer = current,
         currentVisit = visit.toList(),
@@ -97,6 +109,7 @@ class CricketGame(players: List<Player>, settings: GameSettings, seed: Long = Sy
         banner = banner,
         headline = "Runde $round" + if (settings.maxRounds > 0) " / ${settings.maxRounds}" else "",
         cricketTargets = targets,
+        cricketHidden = if (board == CricketBoard.HIDDEN) targets.filter { it !in revealed }.toSet() else null,
     )
 
     override fun playerStats(index: Int): PlayerMatchStats =

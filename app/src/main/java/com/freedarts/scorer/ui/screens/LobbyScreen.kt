@@ -51,7 +51,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.freedarts.scorer.model.BullMode
 import com.freedarts.scorer.model.BullOff
+import com.freedarts.scorer.model.CricketBoard
 import com.freedarts.scorer.model.CricketVariant
+import com.freedarts.scorer.model.FailMode
+import com.freedarts.scorer.model.TargetOrder
 import com.freedarts.scorer.model.GameMode
 import com.freedarts.scorer.model.GameSettings
 import com.freedarts.scorer.model.HitMode
@@ -262,32 +265,40 @@ fun settingsChips(gs: GameSettings): List<String> = when (gs.mode) {
         when (gs.outMode) { OutMode.STRAIGHT -> "Straight Out"; OutMode.DOUBLE -> "Double Out"; OutMode.MASTER -> "Master Out" },
         if (gs.bullMode == BullMode.B25_50) "Bull 25/50" else "Bull 50/50",
     ) + (if (gs.maxRounds > 0) listOf("Max ${gs.maxRounds} Runden") else emptyList()) + starterChips(gs)
-    GameMode.CRICKET -> listOf(when (gs.cricketVariant) { CricketVariant.STANDARD -> "Standard"; CricketVariant.CUT_THROAT -> "Cut Throat"; CricketVariant.TACTICS -> "Tactics" }) + (if (gs.maxRounds > 0) listOf("Max ${gs.maxRounds} Runden") else emptyList()) + starterChips(gs)
-    GameMode.AROUND_THE_CLOCK -> listOf(when (gs.hitMode) { HitMode.ANY -> "Beliebig"; HitMode.SINGLE -> "Single"; HitMode.DOUBLE -> "Double"; HitMode.TRIPLE -> "Triple" }, if (gs.includeBull) "Mit Bull" else "Ohne Bull", if (gs.randomOrder) "Zufällig" else "1–20")
-    GameMode.COUNT_UP, GameMode.SHANGHAI, GameMode.SEGMENT_TRAINING -> listOf("${gs.rounds} Runden") + (if (gs.mode == GameMode.SEGMENT_TRAINING) listOf("Ziel " + (if (gs.trainingSegment == 25) "Bull" else gs.trainingSegment.toString())) else emptyList())
-    GameMode.ROUND_THE_WORLD -> listOf("1–${gs.rounds}", if (gs.includeBull) "Mit Bull" else "Ohne Bull")
-    GameMode.RANDOM_CHECKOUT -> listOf("${gs.rounds} Runden", "${gs.checkoutMin}–${gs.checkoutMax}")
-    GameMode.ONE_TWENTY_ONE -> listOf("${gs.attempts} Versuche", "9 Darts", "Double Out")
-    GameMode.BOBS_27 -> listOf("D1–D20 + Bull")
+    GameMode.CRICKET -> listOf(
+        when (gs.effectiveCricketBoard) { CricketBoard.CRICKET -> "Cricket 15–20"; CricketBoard.TACTICS -> "Tactics 10–20"; CricketBoard.HIDDEN -> "Hidden" },
+        when (gs.cricketScoring) { CricketVariant.CUT_THROAT -> "Cut Throat"; CricketVariant.NO_SCORE -> "No Score"; else -> "Standard" },
+    ) + (if (gs.maxRounds > 0) listOf("Max ${gs.maxRounds} Runden") else emptyList()) + starterChips(gs)
+    GameMode.AROUND_THE_CLOCK -> listOf(hitModeLabel(gs.hitMode), orderLabel(gs), if (gs.includeBull) "Mit Bull" else "Ohne Bull") + (if (gs.hitsRequired > 1) listOf("${gs.hitsRequired} Treffer") else emptyList())
+    GameMode.COUNT_UP, GameMode.SHANGHAI -> listOf("${gs.rounds} Runden")
+    GameMode.SEGMENT_TRAINING -> listOf("Ziel " + (if (gs.trainingSegment == 25) "Bull" else gs.trainingSegment.toString()), hitModeLabel(gs.hitMode), if (gs.endAfterHits) "${gs.hitCount} Treffer" else "${gs.hitCount} Darts")
+    GameMode.ROUND_THE_WORLD -> listOf(if (gs.effectiveOrder == TargetOrder.DOWN) "${gs.rounds}–1" else if (gs.effectiveOrder == TargetOrder.RANDOM) "Zufällig" else "1–${gs.rounds}", if (gs.includeBull) "Mit Bull" else "Ohne Bull")
+    GameMode.RANDOM_CHECKOUT -> listOf("${gs.rounds} Legs", "${gs.checkoutMin}–${gs.checkoutMax}", outLabel(gs.outMode)) + (if (gs.checkoutRounds > 1) listOf("${gs.checkoutRounds} Runden/Leg") else emptyList())
+    GameMode.ONE_TWENTY_ONE -> listOf("${gs.attempts} Versuche", "${gs.dartsPerAttempt} Darts", when (gs.failMode) { FailMode.SOFT -> "Soft"; FailMode.HARD_RESET -> "Hard Reset"; FailMode.SAFEHOUSE -> "Safehouse" }) + (if (gs.step > 1) listOf("Schritt ${gs.step}") else emptyList())
+    GameMode.BOBS_27 -> listOf(if (gs.includeBull) "D1–D20 + Bull" else "D1–D20") + (if (gs.allowNegative) listOf("Negativ erlaubt") else emptyList())
     GameMode.BERMUDA -> listOf("12 Runden")
-    GameMode.GOTCHA -> listOf("Ziel ${gs.gotchaTarget}")
-    GameMode.KILLER -> listOf("${gs.killerLives} Leben")
+    GameMode.GOTCHA -> listOf("Ziel ${gs.gotchaTarget}", outLabel(gs.outMode))
+    GameMode.KILLER -> listOf("${gs.killerLives} Leben", when (gs.killerHitMode) { HitMode.DOUBLE -> "Doubles"; HitMode.TRIPLE -> "Triples"; else -> "Beliebig" })
 }
+
+private fun hitModeLabel(m: HitMode) = when (m) { HitMode.ANY -> "Beliebig"; HitMode.SINGLE -> "Single"; HitMode.DOUBLE -> "Double"; HitMode.TRIPLE -> "Triple" }
+private fun outLabel(m: OutMode) = when (m) { OutMode.STRAIGHT -> "Straight Out"; OutMode.DOUBLE -> "Double Out"; OutMode.MASTER -> "Master Out" }
+private fun orderLabel(gs: GameSettings) = when (gs.effectiveOrder) { TargetOrder.UP -> "1–20"; TargetOrder.DOWN -> "20–1"; TargetOrder.RANDOM -> "Zufällig" }
 
 fun howToPlay(mode: GameMode): String = when (mode) {
     GameMode.X01 -> "Jeder Spieler startet mit dem Startwert (z.B. 501). Die geworfenen Punkte werden abgezogen. Wer zuerst exakt auf 0 kommt, gewinnt das Leg. Bei Double Out muss der letzte Dart ein Double (oder Bullseye) sein. Wer unter 0 (oder bei Double Out auf 1) fällt, hat einen Bust – die Aufnahme zählt nicht."
-    GameMode.CRICKET -> "Ziele sind 15–20 und Bull. Single = 1 Treffer, Double = 2, Triple = 3. Nach drei Treffern ist die Zahl für dich geöffnet; weitere Treffer bringen Punkte, solange ein Gegner die Zahl noch nicht geschlossen hat. Wer alle Zahlen geschlossen hat und die meisten Punkte besitzt, gewinnt. Cut Throat: Punkte gehen an die Gegner, wenigste Punkte gewinnen."
-    GameMode.AROUND_THE_CLOCK -> "Triff die Zahlen 1 bis 20 (optional Bull) in aufsteigender Reihenfolge. Jeder Treffer bringt dich zur nächsten Zahl. Wer zuerst fertig ist, gewinnt."
-    GameMode.ROUND_THE_WORLD -> "In Runde n ist die Zahl n das Ziel. Jeder Treffer zählt seinen Wert (Single, Double, Triple). Höchste Punktzahl nach der letzten Runde gewinnt."
+    GameMode.CRICKET -> "Ziele sind 15–20 und Bull (Tactics: 10–20, Hidden: sieben zufällige Zahlen, die erst beim ersten Treffer sichtbar werden). Single = 1 Treffer, Double = 2, Triple = 3. Nach drei Treffern ist die Zahl für dich geschlossen; weitere Treffer bringen Punkte, solange ein Gegner sie noch nicht geschlossen hat. Wer alle Zahlen geschlossen hat und mindestens gleich viele Punkte besitzt, gewinnt. Cut Throat: Punkte gehen an die Gegner, wenigste Punkte gewinnen. No Score: nur Schließen zählt."
+    GameMode.AROUND_THE_CLOCK -> "Triff die Zahlen 1 bis 20 (oder 20 bis 1, oder zufällig), optional Bull am Ende, der Reihe nach. Pro Zahl sind 1–3 Treffer nötig; Double und Triple zählen als ein Treffer. Wer zuerst fertig ist, gewinnt."
+    GameMode.ROUND_THE_WORLD -> "In Runde n ist die Zahl n das Ziel (oder umgekehrt), am Ende optional Bull. Single = 1, Double = 2, Triple = 3 Punkte, also höchstens 9 pro Runde. Höchste Punktzahl nach der letzten Runde gewinnt."
     GameMode.COUNT_UP -> "Acht Runden, alle Punkte zählen. Die höchste Gesamtpunktzahl gewinnt."
-    GameMode.RANDOM_CHECKOUT -> "Pro Runde wird ein zufälliger Rest vorgegeben. Du hast drei Darts, um ihn mit Double auszuchecken. Anzahl der Checkouts entscheidet."
-    GameMode.BOBS_27 -> "Start bei 27 Punkten. Pro Runde drei Darts auf das Double der Reihe nach (D1 bis D20, dann Bull). Jeder Treffer bringt 2×Zahl, kein Treffer in der Runde kostet 2×Zahl. Unter 0 scheidet man aus."
-    GameMode.SEGMENT_TRAINING -> "Wähle ein Segment und wirf eine feste Anzahl Runden darauf. Single = 1, Double = 2, Triple = 3 Punkte."
-    GameMode.ONE_TWENTY_ONE -> "Checke 121 mit maximal neun Darts (Double Out) aus. Gelingt es, steigt das Ziel um 1, sonst sinkt es um 1. Nach allen Versuchen gewinnt das höchste Ziel."
+    GameMode.RANDOM_CHECKOUT -> "Pro Leg wird ein zufälliger Rest vorgegeben. Du hast eine oder mehrere Aufnahmen, um ihn im eingestellten Out-Modus auszuchecken; Überwerfen = Bust, die Aufnahme zählt nicht. Wer die meisten Legs auscheckt, gewinnt."
+    GameMode.BOBS_27 -> "Start bei 27 Punkten. Pro Runde drei Darts auf das Double der Reihe nach (D1 bis D20, optional Bull). Jeder Treffer bringt 2×Zahl, kein Treffer in der Runde kostet 2×Zahl. Bei 0 oder weniger scheidet man aus – außer negative Punkte sind erlaubt."
+    GameMode.SEGMENT_TRAINING -> "Wähle eine Zahl und die Trefferart (beliebig, Single, Double oder Triple). Die Übung endet nach einer festen Zahl Treffer (wenigste Darts gewinnen) oder Darts (meiste Treffer gewinnen)."
+    GameMode.ONE_TWENTY_ONE -> "Checke das Ziel (Start 121) mit maximal neun oder sechs Darts (Double Out) aus. Erfolg: Ziel steigt um den Schritt, bis 170. Misserfolg: Soft (Ziel −1), Hard Reset (zurück auf 121) oder Safehouse (nie unter das zuletzt gesicherte Ziel). Sieg bei 170 oder mit dem höchsten Ziel über 121."
     GameMode.SHANGHAI -> "Runde 1 zielt auf die 1, Runde 2 auf die 2 usw. Nur Treffer auf die aktuelle Zahl zählen. Single, Double und Triple in einer Aufnahme = Shanghai und sofortiger Sieg."
-    GameMode.GOTCHA -> "Alle starten bei 0 und zählen bis exakt zum Ziel hoch. Überwerfen = Bust. Landest du genau auf dem Score eines Gegners, fällt er auf 0 zurück."
-    GameMode.BERMUDA -> "Zwölf Runden mit festen Zielen (12, 13, 14, Double, 15, 16, 17, Triple, 18, 19, 20, Bull). Treffer zählen Punkte; keine Treffer in einer Runde halbieren den Score."
-    GameMode.KILLER -> "Jeder bekommt eine Zahl. Triff dein eigenes Double, um Killer zu werden. Als Killer nimmst du Gegnern mit deren Double ein Leben ab. Der letzte Spieler mit Leben gewinnt."
+    GameMode.GOTCHA -> "Alle starten bei 0 und zählen bis exakt zum Ziel hoch; der letzte Dart muss zum Out-Modus passen. Überwerfen = Bust. Landest du genau auf dem Score eines Gegners, fällt er auf 0 zurück."
+    GameMode.BERMUDA -> "Zwölf Runden mit festen Zielen (12, 13, 14, Double, 15, 16, 17, Triple, 18, 19, 20, Bullseye). Treffer zählen Punkte; keine Treffer in einer Runde halbieren den Score."
+    GameMode.KILLER -> "Jeder bekommt eine Zahl. Treffer auf die eigene Zahl füllen dein Konto (Single 1, Double 2, Triple 3); mit vollen Leben bist du Killer. Killer nehmen Gegnern mit deren Zahl Leben ab; fällst du unter die Schwelle, bist du kein Killer mehr, die eigene Zahl kostet dich Leben. Wer bei 0 noch einmal getroffen wird, ist raus. Der Letzte gewinnt."
 }
 
 @Composable
@@ -341,38 +352,64 @@ fun ModeSettings(gs: GameSettings, onChange: (GameSettings) -> Unit) {
             StarterSettings(gs, onChange)
         }
         GameMode.CRICKET -> {
-            OptionRow("Variante", listOf(CricketVariant.STANDARD to "Standard", CricketVariant.CUT_THROAT to "Cut Throat", CricketVariant.TACTICS to "Tactics (10–20)"), gs.cricketVariant) { onChange(gs.copy(cricketVariant = it)) }
+            OptionRow("Zahlen", listOf(CricketBoard.CRICKET to "Cricket (15–20)", CricketBoard.TACTICS to "Tactics (10–20)", CricketBoard.HIDDEN to "Hidden (7 zufällige)"), gs.effectiveCricketBoard) { onChange(gs.copy(cricketBoard = it, cricketVariant = gs.cricketScoring)) }
+            OptionRow("Wertung", listOf(CricketVariant.STANDARD to "Standard", CricketVariant.CUT_THROAT to "Cut Throat", CricketVariant.NO_SCORE to "No Score"), gs.cricketScoring) { onChange(gs.copy(cricketVariant = it, cricketBoard = gs.effectiveCricketBoard)) }
             NumberRow("Max. Runden (0 = ∞)", gs.maxRounds, 0..50) { onChange(gs.copy(maxRounds = it)) }
             StarterSettings(gs, onChange)
         }
         GameMode.AROUND_THE_CLOCK -> {
             OptionRow("Trefferart", listOf(HitMode.ANY to "Beliebig", HitMode.SINGLE to "Single", HitMode.DOUBLE to "Double", HitMode.TRIPLE to "Triple"), gs.hitMode) { onChange(gs.copy(hitMode = it)) }
+            OrderRow(gs, onChange)
             SwitchRow("Bull am Ende", gs.includeBull) { onChange(gs.copy(includeBull = it)) }
-            SwitchRow("Zufällige Reihenfolge", gs.randomOrder) { onChange(gs.copy(randomOrder = it)) }
+            OptionRow("Treffer pro Zahl", listOf(1, 2, 3).map { it to it.toString() }, gs.hitsRequired) { onChange(gs.copy(hitsRequired = it)) }
             NumberRow("Max. Runden (0 = ∞)", gs.maxRounds, 0..50) { onChange(gs.copy(maxRounds = it)) }
         }
         GameMode.ROUND_THE_WORLD -> {
             NumberRow("Bis Zahl", gs.rounds, 1..20) { onChange(gs.copy(rounds = it)) }
+            OrderRow(gs, onChange)
             SwitchRow("Bull am Ende", gs.includeBull) { onChange(gs.copy(includeBull = it)) }
         }
         GameMode.COUNT_UP -> NumberRow("Runden", gs.rounds, 1..20) { onChange(gs.copy(rounds = it)) }
         GameMode.SHANGHAI -> NumberRow("Runden (Zahlen 1–n)", gs.rounds, 1..20) { onChange(gs.copy(rounds = it)) }
         GameMode.SEGMENT_TRAINING -> {
-            NumberRow("Runden", gs.rounds, 1..30) { onChange(gs.copy(rounds = it)) }
             OptionRow("Ziel", ((1..20).toList() + 25).map { it to (if (it == 25) "Bull" else it.toString()) }, gs.trainingSegment) { onChange(gs.copy(trainingSegment = it)) }
+            OptionRow("Trefferart", listOf(HitMode.ANY to "Beliebig", HitMode.SINGLE to "Single", HitMode.DOUBLE to "Double", HitMode.TRIPLE to "Triple"), gs.hitMode) { onChange(gs.copy(hitMode = it)) }
+            OptionRow("Ende nach", listOf(false to "Darts", true to "Treffern"), gs.endAfterHits) { onChange(gs.copy(endAfterHits = it, hitCount = if (it) 10 else 30)) }
+            OptionRow(if (gs.endAfterHits) "Treffer" else "Darts", (if (gs.endAfterHits) listOf(1, 3, 5, 10, 15, 20) else listOf(9, 15, 30, 60, 99)).map { it to it.toString() }, gs.hitCount) { onChange(gs.copy(hitCount = it)) }
         }
         GameMode.RANDOM_CHECKOUT -> {
-            NumberRow("Runden", gs.rounds, 1..30) { onChange(gs.copy(rounds = it)) }
+            NumberRow("Legs", gs.rounds, 1..30) { onChange(gs.copy(rounds = it)) }
+            OptionRow("Aufnahmen pro Leg", listOf(1, 2, 3, 6, 9).map { it to it.toString() }, gs.checkoutRounds) { onChange(gs.copy(checkoutRounds = it)) }
+            OptionRow("Out-Modus", listOf(OutMode.STRAIGHT to "Straight Out", OutMode.DOUBLE to "Double Out", OutMode.MASTER to "Master Out"), gs.outMode) { onChange(gs.copy(outMode = it)) }
             NumberRow("Min. Checkout", gs.checkoutMin, 2..170) { onChange(gs.copy(checkoutMin = it, checkoutMax = maxOf(it, gs.checkoutMax))) }
             NumberRow("Max. Checkout", gs.checkoutMax, 2..170) { onChange(gs.copy(checkoutMax = it, checkoutMin = minOf(it, gs.checkoutMin))) }
         }
-        GameMode.ONE_TWENTY_ONE -> NumberRow("Versuche", gs.attempts, 1..30) { onChange(gs.copy(attempts = it)) }
-        GameMode.BOBS_27 -> Text("Start 27 Punkte, Doubles 1–20 und Bull. Treffer +2×Zahl, Fehlrunde −2×Zahl.", color = DartColors.TextMuted)
-        GameMode.BERMUDA -> Text("Ziele: 12, 13, 14, Double, 15, 16, 17, Triple, 18, 19, 20, Bull. Ohne Treffer wird der Score halbiert.", color = DartColors.TextMuted)
+        GameMode.ONE_TWENTY_ONE -> {
+            NumberRow("Versuche", gs.attempts, 1..100) { onChange(gs.copy(attempts = it)) }
+            OptionRow("Darts pro Versuch", listOf(9 to "9 (3 Aufnahmen)", 6 to "6 (2 Aufnahmen)"), gs.dartsPerAttempt) { onChange(gs.copy(dartsPerAttempt = it)) }
+            OptionRow("Bei Fehlschlag", listOf(FailMode.SOFT to "Soft (−1)", FailMode.HARD_RESET to "Hard Reset (121)", FailMode.SAFEHOUSE to "Safehouse"), gs.failMode) { onChange(gs.copy(failMode = it)) }
+            OptionRow("Schritt nach Erfolg", listOf(1, 3, 5).map { it to "+$it" }, gs.step) { onChange(gs.copy(step = it)) }
+            if (gs.failMode == FailMode.SAFEHOUSE) OptionRow("Sichern nach jedem", listOf(1, 2, 3, 5).map { it to "$it. Erfolg" }, gs.safehouseEvery) { onChange(gs.copy(safehouseEvery = it)) }
+        }
+        GameMode.BOBS_27 -> {
+            SwitchRow("Bull am Ende", gs.includeBull) { onChange(gs.copy(includeBull = it)) }
+            SwitchRow("Negative Punkte erlauben", gs.allowNegative) { onChange(gs.copy(allowNegative = it)) }
+        }
+        GameMode.BERMUDA -> Text("Ziele: 12, 13, 14, Double, 15, 16, 17, Triple, 18, 19, 20, Bullseye. Ohne Treffer wird der Score halbiert.", color = DartColors.TextMuted)
         GameMode.GOTCHA -> {
-            OptionRow("Ziel", listOf(101, 201, 301, 501).map { it to it.toString() }, gs.gotchaTarget) { onChange(gs.copy(gotchaTarget = it)) }
+            OptionRow("Ziel", listOf(101, 201, 301, 401, 501, 601, 701).map { it to it.toString() }, gs.gotchaTarget) { onChange(gs.copy(gotchaTarget = it)) }
+            OptionRow("Out-Modus", listOf(OutMode.STRAIGHT to "Straight Out", OutMode.DOUBLE to "Double Out", OutMode.MASTER to "Master Out"), gs.outMode) { onChange(gs.copy(outMode = it)) }
             NumberRow("Max. Runden (0 = ∞)", gs.maxRounds, 0..50) { onChange(gs.copy(maxRounds = it)) }
         }
-        GameMode.KILLER -> NumberRow("Leben", gs.killerLives, 1..9) { onChange(gs.copy(killerLives = it)) }
+        GameMode.KILLER -> {
+            NumberRow("Leben", gs.killerLives, 1..9) { onChange(gs.copy(killerLives = it)) }
+            OptionRow("Trefferart", listOf(HitMode.ANY to "Beliebig", HitMode.DOUBLE to "Nur Doubles", HitMode.TRIPLE to "Nur Triples"), gs.killerHitMode) { onChange(gs.copy(killerHitMode = it)) }
+            NumberRow("Max. Runden (0 = ∞)", gs.maxRounds, 0..50) { onChange(gs.copy(maxRounds = it)) }
+        }
     }
+}
+
+@Composable
+private fun OrderRow(gs: GameSettings, onChange: (GameSettings) -> Unit) {
+    OptionRow("Reihenfolge", listOf(TargetOrder.UP to "1 → 20", TargetOrder.DOWN to "20 → 1", TargetOrder.RANDOM to "Zufällig"), gs.effectiveOrder) { onChange(gs.copy(targetOrder = it, randomOrder = false)) }
 }

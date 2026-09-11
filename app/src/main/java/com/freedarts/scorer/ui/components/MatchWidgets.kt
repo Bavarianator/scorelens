@@ -137,14 +137,14 @@ fun Chalkboard(players: List<PlayerState>, modifier: Modifier = Modifier, rows: 
 
 /** Cricket-Tafel mit Marks (/, X, ⊗) pro Zahl und Spieler. */
 @Composable
-fun CricketTable(players: List<PlayerState>, targets: List<Int>, modifier: Modifier = Modifier) {
+fun CricketTable(players: List<PlayerState>, targets: List<Int>, modifier: Modifier = Modifier, hidden: Set<Int> = emptySet()) {
     Column(modifier = modifier.fillMaxWidth().background(DartColors.Surface, RoundedCornerShape(12.dp)).padding(6.dp)) {
         targets.forEach { t ->
             Row(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
                 val closedByAll = players.all { (it.marks?.get(t) ?: 0) >= 3 }
                 players.forEachIndexed { idx, p ->
                     if (idx == players.size / 2) {
-                        Text(if (t == 25) "B" else t.toString(), modifier = Modifier.width(36.dp), textAlign = TextAlign.Center,
+                        Text(if (t in hidden) "?" else if (t == 25) "B" else t.toString(), modifier = Modifier.width(36.dp), textAlign = TextAlign.Center,
                             fontWeight = FontWeight.Bold, color = if (closedByAll) DartColors.TextMuted else DartColors.Accent)
                     }
                     val m = p.marks?.get(t) ?: 0

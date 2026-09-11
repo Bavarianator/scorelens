@@ -47,8 +47,21 @@ enum class BullOff { OFF, NORMAL, OFFICIAL }
 @Serializable
 enum class HitMode { ANY, SINGLE, DOUBLE, TRIPLE }
 
+/** Cricket-Wertung. TACTICS ist eine alte Einstellung (Board Tactics, Wertung Standard) und bleibt lesbar. */
 @Serializable
-enum class CricketVariant { STANDARD, CUT_THROAT, TACTICS }
+enum class CricketVariant { STANDARD, CUT_THROAT, TACTICS, NO_SCORE }
+
+/** Cricket-Zahlen: 15–20 + Bull, 10–20 + Bull oder sieben zufällige, bis zum ersten Treffer verdeckte Zahlen. */
+@Serializable
+enum class CricketBoard { CRICKET, TACTICS, HIDDEN }
+
+/** Reihenfolge der Ziele (Around the Clock, Round the World). */
+@Serializable
+enum class TargetOrder { UP, DOWN, RANDOM }
+
+/** 121: Was bei einem verfehlten Ziel passiert. */
+@Serializable
+enum class FailMode { SOFT, HARD_RESET, SAFEHOUSE }
 
 @Serializable
 data class GameSettings(
@@ -76,34 +89,62 @@ data class GameSettings(
 
     // Cricket
     val cricketVariant: CricketVariant = CricketVariant.STANDARD,
+    val cricketBoard: CricketBoard = CricketBoard.CRICKET,
 
-    // Around the Clock / Segment Training
+    // Around the Clock / Segment Training / Killer
     val hitMode: HitMode = HitMode.ANY,
     val includeBull: Boolean = true,
+    /** Alte Einstellung; entspricht [targetOrder] = RANDOM. */
     val randomOrder: Boolean = false,
+    val targetOrder: TargetOrder = TargetOrder.UP,
+    /** Around the Clock: Treffer, die pro Zahl nötig sind (1–3). */
+    val hitsRequired: Int = 1,
 
-    // Count Up / Shanghai / Segment Training / Random Checkout
+    // Count Up / Shanghai / Random Checkout (Legs) / Round the World
     val rounds: Int = 8,
 
     // Random Checkout
     val checkoutMin: Int = 41,
     val checkoutMax: Int = 170,
+    /** Runden (Aufnahmen) pro Leg: 1, 2, 3, 6 oder 9. */
+    val checkoutRounds: Int = 1,
 
     // Segment Training
     val trainingSegment: Int = 20,
+    /** Ende nach [hitCount] Treffern (true) oder Darts (false). */
+    val endAfterHits: Boolean = false,
+    val hitCount: Int = 30,
+
+    // Bob's 27
+    val allowNegative: Boolean = false,
 
     // Gotcha
     val gotchaTarget: Int = 301,
 
     // Killer
     val killerLives: Int = 3,
+    val killerHitMode: HitMode = HitMode.ANY,
 
     // 121
     val attempts: Int = 10,
+    /** 9 oder 6 Darts pro Versuch. */
+    val dartsPerAttempt: Int = 9,
+    val failMode: FailMode = FailMode.SOFT,
+    /** Ziel steigt nach einem Erfolg um 1, 3 oder 5. */
+    val step: Int = 1,
+    /** Safehouse: nach jedem n-ten Erfolg wird das Ziel gesichert. */
+    val safehouseEvery: Int = 1,
 ) {
     /** Nötige Leg-Siege (pro Set) nach [winMode]. */
     val legsToWin: Int get() = if (winMode == WinMode.BEST_OF) legs / 2 + 1 else legs
     val setsToWin: Int get() = if (winMode == WinMode.BEST_OF) sets / 2 + 1 else sets
+
+    /** Cricket-Zahlen unter Berücksichtigung der alten Einstellung TACTICS. */
+    val effectiveCricketBoard: CricketBoard get() = if (cricketVariant == CricketVariant.TACTICS) CricketBoard.TACTICS else cricketBoard
+    /** Cricket-Wertung (TACTICS = Standard). */
+    val cricketScoring: CricketVariant get() = if (cricketVariant == CricketVariant.TACTICS) CricketVariant.STANDARD else cricketVariant
+    /** Reihenfolge unter Berücksichtigung der alten Einstellung [randomOrder]. */
+    val effectiveOrder: TargetOrder get() = if (randomOrder) TargetOrder.RANDOM else targetOrder
 
     fun withModeDefaults(newMode: GameMode): GameSettings = when (newMode) {
         GameMode.COUNT_UP -> copy(mode = newMode, rounds = 8)

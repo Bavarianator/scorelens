@@ -164,7 +164,7 @@ fun MatchScreen(vm: AppViewModel) {
                 val correctable = if (s.currentVisit.isNotEmpty()) s.currentVisit else vm.correctableDarts()
                 DartRow(correctable, current = s.currentVisit.isNotEmpty(), onTap = { i -> if (!s.finished && i < correctable.size) correctIndex = i })
                 Banner(s.banner, Modifier.padding(top = 6.dp))
-                s.cricketTargets?.let { Spacer(Modifier.height(6.dp)); CricketTable(s.players, it, Modifier.padding(horizontal = 12.dp)) }
+                s.cricketTargets?.let { Spacer(Modifier.height(6.dp)); CricketTable(s.players, it, Modifier.padding(horizontal = 12.dp), hidden = s.cricketHidden ?: emptySet()) }
                 if (settings.showChalkboard && s.cricketTargets == null && !lensOn) {
                     Spacer(Modifier.height(6.dp))
                     Chalkboard(s.players, Modifier.padding(horizontal = 12.dp), rows = if (landscape) 3 else 4)

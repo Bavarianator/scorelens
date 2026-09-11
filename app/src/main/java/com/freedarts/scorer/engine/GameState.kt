@@ -38,6 +38,8 @@ data class GameState(
     val headline: String,
     /** Zahlen für die Cricket-Tafel. */
     val cricketTargets: List<Int>? = null,
+    /** Hidden Cricket: Zahlen, die noch niemand getroffen hat (werden als „?“ angezeigt). */
+    val cricketHidden: Set<Int>? = null,
     val showLegs: Boolean = false,
     val showSets: Boolean = false,
     /** Aufnahme abgeschlossen (3 Darts / Bust / Checkout); es wird auf Takeout bzw. "Next" gewartet. */

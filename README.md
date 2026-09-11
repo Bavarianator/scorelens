@@ -5,9 +5,14 @@ Alle Daten bleiben auf dem Gerät.
 
 ## Funktionen
 
-- **Spielmodi** (wie Winmau Autodarts, inkl. der dort kostenpflichtigen): X01 (121–1001, Straight/Double/Master
-  In & Out, Legs/Sets, Bull-Modus, Max-Runden), Cricket (Standard, Cut Throat, Tactics), Around the Clock,
-  Round the World, Count Up, Random Checkout, Bob's 27, Segment Training, 121, Shanghai, Gotcha, Bermuda, Killer.
+- **Spielmodi** (wie Winmau Autodarts, inkl. der dort kostenpflichtigen, mit den Regeln und Einstellungen aus der
+  Autodarts-Dokumentation): X01 (121–1001, Straight/Double/Master In & Out, Legs/Sets, Bull-Modus, Max-Runden),
+  Cricket (Zahlen 15–20, Tactics 10–20 oder Hidden mit sieben verdeckten Zufallszahlen; Wertung Standard, Cut Throat,
+  No Score), Around the Clock (1→20, 20→1 oder zufällig, 1–3 Treffer pro Zahl, Trefferart), Round the World
+  (S/D/T = 1/2/3 Punkte), Count Up, Random Checkout (Out-Modus, 1–9 Aufnahmen pro Leg), Bob's 27 (Aus bei ≤ 0 oder
+  negativ erlaubt), Segment Training (Trefferart, Ende nach Treffern oder Darts), 121 (9 oder 6 Darts, Soft / Hard
+  Reset / Safehouse, Schritt 1/3/5, Ziel 170), Shanghai, Gotcha (Out-Modus, Ziel bis 701), Bermuda (letzte Runde
+  Bullseye), Killer (Treffer-Konto wie bei Autodarts: eigene Zahl füllt Leben, Killer nehmen Leben, Trefferart).
 - **Eingabe**: virtuelles Dartboard (antippen), Gesamtscore über Nummernblock, Dart für Dart.
 - **Lens (Kamera-Autoscoring)**: Handy auf ein Stativ ca. 1 m seitlich vor das Board. Vier Kalibrierpunkte am
   äußeren Doppelring (20/1, 6/10, 3/19, 11/14) ergeben eine Homographie Bild → Board. Die Erkennung arbeitet mit

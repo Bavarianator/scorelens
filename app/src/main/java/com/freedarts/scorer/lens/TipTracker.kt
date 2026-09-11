@@ -164,7 +164,7 @@ class TipTracker(private val detector: DartDetector) {
     /** Board-Positionen (mm) der gezählten Spitzen mit der aktuellen Kalibrierung. */
     fun knownOnBoard(): List<Pair<Double, Double>> {
         val inv = detector.imageToBoard ?: return emptyList()
-        return known.map { inv.map(it.x, it.y) }
+        return known.map { inv.map(it.x + 0.5, it.y + 0.5) }
     }
 
     /**
@@ -177,10 +177,10 @@ class TipTracker(private val detector: DartDetector) {
         known.clear()
         val unmatched = ArrayList(seen)
         for (bt in boardTips) {
-            val (px, py) = b2i.map(bt.first, bt.second)
+            val (px, py) = b2i.map(bt.first, bt.second).let { (x, y) -> x - 0.5 to y - 0.5 }
             val near = unmatched.minByOrNull { hypot(it.x - px, it.y - py) }
             if (near != null) {
-                val (bx, by) = inv.map(near.x, near.y)
+                val (bx, by) = inv.map(near.x + 0.5, near.y + 0.5)
                 if (hypot(bx - bt.first, by - bt.second) < 14.0) { known.add(Known(near.x, near.y)); unmatched.remove(near); continue }
             }
             known.add(Known(px, py))

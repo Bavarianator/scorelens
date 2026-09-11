@@ -25,11 +25,12 @@ import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Dialpad
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.TrackChanges
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -65,6 +66,7 @@ import com.freedarts.scorer.model.GameMode
 import com.freedarts.scorer.model.InputMethod
 import com.freedarts.scorer.model.MatchMode
 import com.freedarts.scorer.model.Segment
+import com.freedarts.scorer.online.RealtimeClient
 import com.freedarts.scorer.ui.AppViewModel
 import com.freedarts.scorer.ui.Screen
 import com.freedarts.scorer.ui.components.Avatar
@@ -110,7 +112,11 @@ fun MatchScreen(vm: AppViewModel) {
     val game = vm.game ?: return
 
     val isBotTurn = s.players[s.currentPlayer].player.isBot
-    val inputEnabled = !s.finished && !isBotTurn
+    val online = vm.isOnlineGame
+    val myTurn = vm.isMyTurn
+    val onlineConnection by vm.online.connection.collectAsStateWithLifecycle()
+    val presence by vm.online.presence.collectAsStateWithLifecycle()
+    val inputEnabled = !s.finished && !isBotTurn && (!online || myTurn)
     val landscape = LocalConfiguration.current.screenWidthDp > LocalConfiguration.current.screenHeightDp
     val totalAllowed = game.settings.mode in setOf(GameMode.X01, GameMode.COUNT_UP, GameMode.GOTCHA)
     val highlight: Set<Segment> = if (settings.showCheckoutGuide && !s.finished) {
@@ -140,6 +146,14 @@ fun MatchScreen(vm: AppViewModel) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = { confirmAbort = true }) { Icon(Icons.Default.Close, "Spiel beenden") }
             Box(Modifier.weight(1f), contentAlignment = Alignment.Center) { Chip("$title · ${s.headline}" + if (s.visitLocked) " · Darts entnehmen" else "") }
+            if (online) {
+                val opponentsAway = game.players.any { it.id != vm.online.myId && it.id !in presence }
+                StatusPill(if (opponentsAway) "Gegner offline" else "Online", when (onlineConnection) {
+                    RealtimeClient.State.OPEN -> if (opponentsAway) DartColors.Accent else DartColors.Green
+                    RealtimeClient.State.OFF -> DartColors.Red
+                    else -> DartColors.Accent
+                }) { }
+            }
             if (lensOn) StatusPill("Lens", when (lensStatus.phase) {
                 DartDetector.Phase.TAKEOUT -> DartColors.Accent; DartDetector.Phase.MOTION -> DartColors.PrimaryLight
                 DartDetector.Phase.NO_REFERENCE -> DartColors.Red; else -> DartColors.Green
@@ -162,7 +176,7 @@ fun MatchScreen(vm: AppViewModel) {
                 }
                 Spacer(Modifier.height(10.dp))
                 val correctable = if (s.currentVisit.isNotEmpty()) s.currentVisit else vm.correctableDarts()
-                DartRow(correctable, current = s.currentVisit.isNotEmpty(), onTap = { i -> if (!s.finished && i < correctable.size) correctIndex = i })
+                DartRow(correctable, current = s.currentVisit.isNotEmpty(), onTap = { i -> if (!s.finished && !online && i < correctable.size) correctIndex = i })
                 Banner(s.banner, Modifier.padding(top = 6.dp))
                 s.cricketTargets?.let { Spacer(Modifier.height(6.dp)); CricketTable(s.players, it, Modifier.padding(horizontal = 12.dp), hidden = s.cricketHidden ?: emptySet()) }
                 if (settings.showChalkboard && s.cricketTargets == null && !lensOn) {
@@ -181,7 +195,7 @@ fun MatchScreen(vm: AppViewModel) {
                             modifier = Modifier.scale(if (settings.animations) winScale else 1f))
                         s.winnerIndex?.let { Text("${s.players[it].player.name} gewinnt!", style = MaterialTheme.typography.headlineMedium) }
                         PrimaryButton("Finish", Modifier.fillMaxWidth()) { vm.finishToResult() }
-                        OutlinedButton(onClick = { vm.undo() }) { Text("Letzten Dart zurücknehmen") }
+                        if (!online) OutlinedButton(onClick = { vm.undo() }) { Text("Letzten Dart zurücknehmen") }
                     }
                 } else when (inputMethod) {
                     InputMethod.BOARD -> Box(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
@@ -203,7 +217,7 @@ fun MatchScreen(vm: AppViewModel) {
                     InputMethod.TOTAL -> if (totalAllowed) TotalScorePad(inputEnabled && s.currentVisit.isEmpty()) { vm.enterVisitTotal(it) } else DartByDartPad(inputEnabled) { vm.throwDart(it) }
                     InputMethod.DART_BY_DART -> DartByDartPad(inputEnabled) { vm.throwDart(it) }
                 }
-                if (isBotTurn && !s.finished) {
+                if ((isBotTurn || (online && !myTurn)) && !s.finished) {
                     Box(Modifier.background(DartColors.Background.copy(alpha = 0.8f), RoundedCornerShape(12.dp)).padding(16.dp)) {
                         Text("${s.players[s.currentPlayer].player.name} wirft …", style = MaterialTheme.typography.titleLarge)
                     }
@@ -223,18 +237,27 @@ fun MatchScreen(vm: AppViewModel) {
             }
         }
 
-        // Untere Leiste
-        Row(Modifier.fillMaxWidth().background(DartColors.BottomBar).padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (lensOn) BarButton(Icons.Default.CameraAlt, "Kamera", active = inputMethod == InputMethod.BOARD && showCamera) { vm.setInputMethod(InputMethod.BOARD); showCamera = true }
-            BarButton(Icons.Default.TrackChanges, "Board", active = inputMethod == InputMethod.BOARD && (!lensOn || !showCamera)) { vm.setInputMethod(InputMethod.BOARD); showCamera = false }
-            BarButton(Icons.Default.Dialpad, "Score", active = inputMethod == InputMethod.TOTAL, enabled = totalAllowed) { vm.setInputMethod(InputMethod.TOTAL) }
-            BarButton(Icons.Default.Keyboard, "Darts", active = inputMethod == InputMethod.DART_BY_DART) { vm.setInputMethod(InputMethod.DART_BY_DART) }
-            Spacer(Modifier.weight(1f))
-            SecondaryButton("Undo", enabled = game.canUndo, icon = Icons.AutoMirrored.Filled.Undo) { vm.undo() }
-            PrimaryButton("Next", Modifier.width(92.dp), enabled = inputEnabled, height = 48) { vm.nextPlayer() }
-            BarButton(Icons.Default.Edit, "Korrektur", active = false, enabled = !s.finished && vm.correctableDarts().isNotEmpty()) {
-                correctIndex = (if (s.currentVisit.isNotEmpty()) s.currentVisit.size else vm.correctableDarts().size) - 1
+        // Untere Leiste wie bei Autodarts: Eingabe-Umschalter, Undo, großer Next-Button. Korrektur: Dart in der Aufnahme-Leiste antippen.
+        Row(Modifier.fillMaxWidth().background(DartColors.BottomBar).padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            var inputMenu by remember { mutableStateOf(false) }
+            val cameraShown = inputMethod == InputMethod.BOARD && lensOn && showCamera
+            Box {
+                BarButton(when {
+                    cameraShown -> Icons.Default.CameraAlt
+                    inputMethod == InputMethod.BOARD -> Icons.Default.TrackChanges
+                    inputMethod == InputMethod.TOTAL -> Icons.Default.Dialpad
+                    else -> Icons.Default.Keyboard
+                }, "Eingabe wechseln", active = false) { inputMenu = true }
+                DropdownMenu(expanded = inputMenu, onDismissRequest = { inputMenu = false }) {
+                    val pick: (InputMethod, Boolean) -> Unit = { m, cam -> inputMenu = false; showCamera = cam; vm.setInputMethod(m) }
+                    if (lensOn) DropdownMenuItem(text = { Text("Kamera (Lens)") }, leadingIcon = { Icon(Icons.Default.CameraAlt, null) }, onClick = { pick(InputMethod.BOARD, true) })
+                    DropdownMenuItem(text = { Text("Board antippen") }, leadingIcon = { Icon(Icons.Default.TrackChanges, null) }, onClick = { pick(InputMethod.BOARD, false) })
+                    if (totalAllowed) DropdownMenuItem(text = { Text("Gesamtscore") }, leadingIcon = { Icon(Icons.Default.Dialpad, null) }, onClick = { pick(InputMethod.TOTAL, false) })
+                    DropdownMenuItem(text = { Text("Dart für Dart") }, leadingIcon = { Icon(Icons.Default.Keyboard, null) }, onClick = { pick(InputMethod.DART_BY_DART, false) })
+                }
             }
+            SecondaryButton("Undo", enabled = game.canUndo && vm.onlineCanUndo(), icon = Icons.AutoMirrored.Filled.Undo) { vm.undo() }
+            PrimaryButton("Next", Modifier.weight(1f), enabled = inputEnabled, height = 48) { vm.nextPlayer() }
         }
     }
 
@@ -314,8 +337,8 @@ fun MatchScreen(vm: AppViewModel) {
     if (confirmAbort) {
         AlertDialog(
             onDismissRequest = { confirmAbort = false },
-            title = { Text("Spiel beenden?") },
-            text = { Text("Das laufende Spiel wird verworfen und nicht in der Statistik gespeichert.") },
+            title = { Text(if (online) "Online-Match abbrechen?" else "Spiel beenden?") },
+            text = { Text(if (online) "Das Match wird für alle Spieler abgebrochen und nicht gewertet." else "Das laufende Spiel wird verworfen und nicht in der Statistik gespeichert.") },
             confirmButton = { TextButton(onClick = { confirmAbort = false; vm.abortGame() }) { Text("Beenden", color = DartColors.Red) } },
             dismissButton = { TextButton(onClick = { confirmAbort = false }) { Text("Weiterspielen") } },
         )

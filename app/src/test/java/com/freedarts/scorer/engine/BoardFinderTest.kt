@@ -48,13 +48,30 @@ class BoardFinderTest {
         return Homography(doubleArrayOf(s * cos(a), s * sin(a), cx, s * sin(a), -s * cos(a), cy, g, hh, 1.0))
     }
 
-    private fun check(hTrue: Homography, noise: Int, maxErrPx: Double) {
+    /**
+     * Sicht einer Lochkamera auf das Board: um die Hochachse um [yawDeg] gedreht (0 = frontal, 45 = schräg wie von
+     * Autodarts empfohlen), Abstand [distMm] zum Bull, Brennweite [f] px, Bildmitte (cx, cy).
+     */
+    private fun camera(yawDeg: Double, distMm: Double, f: Double, cx: Double, cy: Double, rollDeg: Double = 0.0): Homography {
+        val t = Math.toRadians(yawDeg); val roll = Math.toRadians(rollDeg)
+        val bp = ArrayList<Pair<Double, Double>>(); val ip = ArrayList<Pair<Double, Double>>()
+        for (deg in 0 until 360 step 30) for (r in doubleArrayOf(60.0, 170.0)) {
+            val a = Math.toRadians(deg.toDouble())
+            val bx = r * sin(a); val by = r * cos(a)
+            val xc = bx * cos(t); val zc = bx * sin(t) + distMm
+            val u = f * xc / zc; val v = -f * by / zc
+            bp.add(bx to by); ip.add(cx + u * cos(roll) - v * sin(roll) to cy + u * sin(roll) + v * cos(roll))
+        }
+        return Homography.from(bp, ip)!!
+    }
+
+    private fun check(hTrue: Homography, noise: Int, maxErrPx: Double, expectQuality: BoardFinder.Quality = BoardFinder.Quality.GOOD) {
         val img = render(hTrue, noise)
         val finder = BoardFinder(w, h).apply { log = { println("BF: $it") } }
         val fit = finder.find(img)
         assertNotNull("Board nicht gefunden", fit)
         fit!!
-        assertEquals(BoardFinder.Quality.GOOD, fit.quality)
+        assertEquals(expectQuality, fit.quality)
         var worst = 0.0
         for (r in doubleArrayOf(30.0, 103.0, 166.0)) {
             var wr = 0.0; var wdeg = 0
@@ -78,11 +95,62 @@ class BoardFinderTest {
         }
     }
 
-    @Test fun frontalView() = check(truth(0.8, 180.0, 240.0, 0.0, 0.0, 0.0), 0, 2.0)
+    /** Frontal: Geometrie stimmt, aber wie bei Autodarts („View from the side“) noch nicht spielbereit. */
+    @Test fun frontalView() = check(truth(0.8, 180.0, 240.0, 0.0, 0.0, 0.0), 0, 2.0, BoardFinder.Quality.TOO_FRONTAL)
 
-    @Test fun sideViewWithPerspectiveAndTilt() = check(truth(0.78, 178.0, 250.0, 6.0, 0.0006, 0.0004), 12, 3.0)
+    /** Die Perspektivterme entsprechen ≈ 45° Blickwinkel (Achsenverhältnis ≈ 0,75) → spielbereit. */
+    @Test fun perspectiveWithTilt() = check(truth(0.78, 178.0, 250.0, 6.0, 0.0006, 0.0004), 12, 3.0)
 
     @Test fun smallRotatedBoard() = check(truth(0.55, 200.0, 220.0, -12.0, -0.0004, 0.0005), 8, 2.5)
+
+    /** Kamera schräg wie von Autodarts vorgegeben (45° zur Boardfläche, 1 m vom Bull): das Ideal → GOOD. */
+    @Test fun autodartsSideView45() = check(camera(45.0, 1000.0, 760.0, 180.0, 240.0), 8, 3.0)
+
+    @Test fun sideView35Rolled() = check(camera(35.0, 1000.0, 700.0, 175.0, 245.0, rollDeg = 5.0), 8, 3.5)
+
+    @Test fun sideView55FromLeft() = check(camera(-55.0, 1000.0, 760.0, 185.0, 235.0), 8, 3.0)
+
+    /** Unter ≈ 30° zur Boardfläche (Yaw > 60°) ist die Sicht zu flach („View more from the front“). */
+    @Test fun tooSkewedView() {
+        val fit = BoardFinder(w, h).find(render(camera(65.0, 1000.0, 760.0, 180.0, 240.0), 0))
+        assertNotNull(fit)
+        assertEquals(BoardFinder.Quality.TOO_SKEWED, fit!!.quality)
+    }
+
+    /** Ellipse aus der Homographie: Achsenverhältnis ≈ sin(Blickwinkel), auch ohne Ringkanten. */
+    @Test fun ellipseFromHomographyMatchesViewAngle() {
+        val finder = BoardFinder(w, h)
+        for (deg in doubleArrayOf(90.0, 55.0, 45.0, 35.0)) {
+            val e = finder.ellipseFor(camera(90.0 - deg, 1000.0, 760.0, 180.0, 240.0))
+            assertNotNull(e); e!!
+            println("BF-ELL view=$deg° ratio=${e.axisRatio} angle=${e.viewAngleDeg}")
+            assertEquals(deg, e.viewAngleDeg, 3.0)
+        }
+        assertEquals(BoardFinder.Quality.TOO_FRONTAL, BoardFinder.skewQuality(0.95))
+        assertEquals(null, BoardFinder.skewQuality(0.7))
+        assertEquals(BoardFinder.Quality.TOO_SKEWED, BoardFinder.skewQuality(0.45))
+    }
+
+    /** Verfeinerung in Schrägsicht (KI-Startpunkte) muss GOOD liefern und zur Wahrheit konvergieren. */
+    @Test fun refineSideView() {
+        val hTrue = camera(45.0, 1000.0, 760.0, 180.0, 240.0)
+        val img = render(hTrue, 10)
+        val rnd = java.util.Random(5)
+        val classes = listOf(-9.0, 171.0, 261.0, 81.0, 297.0, 117.0)
+        val bp = classes.map { Math.toRadians(it) }.map { 170 * sin(it) to 170 * cos(it) }
+        val ip = bp.map { (bx, by) -> val (x, y) = hTrue.map(bx, by); x + rnd.nextGaussian() * 3 to y + rnd.nextGaussian() * 3 }
+        val fit = BoardFinder(w, h).refine(img, Homography.from(bp, ip)!!)
+        assertNotNull(fit); fit!!
+        assertEquals(BoardFinder.Quality.GOOD, fit.quality)
+        var worst = 0.0
+        for (deg in 0 until 360 step 10) for (r in doubleArrayOf(50.0, 103.0, 166.0)) {
+            val a = Math.toRadians(deg.toDouble())
+            val (tx, ty) = hTrue.map(r * sin(a), r * cos(a)); val (fx, fy) = fit.boardToImage.map(r * sin(a), r * cos(a))
+            worst = maxOf(worst, hypot(tx - fx, ty - fy))
+        }
+        println("BF-REFINE-SIDE worst=$worst px residual=${fit.residualMm} mm")
+        assertTrue("Abweichung $worst px", worst < 2.5)
+    }
 
     @Test fun ellipseFitDiagnostics() {
         val hTrue = truth(0.78, 178.0, 250.0, 6.0, 0.0006, 0.0004)

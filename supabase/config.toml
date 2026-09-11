@@ -1,0 +1,40 @@
+# Supabase-CLI-Konfiguration für Scorelens Online.
+#   supabase link --project-ref <ref>   # Projekt auf supabase.com verknüpfen
+#   supabase db push                    # Migrationen einspielen
+#   supabase start                      # lokaler Entwicklungsstack (Docker) unter http://127.0.0.1:54321
+project_id = "scorelens"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 17
+
+[realtime]
+enabled = true
+
+[studio]
+enabled = true
+port = 54323
+
+[auth]
+enabled = true
+site_url = "scorelens://auth/callback"
+additional_redirect_urls = ["scorelens://auth/callback", "http://127.0.0.1:3000"]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+enable_signup = true
+enable_anonymous_sign_ins = true
+
+[auth.email]
+enable_signup = true
+enable_confirmations = false
+
+# OAuth-Anbieter (Google, GitHub, Discord) bewusst nicht deklariert: sie werden im Dashboard unter
+# Authentication › Providers gepflegt, damit `supabase config push` sie nicht überschreibt.
+# Redirect-URL beim Anbieter: https://<projekt>.supabase.co/auth/v1/callback

@@ -10,12 +10,17 @@ object LensMessages {
         fit == null -> if (ai) "Suche Board … ganzes Board ins Bild, gutes Licht" else "Board nicht gefunden: ganzes Board ins Bild, mehr Licht"
         else -> when (fit.quality) {
             BoardFinder.Quality.GOOD -> {
-                val ratio = if (fit.ellipse.a > 0) minOf(fit.ellipse.a, fit.ellipse.b) / maxOf(fit.ellipse.a, fit.ellipse.b) else 0.85
-                if (ratio > 0.97) "Board erkannt ✓ – etwas mehr von der Seite ist besser" else "Board erkannt ✓"
+                val ratio = fit.ellipse.axisRatio.takeIf { it > 0 } ?: 0.7
+                when {
+                    ratio > BoardFinder.IDEAL_MAX -> "Board erkannt ✓ – etwas mehr von der Seite ist besser"
+                    ratio < BoardFinder.IDEAL_MIN -> "Board erkannt ✓ – etwas mehr von vorn ist besser"
+                    else -> "Board erkannt ✓"
+                }
             }
             BoardFinder.Quality.PARTIAL -> "Das ganze Board muss sichtbar sein – weiter zurück"
             BoardFinder.Quality.TOO_SMALL -> "Näher ans Board"
-            BoardFinder.Quality.TOO_SKEWED -> "Mehr von vorn – weniger schräg"
+            BoardFinder.Quality.TOO_SKEWED -> "Mehr von vorn – zu schräg (Ziel: etwa 45° zur Scheibe)"
+            BoardFinder.Quality.TOO_FRONTAL -> "Mehr von der Seite – zu frontal (Ziel: etwa 45° zur Scheibe)"
             BoardFinder.Quality.INACCURATE -> "Ruhig halten, Licht gleichmäßiger"
             BoardFinder.Quality.NOT_FOUND -> "Board nicht gefunden: ganzes Board ins Bild, mehr Licht"
         }

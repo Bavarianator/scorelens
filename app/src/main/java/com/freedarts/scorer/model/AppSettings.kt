@@ -29,6 +29,8 @@ data class AppSettings(
     /** Empfindlichkeit 0..100 (höher = kleinere Änderungen erkennen). */
     val lensSensitivity: Int = 50,
     val lensUseFrontCamera: Boolean = false,
+    /** Lens speichert erkannte Darts als Trainingsbilder + Labels (tools/finetune/). */
+    val lensCaptureTraining: Boolean = false,
 
     /** Remote Scoring: Spielansicht im Browser eines zweiten Geräts (Port 8765). */
     val remoteEnabled: Boolean = false,
@@ -40,6 +42,12 @@ data class AppSettings(
     /** Session-Code (Teil des Zuschauer-Links) und geheimes Token des Handys. Werden beim ersten Aktivieren erzeugt. */
     val cloudSessionCode: String = "",
     val cloudSessionToken: String = "",
+
+    /** Online-Modus (Supabase): Projekt-URL und Anon-/Publishable-Key – supabase.com oder eigener Server (selfhost/). */
+    val onlineUrl: String = "",
+    val onlineAnonKey: String = "",
+    /** PKCE-Verifier der laufenden OAuth-Anmeldung (bis der Browser zurückleitet). */
+    val onlinePkceVerifier: String = "",
 
     /** Aktuelle Aufnahme groß über dem Kamerabild anzeigen (Darts Zoom). */
     val dartsZoom: Boolean = true,

@@ -1,27 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Blenden-Ring (Kamera) um ein Dartboard-Bull, davor eine Dartspitze: Autoscoring mit der Kamera. -->
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="108dp" android:height="108dp"
-    android:viewportWidth="108" android:viewportHeight="108">
-    <!-- weicher Schein -->
-    <path android:fillColor="#1A2B6BFF" android:pathData="M54,54m-38,0a38,38 0,1 1,76 0a38,38 0,1 1,-76 0"/>
-    <!-- Blendenlamellen (6) -->
-    <group android:pivotX="54" android:pivotY="54">
-        <path android:fillColor="#19C6A6" android:pathData="M54,22 L66,26 L58,42 Z"/>
-        <path android:fillColor="#2B6BFF" android:pathData="M81.7,38 L85.7,50 L67.9,49.9 Z"/>
-        <path android:fillColor="#19C6A6" android:pathData="M81.7,70 L73.7,78 L64,61.9 Z"/>
-        <path android:fillColor="#2B6BFF" android:pathData="M54,86 L42,82 L50,66 Z"/>
-        <path android:fillColor="#19C6A6" android:pathData="M26.3,70 L22.3,58 L40.1,58.1 Z"/>
-        <path android:fillColor="#2B6BFF" android:pathData="M26.3,38 L34.3,30 L44,46.1 Z"/>
-    </group>
-    <!-- Board: Ringe -->
-    <path android:fillColor="#F1E9D2" android:pathData="M54,54m-19,0a19,19 0,1 1,38 0a19,19 0,1 1,-38 0"/>
-    <path android:fillColor="#14161B" android:pathData="M54,54m-15,0a15,15 0,1 1,30 0a15,15 0,1 1,-30 0"/>
-    <path android:fillColor="#F1E9D2" android:pathData="M54,54m-11,0a11,11 0,1 1,22 0a11,11 0,1 1,-22 0"/>
-    <path android:fillColor="#27C26A" android:pathData="M54,54m-7,0a7,7 0,1 1,14 0a7,7 0,1 1,-14 0"/>
-    <path android:fillColor="#E5484D" android:pathData="M54,54m-3.2,0a3.2,3.2 0,1 1,6.4 0a3.2,3.2 0,1 1,-6.4 0"/>
-    <!-- Dart von rechts oben, Spitze im Bull -->
-    <path android:fillColor="#F3F5F9" android:pathData="M56.5,51.5 L78,30 L80,32 L58.5,53.5 Z"/>
-    <path android:fillColor="#7CF06B" android:pathData="M76,26 L88,22 L84,34 L80,32 L78,30 Z"/>
-    <path android:fillColor="#0B1220" android:pathData="M56,52 L59.5,48.5 L60.8,49.8 L57.3,53.3 Z"/>
-</vector>
+<!-- Adaptive-Icon-Vordergrund: Logo mit Rand, damit die Dartspitze in der 66dp-Sicherheitszone bleibt. -->
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@drawable/ic_logo"
+    android:inset="28%" />

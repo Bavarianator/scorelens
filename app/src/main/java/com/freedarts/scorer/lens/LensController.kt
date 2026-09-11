@@ -21,12 +21,14 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
+import com.freedarts.scorer.engine.Board
 import com.freedarts.scorer.model.Segment
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import java.util.concurrent.Executors
+import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.min
 
@@ -34,9 +36,10 @@ import kotlin.math.min
  * "Lens": Kamera starten, Board finden und kalibrieren, Referenz bei Stillstand setzen,
  * Fokus/Belichtung sperren, danach Darts erkennen.
  *
- * Bausteine: [FrameConverter] (YUV → Grau/Farbe), [BoardFinder] + [CalibrationTracker] (Kalibrierung mit
- * Ringkanten-Verfeinerung und zeitlichem Median), [DartDetector] (klassische Differenzbild-Logik),
- * [YoloDartModel] + [TipTracker] (KI-Spitzen, verfolgt und über mehrere Auswertungen bestätigt).
+ * Bausteine: [FrameConverter] (YUV → Grau/Farbe, entzerrter Ausschnitt), [BoardFinder] + [CalibrationTracker]
+ * (Kalibrierung mit Ringkanten-Verfeinerung und zeitlichem Median), [DartDetector] (klassische Differenzbild-Logik),
+ * [BoardRectifier] (Board-Ausschnitt in Frontalansicht für die KI, damit eine schräg stehende Kamera wie bei
+ * Autodarts funktioniert), [YoloDartModel] + [TipTracker] (KI-Spitzen, verfolgt und über mehrere Auswertungen bestätigt).
  * Die KI-Inferenz läuft auf einem eigenen Thread; Ergebnisse kommen über den Analyse-Thread zurück.
  */
 class LensController(private val context: Context) {
@@ -86,7 +89,14 @@ class LensController(private val context: Context) {
     private val frames = FrameConverter(frameWidth, frameHeight)
     private val tips = TipTracker(detector)
     private val calibration = CalibrationTracker(frameWidth, frameHeight)
+    /** Trainingsdaten fürs Feintuning (tools/finetune/), an/aus über die Lens-Einstellungen. */
+    val training = TrainingCapture(context)
     val aiAvailable: Boolean get() = yolo.available
+
+    init {
+        // KI-Modell im Hintergrund laden (GPU-Delegate nie auf dem Main-Thread erzeugen!)
+        yolo.prepareAsync()
+    }
 
     private val _status = MutableStateFlow(Status())
     val status: StateFlow<Status> = _status
@@ -353,8 +363,11 @@ class LensController(private val context: Context) {
             if (res == null) return@execute
             lastAiMs = res.inferenceMs
             if (setup != Setup.READY) return@execute
-            val list = res.darts.map { p -> toAnalysis(p.x + rgb.offsetX, p.y + rgb.offsetY).let { (x, y) -> TipTracker.Tip(x, y, p.conf) } }
-            emit(tips.onTips(list, lastFrame, System.currentTimeMillis()))
+            val list = res.darts.map { p -> analysisPoint(rgb, p.x, p.y).let { (x, y) -> TipTracker.Tip(x, y, p.conf) } }
+            val ev = tips.onTips(list, lastFrame, System.currentTimeMillis())
+            // Trainingsdaten: genau der Ausschnitt, den das Modell gesehen hat, sobald ein Dart bestätigt ist
+            if (ev is DartDetector.Event.Dart && training.enabled) aiExecutor.execute { training.save(rgb, res) }
+            emit(ev)
             publish()
         }
     }
@@ -386,8 +399,8 @@ class LensController(private val context: Context) {
         val rotW = if (lastRotation == 90 || lastRotation == 270) cameraH else cameraW
         val rotH = if (lastRotation == 90 || lastRotation == 270) cameraW else cameraH
         if (crop != null && rotW > 0) {
-            val px = ax * rotW / frameWidth - crop.offsetX; val py = ay * rotH / frameHeight - crop.offsetY
-            val half = (detector.boardRadiusPx * rotW / frameWidth * 0.16).toInt().coerceIn(40, 400)
+            val (px, py) = crop.fromUpright.map(ax.toDouble() * rotW / frameWidth, ay.toDouble() * rotH / frameHeight)
+            val half = (detector.boardRadiusPx * rotW / frameWidth * 0.16 / crop.scale).toInt().coerceIn(40, 400)
             window(crop.pixels, crop.width, crop.height, px.toInt(), py.toInt(), half)
         } else {
             val gray = lastFrame
@@ -405,24 +418,23 @@ class LensController(private val context: Context) {
         return Triple(Bitmap.createBitmap(out, ww, hh, Bitmap.Config.ARGB_8888), (cx - x0).toFloat() / ww, (cy - y0).toFloat() / hh)
     }
 
-    /** KI-Spitzen im Board-Ausschnitt, synchron, in Analyse-Koordinaten (null = keine Inferenz möglich). */
-    private fun aiTips(img: ImageProxy): List<TipTracker.Tip>? {
-        val rgb = boardRgb(img) ?: return null
-        lastCrop = rgb
-        val res = yolo.detect(rgb.pixels, rgb.width, rgb.height) ?: return null
-        lastAiMs = res.inferenceMs
-        return res.darts.map { p -> toAnalysis(p.x + rgb.offsetX, p.y + rgb.offsetY).let { (x, y) -> TipTracker.Tip(x, y, p.conf) } }
+    /** Punkt eines KI-Bilds ([frame]-Pixel) → Analyse-Koordinaten. */
+    private fun analysisPoint(frame: RgbFrame, x: Double, y: Double): Pair<Double, Double> {
+        val (ux, uy) = frame.toUpright.map(x, y)
+        return toAnalysis(ux, uy)
     }
 
-    /** Farbbild des Board-Ausschnitts in voller Kameraauflösung; ohne Kalibrierung das ganze Bild. */
+    /**
+     * Farbbild fürs KI-Modell in voller Kameraauflösung: mit Kalibrierung der **entzerrte** Board-Ausschnitt
+     * (Board als Kreis in der Mitte, 20 oben – so wie das Modell trainiert wurde, egal wie schräg die Kamera
+     * steht), ohne Kalibrierung das ganze Bild.
+     */
     private fun boardRgb(img: ImageProxy, onlyIfCalibrated: Boolean = false): RgbFrame? {
         val (rotW, rotH) = frames.uprightSize(img)
         val b2i = detector.boardToImage
         if (b2i == null || !detector.isCalibrated()) return if (onlyIfCalibrated) null else frames.crop(img, 0, 0, rotW, rotH)
-        val (cx, cy) = b2i.map(0.0, 0.0)
-        val r = detector.boardRadiusPx * 1.35
-        val fx = rotW.toDouble() / frameWidth; val fy = rotH.toDouble() / frameHeight
-        return frames.crop(img, ((cx - r) * fx).toInt(), ((cy - r) * fy).toInt(), ((cx + r) * fx).toInt(), ((cy + r) * fy).toInt())
+        val plan = BoardRectifier.plan(b2i, frameWidth, frameHeight, rotW, rotH)
+        return frames.warp(img, plan.size, plan.toUpright, plan.scale)
     }
 
     /** Punkt im aufrechten Vollbild → Analyse-Koordinaten. */
@@ -434,37 +446,58 @@ class LensController(private val context: Context) {
 
     // ---------- Kalibrierung ----------
 
+    /**
+     * Kalibrierung: die KI-Inferenz läuft wie die Dart-Erkennung auf [aiExecutor] (teilt sich [aiBusy]), damit der
+     * Analyse-Thread keine Frames verpasst; die Auswertung kommt auf den Analyse-Thread zurück.
+     */
     private fun calibrateFromFrame(img: ImageProxy, rgb: IntArray, gray: ByteArray) {
-        var fit: BoardFinder.Fit? = null
-        if (yolo.available) {
-            val full = boardRgb(img, onlyIfCalibrated = setup == Setup.READY) ?: return
-            val res = yolo.detect(full.pixels, full.width, full.height)
-            if (res != null) {
-                lastAiMs = res.inferenceMs
-                val pts = res.calibration
-                if (pts.size >= 4) {
-                    aiCalibFails = 0
-                    val classes = pts.keys.sorted()
-                    val imagePts = classes.map { toAnalysis(pts[it]!!.x + full.offsetX, pts[it]!!.y + full.offsetY) }
-                    val b2i = Homography.from(classes.map { YoloDartModel.boardPoint(it) }, imagePts)
-                    // Verfeinerung über Ringkanten; wenn das nicht klappt, KI-Punkte allein
-                    if (b2i != null) fit = finder.refine(rgb, b2i) ?: fitFromHomography(b2i)
-                } else aiCalibFails++
+        if (!yolo.available) { applyFit(finder.find(rgb, preferredTop), gray, emptyList()); return }
+        if (aiBusy) return
+        val full = boardRgb(img, onlyIfCalibrated = setup == Setup.READY) ?: return
+        aiBusy = true
+        aiExecutor.execute {
+            val res = try { yolo.detect(full.pixels, full.width, full.height) } catch (e: Exception) { null }
+            executor.execute {
+                aiBusy = false
+                if (setup == Setup.OFF) return@execute
+                var fit: BoardFinder.Fit? = null
+                if (res != null) {
+                    lastAiMs = res.inferenceMs
+                    val pts = res.calibration
+                    if (pts.size >= 4) {
+                        aiCalibFails = 0
+                        val classes = pts.keys.sorted()
+                        val imagePts = classes.map { analysisPoint(full, pts[it]!!.x, pts[it]!!.y) }
+                        val b2i = Homography.from(classes.map { YoloDartModel.boardPoint(it) }, imagePts)
+                        // Verfeinerung über Ringkanten; wenn das nicht klappt, KI-Punkte allein
+                        if (b2i != null) fit = finder.refine(rgb, b2i) ?: fitFromHomography(b2i)
+                    } else aiCalibFails++
+                }
+                if (fit == null && aiCalibFails >= 3) fit = finder.find(rgb, preferredTop)
+                val seen = res?.darts?.map { p -> analysisPoint(full, p.x, p.y).let { (x, y) -> TipTracker.Tip(x, y, p.conf) } } ?: emptyList()
+                applyFit(fit, gray, seen)
             }
         }
-        if (fit == null && (!yolo.available || aiCalibFails >= 3)) fit = finder.find(rgb, preferredTop)
-        applyFit(fit, gray, img)
     }
 
+    /** Fit allein aus KI-Kalibrierpunkten; die Ellipse wird aus der Homographie abgeleitet, damit die Schrägheits-Hinweise greifen. */
     private fun fitFromHomography(b2i: Homography): BoardFinder.Fit? {
         val inv = b2i.inverse() ?: return null
         val pts = DartDetector.boardPoints().map { (bx, by) -> b2i.map(bx, by) }
         val partial = pts.any { it.first < 1 || it.second < 1 || it.first > frameWidth - 2 || it.second > frameHeight - 2 }
-        return BoardFinder.Fit(b2i, inv, pts, BoardFinder.Ellipse(0.0, 0.0, 0.0, 0.0, 0.0), 2.0, 1.0,
-            if (partial) BoardFinder.Quality.PARTIAL else BoardFinder.Quality.GOOD, 0.0)
+        val ell = finder.ellipseFor(b2i) ?: BoardFinder.Ellipse(0.0, 0.0, 0.0, 0.0, 0.0)
+        val (cx, cy) = b2i.map(0.0, 0.0); val (ex, ey) = b2i.map(Board.DOUBLE_OUTER, 0.0)
+        val quality = when {
+            partial -> BoardFinder.Quality.PARTIAL
+            ell.a > 0 && maxOf(ell.a, ell.b) < 0.2 * minOf(frameWidth, frameHeight) -> BoardFinder.Quality.TOO_SMALL
+            ell.a > 0 && BoardFinder.skewQuality(ell.axisRatio) != null -> BoardFinder.skewQuality(ell.axisRatio)!!
+            else -> BoardFinder.Quality.GOOD
+        }
+        return BoardFinder.Fit(b2i, inv, pts, ell, 2.0, 1.0, quality, hypot(ex - cx, ey - cy))
     }
 
-    private fun applyFit(fit: BoardFinder.Fit?, gray: ByteArray, img: ImageProxy) {
+    /** [seen] = KI-Spitzen derselben Inferenz in Analyse-Koordinaten, für die Neuzuordnung nach Kamerabewegung. */
+    private fun applyFit(fit: BoardFinder.Fit?, gray: ByteArray, seen: List<TipTracker.Tip>) {
         lastFit = fit
         if (fit == null || fit.quality != BoardFinder.Quality.GOOD) { calibration.clear(); return }
         val median = calibration.stable(fit.points) ?: return
@@ -480,7 +513,7 @@ class LensController(private val context: Context) {
                 val boardTips = tips.knownOnBoard()
                 calibrate(median, norm, fit.residualMm)
                 detector.setReferenceKeepingDarts(gray)
-                tips.resync(boardTips, aiTips(img) ?: emptyList(), System.currentTimeMillis())
+                tips.resync(boardTips, seen, System.currentTimeMillis())
             }
             else -> {}
         }

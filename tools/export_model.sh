@@ -10,6 +10,8 @@ cd "$(dirname "$0")/.."
 APP_DIR=$PWD
 TOOLS=${FREEDARTS_TOOLS:-$HOME/freedarts-tools}
 IMGSZ=${IMGSZ:-800}
+# WEIGHTS: andere Gewichte exportieren, z. B. ein Feintuning aus tools/finetune/ (Standard: dart-sense weights.pt)
+WEIGHTS=${WEIGHTS:-$TOOLS/dartsense/weights.pt}
 mkdir -p "$TOOLS/dartsense"
 [ -f "$TOOLS/dartsense/weights.pt" ] || curl -sL -o "$TOOLS/dartsense/weights.pt" https://raw.githubusercontent.com/bnww/dart-sense/main/weights.pt
 [ -f "$TOOLS/dartsense/sample.jpg" ] || curl -sL -o "$TOOLS/dartsense/sample.jpg" https://raw.githubusercontent.com/bnww/dart-sense/main/images/d2_02_03_2021_2_DSC_0059.JPG
@@ -17,13 +19,13 @@ mkdir -p "$TOOLS/dartsense"
 uv pip install --python "$TOOLS/yolo-env/bin/python" torch torchvision --index-url https://download.pytorch.org/whl/cpu
 uv pip install --python "$TOOLS/yolo-env/bin/python" ultralytics ai-edge-litert litert-torch pillow numpy
 cd "$TOOLS/dartsense"
-IMGSZ=$IMGSZ APP_ASSET="$APP_DIR/app/src/main/assets/dartsense_yolov8n.tflite" "$TOOLS/yolo-env/bin/python" - <<'PY'
+WEIGHTS="$(realpath "$WEIGHTS")" IMGSZ=$IMGSZ APP_ASSET="$APP_DIR/app/src/main/assets/dartsense_yolov8n.tflite" "$TOOLS/yolo-env/bin/python" - <<'PY'
 import os, shutil, sys, numpy as np
 from ultralytics import YOLO
 from PIL import Image
 from ai_edge_litert.interpreter import Interpreter
 IMG = int(os.environ["IMGSZ"]); asset = os.environ["APP_ASSET"]
-model = YOLO("weights.pt")
+model = YOLO(os.environ["WEIGHTS"])
 tfl = model.export(format="litert", imgsz=IMG, nms=False)
 # Prüfbild: linkes oberes Viertel der Beispielgrafik (echtes Foto), quadratisch → kein Letterbox-Unterschied
 im = Image.open("sample.jpg").convert("RGB"); W, H = im.size

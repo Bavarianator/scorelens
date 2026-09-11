@@ -6,3 +6,9 @@ local.properties
 .kotlin/
 captures/
 *.hprof
+out/
+# Release-Signierung und Firebase-Konfiguration (lokal, nie einchecken)
+release.jks
+keystore.properties
+app/google-services.json
+supabase/.temp/

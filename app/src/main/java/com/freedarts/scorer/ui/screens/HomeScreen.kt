@@ -20,21 +20,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Group
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -67,6 +58,10 @@ fun HomeScreen(vm: AppViewModel) {
     val matches by vm.matches.collectAsStateWithLifecycle()
     val lobbyPlayers by vm.lobbyPlayers.collectAsStateWithLifecycle()
     val lensStatus by vm.lens.status.collectAsStateWithLifecycle()
+    val onlineSession by vm.online.session.collectAsStateWithLifecycle()
+    val onlineProfile by vm.online.profile.collectAsStateWithLifecycle()
+    val onlineLobby by vm.online.lobby.collectAsStateWithLifecycle()
+    val loggedIn = onlineSession != null && vm.online.configured
 
     val profile = players.firstOrNull { it.id == settings.profilePlayerId } ?: players.firstOrNull()
     val myX01 = matches.filter { it.mode == GameMode.X01 }.mapNotNull { m -> m.players.firstOrNull { it.playerId == profile?.id } }
@@ -82,22 +77,10 @@ fun HomeScreen(vm: AppViewModel) {
         ScreenBackground()
         HeaderSwoosh(Modifier.align(Alignment.TopEnd), height = 200)
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 14.dp)) {
-            var menuOpen by remember { mutableStateOf(false) }
             Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box {
-                    if (profile != null) Box(Modifier.clickable { menuOpen = true }) { Avatar(profile, 40) }
-                    DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                        listOf(
-                            "Profil & Spieler" to Screen.Players, "Devices" to Screen.Devices, "Statistics" to Screen.Stats,
-                            "Match History" to Screen.History, "Einstellungen" to Screen.Settings, "Umstieg von Autodarts" to Screen.Help,
-                        ).forEach { (label, target) ->
-                            DropdownMenuItem(text = { Text(label) }, onClick = { menuOpen = false; vm.navigate(target) })
-                        }
-                    }
-                }
+                if (profile != null) Box(Modifier.clickable { vm.navigate(Screen.Players) }) { Avatar(profile, 40) }
                 Box(Modifier.weight(1f), contentAlignment = Alignment.Center) { BrandTitle("Scorelens", size = 22) }
                 IconButton(onClick = { vm.navigate(Screen.Players) }) { Icon(Icons.Default.Group, "Spieler") }
-                IconButton(onClick = { vm.navigate(Screen.Settings) }) { Icon(Icons.Default.Settings, "Einstellungen") }
             }
             Spacer(Modifier.height(12.dp))
 
@@ -136,16 +119,37 @@ fun HomeScreen(vm: AppViewModel) {
             }
             Spacer(Modifier.height(10.dp))
 
-            // Gegner finden (Bot auf eigenem Niveau – statt Online-Matchmaking)
+            // Gegner finden: online (Matchmaking über Supabase), sonst Bot auf eigenem Niveau
             Box(
                 Modifier.fillMaxWidth().height(96.dp).clip(RoundedCornerShape(16.dp))
-                    .background(Brush.linearGradient(listOf(Color(0xFF15305F), Color(0xFF1D4ED8)))).clickable { vm.playVsMatchedBot() },
+                    .background(Brush.linearGradient(listOf(Color(0xFF15305F), Color(0xFF1D4ED8)))).clickable { vm.findOpponent() },
             ) {
                 Column(Modifier.padding(start = 16.dp, top = 18.dp)) {
                     Text("GEGNER FINDEN", fontFamily = Condensed, fontWeight = FontWeight.Bold, fontSize = 26.sp)
-                    Text("Bot auf deinem Niveau · 501 · First to 3 Legs", fontSize = 13.sp, color = Color(0xFFDDE6F5))
+                    Text(if (loggedIn) "Online-Gegner auf deinem Niveau · 501 · First to 3 Legs" else "Bot auf deinem Niveau · 501 · First to 3 Legs", fontSize = 13.sp, color = Color(0xFFDDE6F5))
                 }
-                Chip(lvl, Modifier.align(Alignment.CenterEnd).padding(end = 14.dp))
+                Chip(if (loggedIn) "Online" else lvl, Modifier.align(Alignment.CenterEnd).padding(end = 14.dp))
+            }
+            Spacer(Modifier.height(10.dp))
+
+            // Online spielen (Lobbys wie bei Autodarts)
+            Box(
+                Modifier.fillMaxWidth().height(96.dp).clip(RoundedCornerShape(16.dp))
+                    .background(Brush.linearGradient(listOf(Color(0xFF3B1D5E), Color(0xFF6D28D9)))).clickable { if (onlineLobby != null) vm.openOnlineLobby() else vm.navigate(Screen.Online) },
+            ) {
+                Column(Modifier.padding(start = 16.dp, top = 18.dp)) {
+                    Text("ONLINE SPIELEN", fontFamily = Condensed, fontWeight = FontWeight.Bold, fontSize = 26.sp)
+                    Text(
+                        when {
+                            onlineLobby != null -> "Deine Lobby ${onlineLobby?.code} · ${onlineLobby?.players?.size}/${onlineLobby?.maxPlayers} Spieler"
+                            loggedIn -> "Angemeldet als ${onlineProfile?.name ?: "…"} · Lobbys, Code, Gegner finden"
+                            vm.online.configured -> "Anmelden mit E-Mail, Google, GitHub, Discord oder als Gast"
+                            else -> "Supabase-Server eintragen (supabase.com oder selbst gehostet)"
+                        },
+                        fontSize = 13.sp, color = Color(0xFFDDE6F5), maxLines = 1,
+                    )
+                }
+                Chip(if (onlineLobby != null) "Lobby" else if (loggedIn) "Online" else "Login", Modifier.align(Alignment.CenterEnd).padding(end = 14.dp))
             }
             Spacer(Modifier.height(10.dp))
 
@@ -163,15 +167,15 @@ fun HomeScreen(vm: AppViewModel) {
                 Chip("Last settings", Modifier.align(Alignment.CenterEnd).padding(end = 14.dp))
             }
 
-            SectionLabel("Autoscoring")
+            SectionLabel("Geräte")
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                AdCard(Modifier.weight(1f), onClick = { vm.navigate(Screen.Lens) }, padding = 12) {
-                    Text("Lens", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                    Text(if (lensStatus.running) lensStatus.message else "Handykamera", fontSize = 12.sp, color = if (lensStatus.running) DartColors.Lime else DartColors.TextMuted, maxLines = 1)
-                }
                 AdCard(Modifier.weight(1f), onClick = { vm.navigate(Screen.Board) }, padding = 12) {
                     Text("Board Manager", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                     Text(if (settings.boardManagerEnabled) settings.boardManagerHost else "Autodarts-Hardware", fontSize = 12.sp, color = DartColors.TextMuted, maxLines = 1)
+                }
+                AdCard(Modifier.weight(1f), onClick = { vm.navigate(Screen.Devices) }, padding = 12) {
+                    Text("Devices", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text("Zweiter Bildschirm, Remote", fontSize = 12.sp, color = DartColors.TextMuted, maxLines = 1)
                 }
             }
 

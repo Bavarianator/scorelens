@@ -1,0 +1,6 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch
+torchvision
+ultralytics>=8.3,<9
+huggingface_hub>=0.34
+gradio>=4.44

@@ -27,10 +27,7 @@ class CalibrationTracker(private val frameWidth: Int, private val frameHeight: I
         if (history.size > HISTORY) history.removeAt(0)
         val consistent = history.size >= 2 && history.all { f -> f.indices.all { i -> hypot(f[i].first - points[i].first, f[i].second - points[i].second) < JITTER_PX } }
         if (!consistent) return null
-        return points.indices.map { i ->
-            val xs = history.map { it[i].first }.sorted(); val ys = history.map { it[i].second }.sorted()
-            xs[xs.size / 2] to ys[ys.size / 2]
-        }
+        return points.indices.map { i -> median(history.map { it[i] }) }
     }
 
     fun normalized(points: List<Pair<Double, Double>>): List<Float> =

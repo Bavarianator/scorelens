@@ -44,6 +44,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import com.freedarts.scorer.remote.CloudRelayClient
+import com.freedarts.scorer.ui.Screen
 import com.freedarts.scorer.ui.components.AdCard
 import com.freedarts.scorer.ui.components.QrCode
 import com.freedarts.scorer.ui.components.SecondaryButton
@@ -86,13 +87,28 @@ fun SettingsScreen(vm: AppViewModel) {
             SectionLabel("Online-Remote (Cloudflare)")
             CloudRemoteSection(vm)
 
+            SectionLabel("Online-Modus (Supabase)")
+            Text("Online-Lobbys und Matches gegen andere Spieler. Server: kostenloses Projekt auf supabase.com oder eigener Docker-Stack (selfhost/ im Projekt). Konto und Lobbys unter „Online“ auf der Startseite.",
+                color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
+            Spacer(Modifier.height(6.dp))
+            OnlineServerFields(vm)
+            val onlineSession by vm.online.session.collectAsStateWithLifecycle()
+            if (onlineSession != null) {
+                Spacer(Modifier.height(6.dp))
+                Text("Angemeldet (${onlineSession?.user?.email ?: onlineSession?.user?.provider ?: "Konto"})", color = DartColors.Green, style = MaterialTheme.typography.bodySmall)
+                SecondaryButton("Abmelden", Modifier.fillMaxWidth()) { vm.online.signOut() }
+            }
+
             SectionLabel("Bot")
             Text("Wurfpause: ${s.botDelayMillis} ms", color = DartColors.TextMuted)
             Slider(value = s.botDelayMillis.toFloat(), onValueChange = { v -> vm.updateSettings { it.copy(botDelayMillis = (v / 100).toInt() * 100L) } },
                 valueRange = 200f..2000f)
 
+            SectionLabel("Hilfe")
+            SecondaryButton("Umstieg von Autodarts", Modifier.fillMaxWidth()) { vm.navigate(Screen.Help) }
+
             SectionLabel("Über")
-            Text("Scorelens ist ein kostenloser, lokaler Darts-Scorer ohne Konto, Abo oder Cloud. " +
+            Text("Scorelens ist ein kostenloser Darts-Scorer ohne Abo. Lokal ohne Konto; der Online-Modus ist optional und läuft über einen frei wählbaren Supabase-Server. " +
                 "Eingabe über Lens (Handykamera), virtuelles Board, Gesamtscore oder Dart für Dart – optional über einen Autodarts Board Manager im lokalen Netzwerk.",
                 style = MaterialTheme.typography.bodyMedium, color = DartColors.TextMuted)
             Spacer(Modifier.height(8.dp))

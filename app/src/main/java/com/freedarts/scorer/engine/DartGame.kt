@@ -11,10 +11,13 @@ import kotlin.math.sqrt
 import kotlin.random.Random
 
 sealed class GameEvent {
-    /** Ein Dart; [x]/[y] = Auftreffpunkt in Board-Millimetern (nur bei Autoscoring bekannt). */
-    data class Throw(val segment: Segment, val x: Float? = null, val y: Float? = null, val at: Long = 0L) : GameEvent()
-    /** Aufnahme beenden / Spielerwechsel. [auto] = von der App nach dem dritten Dart eingefügt (manuelle Eingabe, Bots). */
-    data class Next(val auto: Boolean = false) : GameEvent()
+    /**
+     * Ein Dart; [x]/[y] = Auftreffpunkt in Board-Millimetern (nur bei Autoscoring bekannt).
+     * [hold] = Aufnahme nach Abschluss (3 Darts, Bust, Checkout) gesperrt lassen, bis [DartGame.next] (Takeout) kommt.
+     */
+    data class Throw(val segment: Segment, val x: Float? = null, val y: Float? = null, val at: Long = 0L, val hold: Boolean = false) : GameEvent()
+    /** Aufnahme beenden / Spielerwechsel ("Next" bzw. Takeout). */
+    data object Next : GameEvent()
 }
 
 /**
@@ -22,8 +25,9 @@ sealed class GameEvent {
  * "Undo" entfernt das letzte Ereignis und spielt alles neu ab.
  *
  * Ablauf einer Aufnahme wie bei Autodarts: Nach dem dritten Dart, einem Bust oder einem Checkout ist die Aufnahme
- * abgeschlossen ([visitComplete]); weitere Darts werden ignoriert. Erst [next] (Takeout bzw. "Next") gibt den
- * nächsten Spieler frei. Bei manueller Eingabe fügt die App das [GameEvent.Next] sofort automatisch ein.
+ * abgeschlossen. Bei manueller Eingabe (hold = false) wechselt der Spieler sofort. Bei Autoscoring (hold = true)
+ * bleibt die Aufnahme gesperrt ([visitComplete]), weitere erkannte Darts werden ignoriert, und erst [next]
+ * (Takeout bzw. "Next") gibt den nächsten Spieler frei.
  */
 abstract class DartGame(
     val players: List<Player>,
@@ -86,7 +90,7 @@ abstract class DartGame(
         if (index !in idx.indices) return false
         val old = events[idx[index]] as GameEvent.Throw
         // Korrigierter Dart: Position ist nicht mehr bekannt
-        events[idx[index]] = GameEvent.Throw(segment, null, null, old.at)
+        events[idx[index]] = GameEvent.Throw(segment, null, null, old.at, old.hold)
         rebuild()
         return true
     }
@@ -111,9 +115,13 @@ abstract class DartGame(
         current = order.first()
     }
 
-    fun throwDart(segment: Segment, x: Float? = null, y: Float? = null, at: Long = System.currentTimeMillis()) {
+    /**
+     * Dart eintragen. [hold] = true (Autoscoring): abgeschlossene Aufnahme bleibt bis [next] gesperrt;
+     * false (manuelle Eingabe, Bots): nach Abschluss sofort Spielerwechsel.
+     */
+    fun throwDart(segment: Segment, x: Float? = null, y: Float? = null, at: Long = System.currentTimeMillis(), hold: Boolean = false) {
         if (finished || visitComplete) return
-        events.add(GameEvent.Throw(segment, x, y, at))
+        events.add(GameEvent.Throw(segment, x, y, at, hold))
         if (bullOffActive) { bullOffThrow(segment, x, y, at); return }
         banner = null
         visit.add(segment)
@@ -121,7 +129,10 @@ abstract class DartGame(
         _throwLog.add(ThrowRecord(current, currentSet, currentLeg, round, segment.number, segment.multiplier, x, y, false, at))
         val endVisit = onDart(segment)
         if (finished) return
-        if (endVisit || visit.size >= 3) visitComplete = true
+        if (endVisit || visit.size >= 3) {
+            visitComplete = true
+            if (!hold) completeVisit()
+        }
     }
 
     /** Markiert den zuletzt geworfenen Dart im Wurfprotokoll als Bust. */
@@ -171,19 +182,17 @@ abstract class DartGame(
 
     // ---- Ablauf ----
 
-    fun next(auto: Boolean = false) {
+    fun next() {
         if (finished) return
-        events.add(GameEvent.Next(auto))
+        events.add(GameEvent.Next)
         if (bullOffActive) return
-        if (!auto) banner = null
+        banner = null
         completeVisit()
     }
 
     fun undo() {
         if (events.isEmpty()) return
-        val last = events.removeAt(events.size - 1)
-        // Automatisch eingefügtes "Next" gehört zum Dart davor: beides zurücknehmen
-        if (last is GameEvent.Next && last.auto && events.isNotEmpty()) events.removeAt(events.size - 1)
+        events.removeAt(events.size - 1)
         rebuild()
     }
 
@@ -199,8 +208,8 @@ abstract class DartGame(
         startBase()
         resetState()
         for (e in copy) when (e) {
-            is GameEvent.Throw -> throwDart(e.segment, e.x, e.y, e.at)
-            is GameEvent.Next -> next(e.auto)
+            is GameEvent.Throw -> throwDart(e.segment, e.x, e.y, e.at, e.hold)
+            GameEvent.Next -> next()
         }
         if (copy.isEmpty()) banner = null
     }

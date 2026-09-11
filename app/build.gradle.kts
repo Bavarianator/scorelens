@@ -1,7 +1,21 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
     id("org.jetbrains.kotlin.plugin.serialization")
+}
+
+// Firebase Crashlytics aktiviert sich, sobald app/google-services.json aus der Firebase-Konsole daneben
+// liegt; ohne die Datei baut das Projekt wie bisher.
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+    apply(plugin = "com.google.firebase.crashlytics")
+}
+
+// Release-Signierung aus keystore.properties (Projektwurzel, nicht im Git); fehlt sie, wird debug-signiert.
+val keystoreProps = Properties().apply {
+    rootProject.file("keystore.properties").takeIf { it.exists() }?.inputStream()?.use { load(it) }
 }
 
 android {
@@ -13,8 +27,25 @@ android {
         minSdk = 26
         targetSdk = 36
         versionCode = 1
-        versionName = "1.0.0"
+        versionName = "1.0.0-beta.1"
         vectorDrawables { useSupportLibrary = true }
+
+        // Voreinstellung für den Online-Modus (optional): in gradle.properties oder ~/.gradle/gradle.properties
+        //   scorelens.supabaseUrl=https://<projekt>.supabase.co
+        //   scorelens.supabaseAnonKey=<anon key>
+        buildConfigField("String", "SUPABASE_URL", "\"${project.findProperty("scorelens.supabaseUrl") ?: ""}\"")
+        buildConfigField("String", "SUPABASE_ANON_KEY", "\"${project.findProperty("scorelens.supabaseAnonKey") ?: ""}\"")
+    }
+
+    signingConfigs {
+        if (keystoreProps.isNotEmpty()) {
+            create("release") {
+                storeFile = rootProject.file(keystoreProps.getProperty("storeFile"))
+                storePassword = keystoreProps.getProperty("storePassword")
+                keyAlias = keystoreProps.getProperty("keyAlias")
+                keyPassword = keystoreProps.getProperty("keyPassword")
+            }
+        }
     }
 
     buildTypes {
@@ -22,6 +53,7 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
     }
 
@@ -30,7 +62,7 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    buildFeatures { compose = true }
+    buildFeatures { compose = true; buildConfig = true }
 
     // TFLite-Modell unkomprimiert lassen (Memory-Mapping)
     androidResources { noCompress += "tflite" }
@@ -76,6 +108,10 @@ dependencies {
     implementation("com.google.zxing:core:3.5.3")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+
+    // Crashlytics meldet Abstürze der Beta-Tester; ohne google-services.json bleibt es inaktiv
+    implementation(platform("com.google.firebase:firebase-bom:34.3.0"))
+    implementation("com.google.firebase:firebase-crashlytics")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
 

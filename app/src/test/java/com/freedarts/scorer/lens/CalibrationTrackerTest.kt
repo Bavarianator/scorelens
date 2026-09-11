@@ -14,8 +14,8 @@ class CalibrationTrackerTest {
         assertNull(c.stable(pts)) // ein Fit reicht nicht
         val jitter = pts.map { it.first + 1.0 to it.second - 1.0 }
         val med = c.stable(jitter)!!
-        assertEquals(101.0, med[0].first, 1e-9)
-        assertEquals(99.0, med[0].second, 1e-9)
+        assertEquals(100.5, med[0].first, 1e-9)
+        assertEquals(99.5, med[0].second, 1e-9)
 
         val norm = c.normalized(med)
         assertEquals(8, norm.size)

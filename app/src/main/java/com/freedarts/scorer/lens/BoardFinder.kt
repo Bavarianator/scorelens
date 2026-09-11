@@ -23,13 +23,18 @@ import kotlin.math.sqrt
  */
 class BoardFinder(val width: Int, val height: Int) {
 
-    enum class Quality { NOT_FOUND, PARTIAL, TOO_SMALL, TOO_SKEWED, INACCURATE, GOOD }
+    enum class Quality { NOT_FOUND, PARTIAL, TOO_SMALL, TOO_SKEWED, TOO_FRONTAL, INACCURATE, GOOD }
 
     data class Ellipse(val cx: Double, val cy: Double, val a: Double, val b: Double, val psi: Double) {
         fun point(phi: Double): Pair<Double, Double> {
             val c = cos(phi); val s = sin(phi)
             return cx + a * c * cos(psi) - b * s * sin(psi) to cy + a * c * sin(psi) + b * s * cos(psi)
         }
+
+        /** Kurze durch lange Halbachse (1 = Kreis = frontal; ≈ sin des Blickwinkels zur Boardfläche). */
+        val axisRatio: Double get() = if (a <= 0 || b <= 0) 0.0 else minOf(a, b) / maxOf(a, b)
+        /** Blickwinkel zur Boardfläche in Grad (90 = frontal), aus dem Achsenverhältnis. */
+        val viewAngleDeg: Double get() = Math.toDegrees(kotlin.math.asin(axisRatio.coerceIn(0.0, 1.0)))
     }
 
     data class Fit(
@@ -63,6 +68,25 @@ class BoardFinder(val width: Int, val height: Int) {
         private const val R_TRIPLE_IN = Board.TRIPLE_INNER
         private const val R_DOUBLE_MID = (Board.DOUBLE_INNER + Board.DOUBLE_OUTER) / 2
         private const val R_TRIPLE_MID = (Board.TRIPLE_INNER + Board.TRIPLE_OUTER) / 2
+
+        /**
+         * Zulässiges Achsenverhältnis der Board-Ellipse. Autodarts verlangt für die Kameras 35–55° zur Boardfläche
+         * (Verhältnis ≈ 0,57–0,82) und meldet bei der Lens „View more from the front“ bzw. „View from the side“.
+         * Unter [SKEW_MIN] (≈ 30°) ist die Sicht zu flach, über [SKEW_MAX] (≈ 64°) zu frontal – dann verdeckt der
+         * Dart seine eigene Spitze. Dazwischen liegt das Ideal [IDEAL_MIN]..[IDEAL_MAX]; außerhalb davon ist die
+         * Kalibrierung gültig, aber ein Hinweis sinnvoll.
+         */
+        const val SKEW_MIN = 0.5
+        const val SKEW_MAX = 0.9
+        const val IDEAL_MIN = 0.57
+        const val IDEAL_MAX = 0.82
+
+        /** Qualität allein aus dem Achsenverhältnis (null = in Ordnung). */
+        fun skewQuality(ratio: Double): Quality? = when {
+            ratio < SKEW_MIN -> Quality.TOO_SKEWED
+            ratio > SKEW_MAX -> Quality.TOO_FRONTAL
+            else -> null
+        }
     }
 
     private class RayHit(val x: Double, val y: Double, val radiusMm: Double)
@@ -126,8 +150,8 @@ class BoardFinder(val width: Int, val height: Int) {
             score < 0.45 -> Quality.NOT_FOUND
             pts.any { it.first < 1 || it.second < 1 || it.first > width - 2 || it.second > height - 2 } ||
                 ell.cx - ell.a < 1 || ell.cx + ell.a > width - 2 || ell.cy - ell.b < 1 || ell.cy + ell.b > height - 2 -> Quality.PARTIAL
-            ell.a < 0.2 * minOf(width, height) -> Quality.TOO_SMALL
-            ell.b / ell.a < 0.5 -> Quality.TOO_SKEWED
+            maxOf(ell.a, ell.b) < 0.2 * minOf(width, height) -> Quality.TOO_SMALL
+            skewQuality(ell.axisRatio) != null -> skewQuality(ell.axisRatio)!!
             residual > 4.5 -> Quality.INACCURATE
             else -> Quality.GOOD
         }
@@ -158,13 +182,28 @@ class BoardFinder(val width: Int, val height: Int) {
         val pts = DartDetector.boardPoints().map { (bx, by) -> h.map(bx, by) }
         val (ex, ey) = h.map(Board.DOUBLE_OUTER, 0.0)
         val radiusPx = hypot(ex - cx, ey - cy)
+        val ellH = ellipseFor(h) ?: ell
         val quality = when {
             score < 0.45 -> Quality.NOT_FOUND
             pts.any { it.first < 1 || it.second < 1 || it.first > width - 2 || it.second > height - 2 } -> Quality.PARTIAL
+            maxOf(ellH.a, ellH.b) < 0.2 * minOf(width, height) -> Quality.TOO_SMALL
+            skewQuality(ellH.axisRatio) != null -> skewQuality(ellH.axisRatio)!!
             residual > 4.5 -> Quality.INACCURATE
             else -> Quality.GOOD
         }
-        return Fit(h, inv, pts, ell, residual, score, quality, radiusPx)
+        return Fit(h, inv, pts, ellH, residual, score, quality, radiusPx)
+    }
+
+    /**
+     * Bild-Ellipse des äußeren Doppelrings zu einer Board→Bild-Homographie (für Schrägheits-Hinweise, auch wenn die
+     * Kalibrierung aus KI-Punkten statt aus Ringkanten stammt).
+     */
+    fun ellipseFor(boardToImage: Homography): Ellipse? {
+        val pts = (0 until 72).map { i ->
+            val a = i * 2 * PI / 72
+            boardToImage.map(R_DOUBLE_OUT * cos(a), R_DOUBLE_OUT * sin(a))
+        }
+        return fitEllipse(pts)
     }
 
     // ---- Schritt 2/3: Strahlen + Ellipse ----

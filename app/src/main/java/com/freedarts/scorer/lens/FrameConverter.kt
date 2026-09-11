@@ -1,9 +1,16 @@
 package com.freedarts.scorer.lens
 
 import androidx.camera.core.ImageProxy
+import kotlin.math.abs
 
-/** Aufrechter Farbbild-Ausschnitt (0xRRGGBB) in Kameraauflösung mit seiner Lage im aufrechten Vollbild. */
-class RgbFrame(val pixels: IntArray, val width: Int, val height: Int, val offsetX: Double, val offsetY: Double)
+/**
+ * Aufrechtes Farbbild (0xRRGGBB) – Ausschnitt in Kameraauflösung oder entzerrter Board-Ausschnitt – mit der
+ * Abbildung seiner Pixel ins aufrechte Vollbild ([toUpright]; für Ausschnitte eine reine Verschiebung).
+ * [scale] = Vollbild-Pixel je Bildpixel (Maß für die Auflösung, 1 bei Ausschnitten).
+ */
+class RgbFrame(val pixels: IntArray, val width: Int, val height: Int, val toUpright: Homography, val scale: Double = 1.0) {
+    val fromUpright: Homography = toUpright.inverse() ?: Homography.affine(1.0, 0.0, 0.0, 0.0, 1.0, 0.0)
+}
 
 /**
  * Wandelt CameraX-YUV-Frames in aufrechte Bilder um: skaliert auf die Analysegröße (Grau, optional Farbe)
@@ -44,6 +51,17 @@ class FrameConverter(private val frameWidth: Int, private val frameHeight: Int) 
             val g = (yv - 0.344 * uu - 0.714 * vv).toInt().coerceIn(0, 255)
             val b = (yv + 1.772 * uu).toInt().coerceIn(0, 255)
             return (r shl 16) or (g shl 8) or b
+        }
+
+        /** Pixel an einer Zwischenposition des aufrechten Bilds: Helligkeit bilinear, Farbe vom nächsten Pixel. */
+        fun sample(rx: Double, ry: Double): Int {
+            val x0 = rx.toInt(); val y0 = ry.toInt()
+            val ax = rx - x0; val ay = ry - y0
+            val l00 = luma(sx(x0, y0), sy(x0, y0)); val l10 = luma(sx(x0 + 1, y0), sy(x0 + 1, y0))
+            val l01 = luma(sx(x0, y0 + 1), sy(x0, y0 + 1)); val l11 = luma(sx(x0 + 1, y0 + 1), sy(x0 + 1, y0 + 1))
+            val yv = ((l00 * (1 - ax) + l10 * ax) * (1 - ay) + (l01 * (1 - ax) + l11 * ax) * ay + 0.5).toInt().coerceIn(0, 255)
+            val nx = (rx + 0.5).toInt(); val ny = (ry + 0.5).toInt()
+            return rgb(sx(nx, ny), sy(nx, ny), yv)
         }
     }
 
@@ -89,6 +107,32 @@ class FrameConverter(private val frameWidth: Int, private val frameHeight: Int) 
                 out[y * w + x] = p.rgb(sx, sy, p.luma(sx, sy))
             }
         }
-        RgbFrame(out, w, h, cx0.toDouble(), cy0.toDouble())
+        RgbFrame(out, w, h, Homography.affine(1.0, 0.0, cx0.toDouble(), 0.0, 1.0, cy0.toDouble()))
+    } catch (e: Exception) { null }
+
+    /**
+     * Entzerrtes Quadrat [size]×[size]: Pixel (x, y) wird an der Stelle [toUpright](x, y) des aufrechten Vollbilds
+     * abgetastet (Helligkeit bilinear); außerhalb des Bilds grau 114 wie der Letterbox-Rand der KI-Eingabe.
+     * Damit sieht das Modell das Board wie in seinen Trainingsbildern von vorn, auch wenn die Kamera schräg steht.
+     */
+    fun warp(img: ImageProxy, size: Int, toUpright: Homography, scale: Double): RgbFrame? = try {
+        val p = Planes(img, true)
+        val out = IntArray(size * size)
+        val m = toUpright.m
+        val fill = (114 shl 16) or (114 shl 8) or 114
+        val maxX = p.rotW - 1.0; val maxY = p.rotH - 1.0
+        for (y in 0 until size) {
+            // Zähler und Nenner der Projektion sind linear in x → inkrementell je Zeile
+            var nx = m[1] * y + m[2]; var ny = m[4] * y + m[5]; var nw = m[7] * y + m[8]
+            var i = y * size
+            for (x in 0 until size) {
+                if (abs(nw) > 1e-9) {
+                    val rx = nx / nw; val ry = ny / nw
+                    out[i] = if (rx < 0 || ry < 0 || rx >= maxX || ry >= maxY) fill else p.sample(rx, ry)
+                } else out[i] = fill
+                nx += m[0]; ny += m[3]; nw += m[6]; i++
+            }
+        }
+        RgbFrame(out, size, size, toUpright, scale)
     } catch (e: Exception) { null }
 }

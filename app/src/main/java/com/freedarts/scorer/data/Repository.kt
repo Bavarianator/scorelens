@@ -4,6 +4,7 @@ import android.content.Context
 import com.freedarts.scorer.model.AppSettings
 import com.freedarts.scorer.model.MatchRecord
 import com.freedarts.scorer.model.Player
+import com.freedarts.scorer.online.OnlineSession
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -17,7 +18,7 @@ import java.io.File
 
 /**
  * Einfache, lokale Persistenz als JSON-Dateien im App-Speicher.
- * Keine Cloud, kein Konto – alles bleibt auf dem Gerät.
+ * Alles bleibt auf dem Gerät; nur der optionale Online-Modus (Supabase) hält zusätzlich eine Sitzung.
  */
 class Repository private constructor(context: Context) {
 
@@ -34,6 +35,16 @@ class Repository private constructor(context: Context) {
     private val _matches = MutableStateFlow(load("matches.json", ListSerializer(MatchRecord.serializer())) ?: emptyList())
     val matches: StateFlow<List<MatchRecord>> = _matches
 
+    /** Sitzung des Online-Modus (Supabase); null = abgemeldet. */
+    private val _onlineSession = MutableStateFlow(load("online_session.json", OnlineSession.serializer()))
+    val onlineSession: StateFlow<OnlineSession?> = _onlineSession
+
+    fun setOnlineSession(session: OnlineSession?) {
+        _onlineSession.value = session
+        if (session == null) scope.launch { File(dir, "online_session.json").delete() }
+        else save("online_session.json", OnlineSession.serializer(), session)
+    }
+
     private fun defaultPlayers() = listOf(Player(name = "Spieler 1", color = Player.AVATAR_COLORS[0]))
 
     fun addPlayer(player: Player) { _players.update { it + player }; persistPlayers() }
@@ -47,6 +58,15 @@ class Repository private constructor(context: Context) {
 
     fun addMatch(record: MatchRecord) {
         _matches.update { (it + record).takeLast(500) }
+        save("matches.json", ListSerializer(MatchRecord.serializer()), _matches.value)
+    }
+
+    /** Aus der Cloud geladene Matches ergänzen (nur unbekannte IDs), nach Endzeit sortiert. */
+    fun mergeMatches(records: List<MatchRecord>) {
+        val known = _matches.value.map { it.id }.toSet()
+        val fresh = records.filter { it.id !in known }
+        if (fresh.isEmpty()) return
+        _matches.update { (it + fresh).sortedBy { m -> m.finishedAt }.takeLast(500) }
         save("matches.json", ListSerializer(MatchRecord.serializer()), _matches.value)
     }
 

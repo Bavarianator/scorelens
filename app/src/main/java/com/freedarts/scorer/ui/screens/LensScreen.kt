@@ -95,9 +95,10 @@ fun LensScreen(vm: AppViewModel) {
                 AdCard {
                     Text("So geht's", style = MaterialTheme.typography.titleMedium)
                     Spacer(Modifier.height(6.dp))
-                    Step("1", "Handy auf ein Stativ oder einen Ständer, etwa 1 m vor dem Board, leicht seitlich.")
-                    Step("2", "Das ganze Board inklusive Zahlenring muss im Bild sein. Gleichmäßiges Licht hilft.")
-                    Step("3", "Kamera starten – das Board wird automatisch erkannt und kalibriert. Board leer lassen, bis „Bereit“ erscheint.")
+                    Step("1", "Handy auf ein Stativ, etwa 1 m vom Bull entfernt und deutlich seitlich versetzt (links oder rechts, egal): Blick etwa 45° schräg auf die Scheibe – wie bei Autodarts 35–55°. Kamera ungefähr auf Bull-Höhe.")
+                    Step("2", "Nicht frontal (der Dart verdeckt sonst seine Spitze) und nicht so flach, dass das Board zur schmalen Ellipse wird. Die App sagt, in welche Richtung du das Handy verschieben sollst.")
+                    Step("3", "Das ganze Board inklusive Zahlenring muss im Bild sein. Gleichmäßiges Licht (Lichtring), keine wandernden Schatten, Vorhänge zu.")
+                    Step("4", "Kamera starten – das Board wird automatisch erkannt und kalibriert. Board leer lassen, bis „Ready to play“ erscheint.")
                     if (vm.lens.aiAvailable) Step("✓", "KI-Erkennung (dart-sense, YOLOv8n) ist geladen: Darts und Kalibrierpunkte werden per neuronalem Netz erkannt.")
                     Spacer(Modifier.height(10.dp))
                     PrimaryButton("Kamera starten", Modifier.fillMaxWidth(), icon = Icons.Default.CameraAlt) { vm.startLens(owner) }
@@ -147,6 +148,7 @@ fun LensScreen(vm: AppViewModel) {
                         (if (ready) status.message + " · ${status.fps} fps" else "Status: ${status.message}") +
                             (if (status.ai) " · KI ${status.aiBackend} ${status.aiInput}px" + (if (status.aiMs > 0) " ${status.aiMs} ms" else "") else " · klassisch") +
                             (status.calibResidualMm?.let { " · Kalibrierung ±%.1f mm".format(it) } ?: "") +
+                            (status.ellipse?.let { " · Blick %.0f°".format(it.viewAngleDeg) } ?: "") +
                             (if (status.cameraSize.isNotEmpty()) " · ${status.cameraSize}" else ""),
                         color = Color(0xFFDDE6F5), style = MaterialTheme.typography.bodySmall,
                     )
@@ -191,6 +193,13 @@ fun LensScreen(vm: AppViewModel) {
                     if (!status.autoSensitivity) {
                         Text("Empfindlichkeit: ${settings.lensSensitivity}", color = DartColors.TextMuted)
                         Slider(value = settings.lensSensitivity.toFloat(), onValueChange = { v -> vm.updateSettings { it.copy(lensSensitivity = v.toInt()) }; vm.lens.setSensitivity(v.toInt()) }, valueRange = 0f..100f)
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Trainingsdaten sammeln")
+                            Text("${vm.lens.training.count} Bilder · Android/data/…/files/training", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
+                        }
+                        Switch(checked = settings.lensCaptureTraining, onCheckedChange = { on -> vm.updateSettings { it.copy(lensCaptureTraining = on) }; vm.lens.training.enabled = on })
                     }
                     Text("Δ ${"%.1f".format(status.changeFraction * 100)} % · ${status.fps} fps · Phase ${status.phase}", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
                 }
@@ -249,6 +258,7 @@ private fun DetectionMode(
     Text(
         (if (status.ai) "KI ${status.aiBackend} ${status.aiInput}px" + (if (status.aiMs > 0) " · ${status.aiMs} ms" else "") else "Klassische Erkennung") +
             " · ${status.fps} fps" + (status.calibResidualMm?.let { " · Kalibrierung ±%.1f mm".format(it) } ?: "") +
+            (status.ellipse?.let { " · Blick %.0f°".format(it.viewAngleDeg) } ?: "") +
             (if (status.cameraSize.isNotEmpty()) " · ${status.cameraSize}" else ""),
         color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall,
     )
@@ -266,7 +276,7 @@ private fun DetectionMode(
     }
     Text(
         when {
-            !ready -> "Tipp: Stativ nutzen, ganzes Board ins Bild, leicht seitlich, gleichmäßiges Licht. Liegt das Gitter falsch, auf die 20 tippen."
+            !ready -> "Tipp: Stativ, etwa 1 m vom Bull, seitlich versetzt (Blick ≈ 45° zur Scheibe), ganzes Board im Bild, gleichmäßiges Licht. Liegt das Gitter falsch, auf die 20 tippen."
             else -> "Tipp: Verdeckt ein Dart einen anderen, den vorderen ziehen oder das Handy leicht drehen – der fehlende Dart wird nachgetragen. App offen lassen."
         },
         color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall,
@@ -288,7 +298,7 @@ private fun DetectionMode(
 }
 
 @Composable
-private fun Step(n: String, text: String) {
+internal fun Step(n: String, text: String) {
     Row(Modifier.padding(vertical = 3.dp)) {
         Text(n, color = DartColors.Primary, fontWeight = FontWeight.Black, modifier = Modifier.width(20.dp))
         Text(text, color = DartColors.TextMuted, style = MaterialTheme.typography.bodyMedium)

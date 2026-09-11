@@ -1,6 +1,7 @@
 package com.freedarts.scorer.ui.components
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -37,9 +38,11 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.freedarts.scorer.model.GameMode
+import com.freedarts.scorer.R
 import com.freedarts.scorer.ui.theme.Condensed
 import com.freedarts.scorer.ui.theme.DartColors
 
@@ -69,25 +72,10 @@ fun HeaderSwoosh(modifier: Modifier = Modifier, height: Int = 150) {
     }
 }
 
-/** Scorelens-Zeichen: Blendenlamellen (Kamera) um ein Bull. */
+/** Scorelens-Zeichen: das Logo aus res/drawable/ic_logo.xml. */
 @Composable
 fun BrandMark(size: Int = 24) {
-    Canvas(Modifier.size(size.dp)) {
-        val c = center; val r = this.size.minDimension / 2
-        for (k in 0 until 6) {
-            val a = Math.toRadians(-90.0 + k * 60)
-            val a2 = a + Math.toRadians(22.0)
-            val tip = Offset(c.x + (r * 0.42f) * Math.cos(a2).toFloat(), c.y + (r * 0.42f) * Math.sin(a2).toFloat())
-            val o1 = Offset(c.x + r * Math.cos(a).toFloat(), c.y + r * Math.sin(a).toFloat())
-            val o2 = Offset(c.x + r * Math.cos(a + Math.toRadians(30.0)).toFloat(), c.y + r * Math.sin(a + Math.toRadians(30.0)).toFloat())
-            val p = Path().apply { moveTo(o1.x, o1.y); lineTo(o2.x, o2.y); lineTo(tip.x, tip.y); close() }
-            drawPath(p, if (k % 2 == 0) DartColors.Teal else DartColors.Primary)
-        }
-        drawCircle(DartColors.Cream, r * 0.34f, c)
-        drawCircle(DartColors.Black, r * 0.26f, c)
-        drawCircle(DartColors.Green, r * 0.15f, c)
-        drawCircle(DartColors.Red, r * 0.07f, c)
-    }
+    Image(painterResource(R.drawable.ic_logo), contentDescription = null, modifier = Modifier.size(size.dp))
 }
 
 @Composable

@@ -27,12 +27,17 @@ import com.freedarts.scorer.model.MatchRecord
 import com.freedarts.scorer.model.OutMode
 import com.freedarts.scorer.model.Player
 import com.freedarts.scorer.model.Segment
+import com.freedarts.scorer.BuildConfig
+import com.freedarts.scorer.online.MatchEvent
+import com.freedarts.scorer.online.OnlineController
+import com.freedarts.scorer.online.OnlineMatch
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -52,6 +57,10 @@ sealed class Screen {
     data object Devices : Screen()
     data object Onboarding : Screen()
     data object Help : Screen()
+    /** Online-Modus: Konto, Lobby-Liste, Beitritt per Code. */
+    data object Online : Screen()
+    /** Wartebereich einer Online-Lobby. */
+    data object OnlineLobby : Screen()
 }
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
@@ -68,6 +77,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val _cloudUrl = MutableStateFlow<String?>(null)
     /** Zuschauer-Link des Online-Remotes (null = aus). */
     val cloudUrl: StateFlow<String?> = _cloudUrl
+
+    /** Online-Modus (Supabase): Konto, Lobbys, synchronisierte Matches. */
+    val online = OnlineController(app, repo, viewModelScope)
+    /** Laufendes Online-Match (null = lokales Spiel). */
+    var onlineMatch: OnlineMatch? = null; private set
+    val isOnlineGame: Boolean get() = onlineMatch != null
 
     val players: StateFlow<List<Player>> = repo.players
     val settings: StateFlow<AppSettings> = repo.settings
@@ -115,7 +130,112 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             combine(_gameState, lens.status) { _, _ -> remoteState() }.distinctUntilChanged().collect { if (cloud.isActive) cloud.sendState(it) }
         }
         lens.onReady = { vibrate() }
+
+        // Online-Modus: Server aus den Einstellungen (oder Build-Voreinstellung), Match-Ereignisse in die Engine
+        online.configure(s.onlineUrl.ifBlank { BuildConfig.SUPABASE_URL }, s.onlineAnonKey.ifBlank { BuildConfig.SUPABASE_ANON_KEY })
+        // Verlauf mit der Cloud abgleichen, sobald ein Konto angemeldet ist (auch nach Gerätewechsel)
+        viewModelScope.launch {
+            online.session.map { it?.userId }.distinctUntilChanged().collect { if (it != null && online.configured) syncHistory() }
+        }
+        online.onMatchStarted = { m, events -> startOnlineGame(m, events) }
+        online.onResync = { m, events -> if (onlineMatch?.id == m.id) rebuildOnlineGame(m, events) }
+        online.onRemoteEvent = { e -> applyRemoteEvent(e) }
+        online.onMatchEnded = { m, aborted ->
+            if (onlineMatch?.id == m.id && game?.finished != true) {
+                botJob?.cancel(); autoNextJob?.cancel()
+                game = null; _gameState.value = null; onlineMatch = null
+                online.notice.value = if (aborted) "Das Match wurde abgebrochen" else "Das Match ist beendet"
+                if (_screen.value == Screen.Match) { backStack.clear(); _screen.value = Screen.OnlineLobby }
+            }
+        }
+        online.onLobbyClosed = {
+            if (onlineMatch != null) { game = null; _gameState.value = null; onlineMatch = null }
+            if (_screen.value == Screen.OnlineLobby || _screen.value == Screen.Match) { backStack.clear(); _screen.value = Screen.Online }
+        }
     }
+
+    // ---------- Online-Modus ----------
+
+    /** Lokalen Verlauf hochladen und fehlende Matches vom Konto holen. */
+    fun syncHistory() = viewModelScope.launch {
+        runCatching { repo.mergeMatches(online.syncMatches(matches.value)) }.onFailure { online.error.value = it.message }
+    }
+
+    fun setOnlineServer(url: String, anonKey: String) {
+        updateSettings { it.copy(onlineUrl = url.trim(), onlineAnonKey = anonKey.trim()) }
+        online.configure(url.trim().ifBlank { BuildConfig.SUPABASE_URL }, anonKey.trim().ifBlank { BuildConfig.SUPABASE_ANON_KEY })
+    }
+
+    /** Ist im Online-Match der lokale Spieler am Zug? (Lokal: immer.) */
+    val isMyTurn: Boolean
+        get() {
+            val g = game ?: return false
+            if (onlineMatch == null) return true
+            return g.players[g.current].id == online.myId
+        }
+
+    /** "Gegner finden": angemeldet → Online-Matchmaking, sonst Bot auf dem eigenen Niveau. */
+    fun findOpponent() {
+        if (online.session.value != null && online.configured) {
+            val gs = GameSettings(mode = GameMode.X01, baseScore = 501, legs = 3)
+            online.quickMatch(gs)
+            navigate(Screen.OnlineLobby)
+        } else playVsMatchedBot()
+    }
+
+    fun openOnlineLobby() { navigate(Screen.OnlineLobby) }
+
+    fun leaveOnlineLobby() {
+        if (onlineMatch != null) { game = null; _gameState.value = null; onlineMatch = null }
+        online.leaveLobby()
+        backStack.clear(); _screen.value = Screen.Online
+    }
+
+    private fun onlinePlayers(m: OnlineMatch): List<Player> = m.players.map { Player(id = it.id, name = it.name, color = it.color) }
+
+    private fun replay(g: DartGame, events: List<MatchEvent>) {
+        for (e in events) when (e.kind) {
+            MatchEvent.KIND_THROW -> e.segment?.let { g.throwDart(it, e.x, e.y, e.at, e.hold) }
+            MatchEvent.KIND_NEXT -> g.next()
+            MatchEvent.KIND_UNDO -> g.undo()
+        }
+    }
+
+    private fun startOnlineGame(m: OnlineMatch, events: List<MatchEvent>) {
+        botJob?.cancel(); autoNextJob?.cancel()
+        recorded = false
+        _lastRecord.value = null
+        onlineMatch = m
+        val g = GameFactory.create(onlinePlayers(m), m.settings, m.seed)
+        replay(g, events)
+        game = g
+        refresh()
+        if (g.finished) recordMatch() else caller.callPlayer(g.players[g.current].name)
+        if (_screen.value != Screen.Match) { navigate(Screen.Match) }
+    }
+
+    private fun rebuildOnlineGame(m: OnlineMatch, events: List<MatchEvent>) {
+        val g = GameFactory.create(onlinePlayers(m), m.settings, m.seed)
+        replay(g, events)
+        game = g
+        refresh()
+        if (g.finished) recordMatch()
+    }
+
+    private fun applyRemoteEvent(e: MatchEvent) {
+        val g = game ?: return
+        if (onlineMatch?.id != e.matchId) return
+        val before = g.snapshot()
+        when (e.kind) {
+            MatchEvent.KIND_THROW -> e.segment?.let { g.throwDart(it, e.x, e.y, e.at, e.hold) }
+            MatchEvent.KIND_NEXT -> g.next()
+            MatchEvent.KIND_UNDO -> { g.undo(); refresh(); caller.beep(); return }
+        }
+        afterEvent(before)
+        if (!g.finished && isMyTurn && before.currentPlayer != g.current) caller.callPlayer(g.players[g.current].name)
+    }
+
+    fun onlineCanUndo(): Boolean = onlineMatch == null || online.canUndo()
 
     // ---------- Onboarding / Umstieg ----------
 
@@ -217,6 +337,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** Dart der laufenden (oder zuletzt abgeschlossenen) Aufnahme korrigieren – wie die Dart-Korrektur bei Autodarts. */
     fun correctDart(index: Int, segment: Segment) {
         val g = game ?: return
+        if (onlineMatch != null) return // Online: Protokoll ist für alle verbindlich, nur Undo
         botJob?.cancel()
         if (g.correctDart(index, segment)) { refresh(); caller.beep() }
         if (g.players[g.current].isBot && !g.finished) scheduleBot()
@@ -233,13 +354,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     /** true = konsumiert, false = App darf beendet werden. */
     fun back(): Boolean {
-        val prev = backStack.removeLastOrNull() ?: return false
+        val prev = backStack.removeLastOrNull() ?: if (_screen.value != Screen.Home) Screen.Home else return false
         // Nach dem Ergebnis nicht wieder ins Match springen
         _screen.value = if (prev == Screen.Match && game?.finished != false) Screen.Home else prev
         return true
     }
 
     fun goHome() { backStack.clear(); _screen.value = Screen.Home }
+
+    /** Tab der unteren Navigation: kein Backstack, Zurück führt immer auf Home. */
+    fun switchTab(target: Screen) { backStack.clear(); _screen.value = target }
 
     // ---------- Einstellungen ----------
 
@@ -307,6 +431,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun rematch() {
         val g = game ?: return
+        if (onlineMatch != null) {
+            // Online: zurück in die Lobby, der Host startet das nächste Match
+            onlineMatch = null; game = null; _gameState.value = null
+            backStack.clear(); _screen.value = Screen.OnlineLobby
+            return
+        }
         launchGame(g.players, g.settings)
         backStack.clear()
         _screen.value = Screen.Match
@@ -326,6 +456,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         botJob?.cancel(); autoNextJob?.cancel()
         game = null
         _gameState.value = null
+        if (onlineMatch != null) {
+            onlineMatch = null
+            online.abortMatch()
+            backStack.clear(); _screen.value = Screen.OnlineLobby
+            return
+        }
         goHome()
     }
 
@@ -338,28 +474,29 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
      */
     fun throwDart(segment: Segment, x: Float? = null, y: Float? = null, fromBoard: Boolean = false) {
         val g = game ?: return
-        if (g.finished || g.visitComplete) return
+        if (g.finished || g.visitComplete || !isMyTurn) return
         val before = g.snapshot()
-        val botTurn = g.players[g.current].isBot
-        g.throwDart(segment, x, y)
-        if (!fromBoard || botTurn) autoNext(g)
+        val hold = fromBoard && !g.players[g.current].isBot
+        val at = System.currentTimeMillis()
+        g.throwDart(segment, x, y, at, hold = hold)
+        if (onlineMatch != null) online.sendEvent(MatchEvent.KIND_THROW, segment, x, y, hold, at)
         afterEvent(before)
     }
-
-    /** Abgeschlossene Aufnahme sofort beenden (manuelle Eingabe, Bots). */
-    private fun autoNext(g: DartGame) { if (!g.finished && g.visitComplete) g.next(auto = true) }
 
     /** Gesamtscore einer Aufnahme (Total-Score-Eingabe). Zerlegt in bis zu 3 Darts. */
     fun enterVisitTotal(total: Int) {
         val g = game ?: return
-        if (g.finished || g.visit.isNotEmpty() || g.visitComplete || g.bullOffActive) return
+        if (g.finished || g.visit.isNotEmpty() || g.visitComplete || g.bullOffActive || !isMyTurn) return
         val darts = decompose(total, g)
         val before = g.snapshot()
         for (d in darts) {
             if (g.finished || g.visitComplete) break
-            g.throwDart(d)
+            val cur = g.current
+            val at = System.currentTimeMillis()
+            g.throwDart(d, at = at)
+            if (onlineMatch != null) online.sendEvent(MatchEvent.KIND_THROW, d, null, null, false, at)
+            if (g.current != cur || g.visit.isEmpty()) break
         }
-        autoNext(g)
         afterEvent(before)
     }
 
@@ -383,8 +520,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun undo() {
         val g = game ?: return
+        if (onlineMatch != null && !online.canUndo()) return
         botJob?.cancel(); autoNextJob?.cancel()
         g.undo()
+        if (onlineMatch != null) online.sendEvent(MatchEvent.KIND_UNDO)
         refresh()
         caller.beep()
         if (g.players[g.current].isBot && !g.finished) scheduleBot()
@@ -392,9 +531,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun nextPlayer() {
         val g = game ?: return
-        if (g.finished) return
+        if (g.finished || !isMyTurn) return
         val before = g.snapshot()
         g.next()
+        if (onlineMatch != null) online.sendEvent(MatchEvent.KIND_NEXT)
         afterEvent(before)
     }
 
@@ -463,7 +603,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 val seg = Bot.throwAt(g.botAim(), bot.botLevel)
                 val before = g.snapshot()
                 g.throwDart(seg)
-                autoNext(g)
                 afterEventQuiet(before)
                 if (g.finished) break
                 delay(delayMs)
@@ -497,17 +636,25 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val g = game ?: return
         if (recorded) return
         recorded = true
+        val stats = g.players.indices.map { g.playerStats(it) }
+        val om = onlineMatch
+        if (om != null) online.finishMatch(g.winner?.let { g.players[it].id }, stats)
+        // Online: das eigene Konto in der lokalen Statistik dem Profil-Spieler zuordnen
+        val me = online.myId
+        val localProfile = settings.value.profilePlayerId ?: players.value.firstOrNull()?.id
+        val mapId: (String) -> String = { id -> if (om != null && id == me && localProfile != null) localProfile else id }
         val record = MatchRecord(
             id = UUID.randomUUID().toString(),
             mode = g.settings.mode,
             settings = g.settings,
             startedAt = g.startedAt,
             finishedAt = System.currentTimeMillis(),
-            winnerId = g.winner?.let { g.players[it].id },
-            players = g.players.indices.map { g.playerStats(it) },
+            winnerId = g.winner?.let { mapId(g.players[it].id) },
+            players = stats.map { it.copy(playerId = mapId(it.playerId)) },
             throws = g.throwLog,
         )
         repo.addMatch(record)
+        if (online.session.value != null && online.configured) online.saveMatch(record)
         _lastRecord.value = record
     }
 
@@ -531,14 +678,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private fun onBoardThrow(seg: Segment, x: Float?, y: Float?) {
         val g = game ?: return
         if (_screen.value != Screen.Match || g.finished) return
-        if (g.players[g.current].isBot) return
+        if (g.players[g.current].isBot || !isMyTurn) return
         throwDart(seg, x, y, fromBoard = true)
     }
 
     /** Takeout erkannt: gesperrte oder angefangene Aufnahme beenden, nächster Spieler. */
     private fun onBoardTakeout() {
         val g = game ?: return
-        if (_screen.value != Screen.Match || g.finished || g.bullOffActive) return
+        if (_screen.value != Screen.Match || g.finished || g.bullOffActive || !isMyTurn) return
         if ((g.visit.isNotEmpty() || g.visitComplete) && !g.players[g.current].isBot) nextPlayer()
     }
 
@@ -546,6 +693,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun startLens(owner: LifecycleOwner) {
         lens.setSensitivity(settings.value.lensSensitivity)
+        lens.training.enabled = settings.value.lensCaptureTraining
         lens.onCalibrationChanged = { pts -> updateSettings { it.copy(lensCalibration = pts) } }
         lens.start(owner, null)
         updateSettings { it.copy(lensEnabled = true) }
@@ -561,7 +709,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         updateSettings { it.copy(lensCalibration = points) }
     }
 
-    fun clearHistory() = repo.clearMatches()
+    fun clearHistory() { repo.clearMatches(); online.deleteAllMatches() }
 
     override fun onCleared() {
         caller.shutdown()
@@ -569,5 +717,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         lens.stop()
         remote.stop()
         cloud.stop()
+        online.shutdown()
     }
 }

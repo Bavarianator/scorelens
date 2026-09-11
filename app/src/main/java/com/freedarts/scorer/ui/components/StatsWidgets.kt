@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -111,5 +112,55 @@ fun HeadToHeadRow(h: Statistics.HeadToHead) {
         }
         Text("${h.wins}:${h.losses}", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium,
             color = if (h.wins > h.losses) DartColors.Green else if (h.wins < h.losses) DartColors.Red else Color.White)
+    }
+}
+
+/** Verlaufslinie einer Kennzahl über die letzten Spiele (chronologisch), mit Mittelwertlinie und Bestwert. */
+@Composable
+fun Sparkline(values: List<Double>, modifier: Modifier = Modifier, color: Color = DartColors.Primary, format: (Double) -> String = { "%.1f".format(it) }) {
+    if (values.isEmpty()) return
+    val textPaint = remember {
+        android.graphics.Paint().apply { this.color = android.graphics.Color.LTGRAY; isAntiAlias = true; textSize = 26f }
+    }
+    val lo = values.min(); val hi = values.max()
+    val mean = values.average()
+    Canvas(modifier.fillMaxWidth().height(110.dp)) {
+        val padTop = 28f; val padBottom = 8f; val padX = 8f
+        val w = size.width - 2 * padX; val h = size.height - padTop - padBottom
+        val span = (hi - lo).takeIf { it > 0 } ?: 1.0
+        fun x(i: Int) = padX + if (values.size == 1) w / 2 else w * i / (values.size - 1)
+        fun y(v: Double) = padTop + h - ((v - lo) / span * h).toFloat()
+        val ym = y(mean)
+        drawLine(Color(0x55FFFFFF), Offset(padX, ym), Offset(padX + w, ym), strokeWidth = 2f, pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(8f, 8f)))
+        val path = Path()
+        values.forEachIndexed { i, v -> if (i == 0) path.moveTo(x(i), y(v)) else path.lineTo(x(i), y(v)) }
+        drawPath(path, color, style = Stroke(4f))
+        values.forEachIndexed { i, v -> drawCircle(if (v == hi) DartColors.Green else color, 5f, Offset(x(i), y(v))) }
+        val best = values.indexOf(hi)
+        drawContext.canvas.nativeCanvas.drawText("Best ${format(hi)}", (x(best) - 40f).coerceIn(0f, size.width - 120f), y(hi) - 10f, textPaint)
+        drawContext.canvas.nativeCanvas.drawText("Ø ${format(mean)}", padX, (ym - 6f).coerceAtLeast(padTop), textPaint)
+    }
+}
+
+/** Säulendiagramm mit Wert über und Beschriftung unter jeder Säule (leere Beschriftung = keine). */
+@Composable
+fun BarChart(values: List<Int>, labels: List<String>, modifier: Modifier = Modifier, color: Color = DartColors.Primary, showValues: Boolean = true) {
+    if (values.isEmpty()) return
+    val textPaint = remember {
+        android.graphics.Paint().apply { this.color = android.graphics.Color.LTGRAY; isAntiAlias = true; textSize = 24f; textAlign = android.graphics.Paint.Align.CENTER }
+    }
+    val max = (values.maxOrNull() ?: 0).coerceAtLeast(1)
+    Canvas(modifier.fillMaxWidth().height(120.dp)) {
+        val padTop = if (showValues) 26f else 6f; val padBottom = 26f
+        val h = size.height - padTop - padBottom
+        val slot = size.width / values.size
+        val bw = slot * 0.62f
+        values.forEachIndexed { i, v ->
+            val bh = h * v / max
+            val left = slot * i + (slot - bw) / 2
+            drawRect(if (v == 0) DartColors.SurfaceHigh else color, Offset(left, padTop + h - bh), Size(bw, bh.coerceAtLeast(2f)))
+            if (showValues && v > 0) drawContext.canvas.nativeCanvas.drawText(v.toString(), left + bw / 2, padTop + h - bh - 6f, textPaint)
+            labels.getOrNull(i)?.takeIf { it.isNotEmpty() }?.let { drawContext.canvas.nativeCanvas.drawText(it, left + bw / 2, size.height - 4f, textPaint) }
+        }
     }
 }

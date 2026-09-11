@@ -61,6 +61,7 @@ fun HomeScreen(vm: AppViewModel) {
     val onlineSession by vm.online.session.collectAsStateWithLifecycle()
     val onlineProfile by vm.online.profile.collectAsStateWithLifecycle()
     val onlineLobby by vm.online.lobby.collectAsStateWithLifecycle()
+    val tournament by vm.tournament.collectAsStateWithLifecycle()
     val loggedIn = onlineSession != null && vm.online.configured
 
     val profile = players.firstOrNull { it.id == settings.profilePlayerId } ?: players.firstOrNull()
@@ -165,6 +166,15 @@ fun HomeScreen(vm: AppViewModel) {
                         fontSize = 13.sp, color = Color(0xFFDDE6F5), maxLines = 1)
                 }
                 Chip("Last settings", Modifier.align(Alignment.CenterEnd).padding(end = 14.dp))
+            }
+
+            tournament?.let { t ->
+                Spacer(Modifier.height(10.dp))
+                AdCard(background = DartColors.GreenDark, onClick = { vm.navigate(Screen.Tournament) }) {
+                    Text("TURNIER · ${t.mode.title.uppercase()}", style = MaterialTheme.typography.headlineSmall)
+                    val open = t.matches.count { it.open }
+                    Text(t.champion?.let { "${t.players[it].name} hat gewonnen" } ?: "${t.players.size} Spieler · $open ${if (open == 1) "Spiel" else "Spiele"} offen", fontSize = 13.sp, color = Color(0xFFDDE6F5))
+                }
             }
 
             SectionLabel("Geräte")

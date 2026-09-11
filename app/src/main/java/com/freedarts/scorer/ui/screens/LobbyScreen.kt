@@ -62,6 +62,7 @@ import com.freedarts.scorer.model.InMode
 import com.freedarts.scorer.model.MatchMode
 import com.freedarts.scorer.model.OutMode
 import com.freedarts.scorer.model.Player
+import com.freedarts.scorer.model.TournamentMode
 import com.freedarts.scorer.model.WinMode
 import com.freedarts.scorer.ui.AppViewModel
 import com.freedarts.scorer.ui.Screen
@@ -90,6 +91,7 @@ fun LobbyScreen(vm: AppViewModel) {
     var showBots by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
     var showHowTo by remember { mutableStateOf(false) }
+    var showTournament by remember { mutableStateOf(false) }
 
     fun avgOf(p: Player): Double {
         if (p.isBot) return Player.botAverage(p.botLevel).toDouble()
@@ -181,9 +183,26 @@ fun LobbyScreen(vm: AppViewModel) {
             }
             Spacer(Modifier.height(70.dp))
         }
-        Box(Modifier.fillMaxWidth().padding(12.dp)) {
+        Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             PrimaryButton("Start Game", Modifier.fillMaxWidth(), enabled = lobby.isNotEmpty(), height = 56) { vm.startGame() }
+            SecondaryButton("Als Turnier starten", Modifier.fillMaxWidth(), enabled = lobby.size >= 2) { showTournament = true }
         }
+    }
+
+    if (showTournament) {
+        AlertDialog(
+            onDismissRequest = { showTournament = false },
+            title = { Text("Turnier mit ${lobby.size} Spielern") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Jedes Spiel läuft mit den Einstellungen dieser Lobby (${matchTitle(gs)}).", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
+                    TournamentMode.entries.forEach { m ->
+                        PrimaryButton(m.title, Modifier.fillMaxWidth(), height = 46) { showTournament = false; vm.startTournament(m) }
+                    }
+                }
+            },
+            confirmButton = {}, dismissButton = { TextButton(onClick = { showTournament = false }) { Text("Abbrechen") } },
+        )
     }
 
     if (showAddPlayer) {

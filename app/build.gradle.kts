@@ -112,6 +112,8 @@ dependencies {
     // Crashlytics meldet Abstürze der Beta-Tester; ohne google-services.json bleibt es inaktiv
     implementation(platform("com.google.firebase:firebase-bom:34.3.0"))
     implementation("com.google.firebase:firebase-crashlytics")
+    // Push bei geschlossener App (Einladungen, Freundschaftsanfragen); Versand durch push/ (Relay)
+    implementation("com.google.firebase:firebase-messaging")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
 

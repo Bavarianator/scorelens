@@ -11,4 +11,7 @@ out/
 release.jks
 keystore.properties
 app/google-services.json
+push/firebase-service-account.json
+selfhost/firebase-service-account.json
+push/node_modules/
 supabase/.temp/

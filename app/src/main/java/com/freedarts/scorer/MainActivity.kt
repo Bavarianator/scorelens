@@ -45,6 +45,7 @@ import com.freedarts.scorer.ui.screens.PlayersScreen
 import com.freedarts.scorer.ui.screens.ResultScreen
 import com.freedarts.scorer.ui.screens.SettingsScreen
 import com.freedarts.scorer.ui.screens.StatsScreen
+import com.freedarts.scorer.ui.screens.TournamentScreen
 import com.freedarts.scorer.ui.theme.DartColors
 import com.freedarts.scorer.ui.theme.FreeDartsTheme
 
@@ -119,5 +120,6 @@ private fun ScreenContent(screen: Screen, vm: AppViewModel) {
         Screen.Online -> OnlineScreen(vm)
         Screen.OnlineLobby -> OnlineLobbyScreen(vm)
         Screen.Friends -> FriendsScreen(vm)
+        Screen.Tournament -> TournamentScreen(vm)
     }
 }

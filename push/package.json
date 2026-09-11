@@ -1,0 +1,10 @@
+{
+  "name": "scorelens-push",
+  "private": true,
+  "type": "module",
+  "scripts": { "start": "node index.mjs" },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.58.0",
+    "firebase-admin": "^13.5.0"
+  }
+}

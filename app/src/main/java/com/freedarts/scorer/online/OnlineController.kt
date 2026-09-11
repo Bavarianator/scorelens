@@ -143,8 +143,10 @@ class OnlineController(private val context: Context, private val repo: Repositor
     fun signOut() = scope.launch {
         leaveLobby()
         myId?.let { realtime.unsubscribe("realtime:user:$it") }
+        realtime.unsubscribe(ONLINE_TOPIC)
+        pushToken?.let { t -> runCatching { ensureFresh(); requireApi().delete("push_tokens", "user_id=eq.$myId&token=eq.${SupabaseApi.enc(t)}") } }
         runCatching { requireApi().signOut() }
-        setSession(null); _profile.value = null; _lobbies.value = emptyList(); _friends.value = emptyList(); invite.value = null
+        setSession(null); _profile.value = null; _lobbies.value = emptyList(); _friends.value = emptyList(); invite.value = null; _online.value = emptySet()
         realtime.disconnect()
     }
 
@@ -228,7 +230,7 @@ class OnlineController(private val context: Context, private val repo: Repositor
     fun refreshLobbies() = scope.launch {
         guarded {
             ensureFresh()
-            val text = requireApi().select("lobbies", "$lobbySelect&status=eq.open&is_public=eq.true&order=created_at.desc&limit=50")
+            val text = requireApi().select("lobbies", "$lobbySelect&status=in.(open,running)&is_public=eq.true&order=created_at.desc&limit=50")
             _lobbies.value = SupabaseApi.json.decodeFromString(ListSerializer(Lobby.serializer()), text)
         }
     }
@@ -277,6 +279,7 @@ class OnlineController(private val context: Context, private val repo: Repositor
     }
 
     private suspend fun enterLobby(id: String) {
+        spectating = false
         leaveLobbyChannel()
         val l = fetchLobby(id) ?: throw OnlineException(404, "Lobby nicht gefunden")
         _lobby.value = l
@@ -416,10 +419,28 @@ class OnlineController(private val context: Context, private val repo: Repositor
         matchTopic = topic
         realtime.subscribe(topic, listOf(pgChange("INSERT", "match_events", "match_id=eq.$id")), presenceKey = myId,
             onMessage = { event, payload -> onMatchMessage(event, payload) },
-            onJoined = { myId?.let { realtime.track(topic, buildJsonObject { put("uid", it) }) }; scope.launch { resync() } })
+            onJoined = { if (!spectating) myId?.let { realtime.track(topic, buildJsonObject { put("uid", it) }) }; scope.launch { resync() } })
         connectRealtime()
         onMatchStarted?.invoke(m, events)
     }
+
+    // ---------- Zuschauen ----------
+
+    /** true: Match-Kanal nur lesend (öffentliches Match eines anderen), keine Presence, kein Ergebnis, keine Ereignisse. */
+    var spectating = false; private set
+
+    /** Laufendes öffentliches Match live mitverfolgen (matches, match_events und Realtime sind für alle Angemeldeten lesbar). */
+    // ponytail: Abbruch durch den Host wird nicht bemerkt (kein Lobby-Kanal) – der Zuschauer verlässt das Match selbst;
+    //           bei Bedarf zusätzlich pgChange auf matches id=eq.<id> abonnieren
+    fun spectate(matchId: String) = scope.launch {
+        if (_lobby.value != null) { error.value = "Erst die eigene Lobby verlassen"; return@launch }
+        guarded {
+            ensureFresh(); spectating = true; joinMatch(matchId)
+            if (_match.value == null) { spectating = false; notice.value = "Das Match ist schon vorbei"; refreshLobbies() }
+        }
+    }
+
+    fun stopSpectating() { spectating = false; leaveMatchChannel(); _match.value = null }
 
     private fun leaveMatchChannel() {
         matchTopic?.let { realtime.unsubscribe(it) }
@@ -436,12 +457,29 @@ class OnlineController(private val context: Context, private val repo: Repositor
                 val e = runCatching { SupabaseApi.json.decodeFromJsonElement(MatchEvent.serializer(), record) }.getOrNull() ?: return
                 scope.launch { applyIncoming(e) }
             }
-            "presence_state" -> _presence.value = payload.keys.toSet()
-            "presence_diff" -> {
-                val joins = payload["joins"]?.jsonObject?.keys.orEmpty()
-                val leaves = payload["leaves"]?.jsonObject?.keys.orEmpty()
-                _presence.value = _presence.value + joins - leaves
+            "broadcast" -> if (payload["event"]?.jsonPrimitive?.contentOrNull == "snap") payload["payload"]?.jsonObject?.let { p ->
+                val at = p["t"]?.jsonPrimitive?.contentOrNull?.toLongOrNull() ?: return
+                val jpg = p["jpg"]?.jsonPrimitive?.contentOrNull ?: return
+                onSnapshot?.invoke(at, jpg)
             }
+            else -> presenceUpdate(_presence, event, payload)
+        }
+    }
+
+    /** Live-Ticker: Referee-Bild eines Darts (kleines JPEG, Base64) von einem Mitspieler; [Long] = Wurfzeitstempel (MatchEvent.at). */
+    var onSnapshot: ((Long, String) -> Unit)? = null
+
+    /** Eigenes Referee-Bild an alle im Match-Kanal senden (Broadcast, nicht in der Datenbank). */
+    fun sendSnapshot(at: Long, jpegBase64: String) {
+        val t = matchTopic?.takeIf { !spectating } ?: return
+        realtime.broadcast(t, "snap", buildJsonObject { put("t", at); put("jpg", jpegBase64) })
+    }
+
+    /** presence_state / presence_diff auf eine Menge anwesender Presence-Schlüssel (Nutzer-IDs) anwenden. */
+    private fun presenceUpdate(target: MutableStateFlow<Set<String>>, event: String, payload: JsonObject) {
+        when (event) {
+            "presence_state" -> target.value = payload.keys.toSet()
+            "presence_diff" -> target.value = target.value + payload["joins"]?.jsonObject?.keys.orEmpty() - payload["leaves"]?.jsonObject?.keys.orEmpty()
         }
     }
 
@@ -473,7 +511,7 @@ class OnlineController(private val context: Context, private val repo: Repositor
 
     /** Eigenes Ereignis (bereits lokal angewendet) ins Protokoll schreiben. */
     fun sendEvent(kind: String, segment: Segment? = null, x: Float? = null, y: Float? = null, hold: Boolean = false, at: Long = 0L) {
-        val m = _match.value ?: return
+        val m = _match.value?.takeIf { !spectating } ?: return
         val me = myId ?: return
         scope.launch {
             val seq = eventLock.withLock { pending++; serverSeq + pending }
@@ -525,6 +563,12 @@ class OnlineController(private val context: Context, private val repo: Repositor
 
     /** Inhalt des eigenen QR-Codes; wird von [friendIdFrom] wieder gelesen. */
     val friendLink: String? get() = myId?.let { "$FRIEND_LINK$it" }
+    /** Teilbarer https-Link; der Server leitet in die App weiter (supabase/functions/friend bzw. selfhost/Caddyfile). */
+    val friendShareUrl: String? get() = myId?.let { id -> api?.let { "${it.baseUrl}$FRIEND_PATH$id" } }
+    /** Nutzer-IDs, die gerade angemeldet und verbunden sind (Presence im Kanal realtime:online). */
+    private val _online = MutableStateFlow<Set<String>>(emptySet())
+    val online: StateFlow<Set<String>> = _online
+    private var pushToken: String? = null
 
     /** Profilbild setzen (Base64-JPEG aus [com.freedarts.scorer.ui.components.encodeAvatar]) oder mit null entfernen. */
     fun updateAvatar(base64: String?) = scope.launch {
@@ -617,7 +661,33 @@ class OnlineController(private val context: Context, private val repo: Repositor
             pgChange("*", "friendships", "addressee=eq.$me"),
             pgChange("*", "friendships", "requester=eq.$me"),
         )
-        realtime.subscribe("realtime:user:$me", changes, onMessage = { event, payload -> onUserMessage(event, payload) }, onJoined = { loadFriends() })
+        realtime.subscribe("realtime:user:$me", changes, onMessage = { event, payload -> onUserMessage(event, payload) }, onJoined = { loadFriends(); loadInvite() })
+        // ponytail: ein Presence-Kanal für alle Angemeldeten – presence_state trägt alle Online-Nutzer;
+        //           ab einigen tausend gleichzeitig auf Kanäle je Freundeskreis umstellen
+        realtime.subscribe(ONLINE_TOPIC, presenceKey = me, onMessage = { event, payload -> presenceUpdate(_online, event, payload) },
+            onJoined = { realtime.track(ONLINE_TOPIC, buildJsonObject { put("uid", me) }) })
+        registerPushToken()
+    }
+
+    /** Offene Einladung nachholen, die per Push kam, während die App zu war. */
+    private fun loadInvite() = scope.launch {
+        val me = myId ?: return@launch
+        runCatching {
+            ensureFresh()
+            val text = requireApi().select("invites", "select=*,lobbies!inner(status)&to_id=eq.$me&lobbies.status=eq.open&order=created_at.desc&limit=1")
+            SupabaseApi.json.decodeFromString(ListSerializer(Invite.serializer()), text).firstOrNull()?.let { invite.value = it }
+        }
+    }
+
+    /** FCM-Token für Push bei geschlossener App hinterlegen (Tabelle push_tokens, Versand durch push/). Ohne google-services.json passiert nichts. */
+    // ponytail: kein FirebaseMessagingService/onNewToken – das Token wird bei jedem Login und App-Start neu gemeldet;
+    //           es rotiert praktisch nur bei Neuinstallation, die auch die Sitzung löscht
+    private fun registerPushToken() {
+        val me = myId ?: return
+        runCatching { com.google.firebase.messaging.FirebaseMessaging.getInstance().token }.getOrNull()?.addOnSuccessListener { token ->
+            pushToken = token
+            scope.launch { runCatching { ensureFresh(); requireApi().upsert("push_tokens", buildJsonObject { put("user_id", me); put("token", token) }.toString()) } }
+        }
     }
 
     private fun onUserMessage(event: String, payload: JsonObject) {
@@ -682,8 +752,16 @@ class OnlineController(private val context: Context, private val repo: Repositor
         const val REDIRECT_URI = "scorelens://auth/callback"
         /** Freundes-Link (QR-Code): scorelens://friend/<Nutzer-ID> */
         const val FRIEND_LINK = "scorelens://friend/"
-        fun friendIdFrom(text: String): String? = text.trim().removePrefix(FRIEND_LINK).takeIf { text.trim().startsWith(FRIEND_LINK) && it.length == 36 }
+        /** Pfad des teilbaren Links: https://<server>/functions/v1/friend/<Nutzer-ID> */
+        const val FRIEND_PATH = "/functions/v1/friend/"
+        /** Nutzer-ID aus QR-Inhalt oder geteiltem Link; null, wenn es kein Scorelens-Freundeslink ist. */
+        fun friendIdFrom(text: String): String? {
+            val t = text.trim()
+            if (!t.startsWith(FRIEND_LINK) && !t.contains(FRIEND_PATH)) return null
+            return t.substringAfterLast('/').takeIf { it.length == 36 }
+        }
         val PROVIDERS = listOf("google" to "Google", "github" to "GitHub")
+        private const val ONLINE_TOPIC = "realtime:online"
 
         private fun pgChange(event: String, table: String, filter: String): JsonObject =
             buildJsonObject { put("event", event); put("schema", "public"); put("table", table); put("filter", filter) }

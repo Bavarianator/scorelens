@@ -4,6 +4,7 @@
 #   docker compose up -d                                        → Postgres, Auth (GoTrue), REST (PostgREST), Realtime, Gateway (Caddy)
 #   ./migrate.sh                                                → Schema (../supabase/migrations) einspielen / aktualisieren
 #   docker compose --profile studio up -d                       → zusätzlich Supabase Studio unter http://127.0.0.1:3000 (nur lokal)
+#   docker compose --profile push up -d --build                 → zusätzlich Push-Relay (Mitteilungen bei geschlossener App, ../push)
 #
 # Die App braucht nur zwei Angaben: die öffentliche URL (SUPABASE_PUBLIC_URL) und den ANON_KEY aus der .env.
 # Bilder und Umgebungsvariablen entsprechen der offiziellen Supabase-Self-Hosting-Vorlage (docker/docker-compose.yml);
@@ -240,6 +241,22 @@ services:
       PG_META_DB_USER: postgres
       PG_META_DB_PASSWORD: ${POSTGRES_PASSWORD}
       CRYPTO_KEY: ${PG_META_CRYPTO_KEY}
+
+  # Optional: Push-Relay (Profil `push`) – Mitteilungen bei geschlossener App, siehe ../push/README.md.
+  # Braucht ./firebase-service-account.json (Firebase-Konsole → Projekteinstellungen → Dienstkonten).
+  push:
+    container_name: scorelens-push
+    build: ../push
+    restart: unless-stopped
+    profiles: [push]
+    environment:
+      SUPABASE_URL: ${SUPABASE_PUBLIC_URL}
+      SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
+      GOOGLE_APPLICATION_CREDENTIALS: /app/firebase-service-account.json
+    volumes:
+      - ./firebase-service-account.json:/app/firebase-service-account.json:ro
+    depends_on:
+      - gateway
 
 volumes:
   db-data:

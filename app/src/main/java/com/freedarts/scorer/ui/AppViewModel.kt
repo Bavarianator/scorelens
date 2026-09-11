@@ -26,8 +26,12 @@ import com.freedarts.scorer.model.MatchRecord
 import com.freedarts.scorer.model.OutMode
 import com.freedarts.scorer.model.Player
 import com.freedarts.scorer.model.Segment
+import androidx.compose.ui.graphics.asImageBitmap
+import com.freedarts.scorer.model.Tournament
+import com.freedarts.scorer.model.TournamentMode
 import com.freedarts.scorer.BuildConfig
 import com.freedarts.scorer.online.Invite
+import com.freedarts.scorer.online.Lobby
 import com.freedarts.scorer.online.MatchEvent
 import com.freedarts.scorer.online.OnlineController
 import com.freedarts.scorer.online.OnlineMatch
@@ -63,6 +67,8 @@ sealed class Screen {
     data object OnlineLobby : Screen()
     /** Freunde: QR-Code, Suche, Anfragen, Statistik, Einladen. */
     data object Friends : Screen()
+    /** Lokales Turnier (K.-o. oder Jeder gegen jeden). */
+    data object Tournament : Screen()
 }
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
@@ -80,10 +86,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** Laufendes Online-Match (null = lokales Spiel). */
     var onlineMatch: OnlineMatch? = null; private set
     val isOnlineGame: Boolean get() = onlineMatch != null
+    val isSpectator: Boolean get() = onlineMatch != null && online.spectating
 
     val players: StateFlow<List<Player>> = repo.players
     val settings: StateFlow<AppSettings> = repo.settings
     val matches: StateFlow<List<MatchRecord>> = repo.matches
+    val tournament: StateFlow<Tournament?> = repo.tournament
+    /** Index des laufenden Turnierspiels in [Tournament.matches]; null = normales Match. */
+    private var tournamentMatch: Int? = null
+    val inTournament: Boolean get() = tournamentMatch != null
 
     private val _screen = MutableStateFlow<Screen>(if (repo.settings.value.onboardingDone) Screen.Home else Screen.Onboarding)
     val screen: StateFlow<Screen> = _screen
@@ -107,6 +118,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private var botJob: Job? = null
     private var autoNextJob: Job? = null
     private var recorded = false
+    /** Live-Ticker im Online-Match: Referee-Bilder je Dart, Schlüssel = Wurfzeitstempel [ThrowRecord.at] (überlebt Undo und Resync). */
+    private val _snapshots = MutableStateFlow<Map<Long, androidx.compose.ui.graphics.ImageBitmap>>(emptyMap())
+    val snapshots: StateFlow<Map<Long, androidx.compose.ui.graphics.ImageBitmap>> = _snapshots
     private val _inputMethod = MutableStateFlow(settings.value.inputMethod)
     val inputMethod: StateFlow<InputMethod> = _inputMethod
 
@@ -131,6 +145,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         online.onMatchStarted = { m, events -> startOnlineGame(m, events) }
         online.onResync = { m, events -> if (onlineMatch?.id == m.id) rebuildOnlineGame(m, events) }
         online.onRemoteEvent = { e -> applyRemoteEvent(e) }
+        online.onSnapshot = { at, jpg -> com.freedarts.scorer.ui.components.decodeAvatar(jpg)?.let { bmp -> _snapshots.update { it + (at to bmp) } } }
         online.onMatchEnded = { m, aborted ->
             if (onlineMatch?.id == m.id && game?.finished != true) {
                 botJob?.cancel(); autoNextJob?.cancel(); caller.stop()
@@ -188,6 +203,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun acceptInvite(i: Invite) { online.acceptInvite(i); navigate(Screen.OnlineLobby) }
 
+    /** Öffentliches Match eines anderen live mitverfolgen; der Match-Screen bleibt ohne Eingabe. */
+    fun spectate(l: Lobby) { l.currentMatchId?.let { online.spectate(it) } }
+
+    private fun stopSpectating() {
+        caller.stop(); botJob?.cancel(); autoNextJob?.cancel()
+        online.stopSpectating()
+        onlineMatch = null; game = null; _gameState.value = null
+        backStack.clear(); _screen.value = Screen.Online
+    }
+
     fun leaveOnlineLobby() {
         if (onlineMatch != null) { caller.stop(); game = null; _gameState.value = null; onlineMatch = null }
         online.leaveLobby()
@@ -208,6 +233,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         botJob?.cancel(); autoNextJob?.cancel()
         recorded = false
         _lastRecord.value = null
+        _snapshots.value = emptyMap()
         onlineMatch = m
         val g = GameFactory.create(onlinePlayers(m), m.settings, m.seed)
         replay(g, events)
@@ -404,9 +430,36 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun rematch() {
         val g = game ?: return
+    // ---------- Turnier ----------
+
+    fun startTournament(mode: TournamentMode) {
+        val ps = _lobbyPlayers.value
+        if (ps.size < 2) return
+        repo.updateSettings { it.copy(lastGameSettings = _lobbySettings.value, lastPlayerIds = ps.map { p -> p.id }) }
+        repo.setTournament(Tournament.create(mode, ps, _lobbySettings.value))
+        navigate(Screen.Tournament)
+    }
+
+    fun playTournamentMatch(index: Int) {
+        val t = tournament.value ?: return
+        val m = t.matches.getOrNull(index)?.takeIf { it.open } ?: return
+        launchGame(listOf(t.players[m.a!!], t.players[m.b!!]), t.settings)
+        tournamentMatch = index
+        navigate(Screen.Match)
+    }
+
+    fun endTournament() { repo.setTournament(null); tournamentMatch = null }
+
+    /** Nach Ergebnis oder Abbruch zurück zur Turnierübersicht. */
+    private fun backToTournament() {
+        tournamentMatch = null; game = null; _gameState.value = null
+        backStack.clear(); _screen.value = Screen.Tournament
+    }
+
         caller.stop()
         if (onlineMatch != null) {
             // Online: zurück in die Lobby, der Host startet das nächste Match
+        if (tournamentMatch != null) return backToTournament()
             onlineMatch = null; game = null; _gameState.value = null
             backStack.clear(); _screen.value = Screen.OnlineLobby
             return
@@ -421,6 +474,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         recorded = false
         _lastRecord.value = null
         game = GameFactory.create(ps, gs)
+        tournamentMatch = null
         refresh()
         caller.callPlayer(ps.first().name)
         if (ps.first().isBot) scheduleBot()
@@ -432,12 +486,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         _gameState.value = null
         if (onlineMatch != null) {
             onlineMatch = null
+        if (isSpectator) return stopSpectating()
             online.abortMatch()
             backStack.clear(); _screen.value = Screen.OnlineLobby
             return
         }
         goHome()
     }
+        if (tournamentMatch != null) return backToTournament()
 
     // ---------- Match ----------
 
@@ -453,12 +509,27 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val hold = fromBoard && !g.players[g.current].isBot
         val at = System.currentTimeMillis()
         g.throwDart(segment, x, y, at, hold = hold)
-        if (onlineMatch != null) online.sendEvent(MatchEvent.KIND_THROW, segment, x, y, hold, at)
+        if (onlineMatch != null) {
+            online.sendEvent(MatchEvent.KIND_THROW, segment, x, y, hold, at)
+            if (fromBoard) lens.detections.value.lastOrNull()?.snapshot?.let { shareSnapshot(at, it) }
+        }
         afterEvent(before)
     }
 
     /** Gesamtscore einer Aufnahme (Total-Score-Eingabe). Zerlegt in bis zu 3 Darts. */
     fun enterVisitTotal(total: Int) {
+    /** Referee-Bild verkleinern (max. 160 px, JPEG) und als Ticker-Bild lokal zeigen und an die Mitspieler senden. */
+    private fun shareSnapshot(at: Long, bmp: android.graphics.Bitmap) {
+        _snapshots.update { it + (at to bmp.asImageBitmap()) }
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.Default) {
+            val scale = 160f / maxOf(bmp.width, bmp.height)
+            val small = if (scale < 1f) android.graphics.Bitmap.createScaledBitmap(bmp, (bmp.width * scale).toInt().coerceAtLeast(1), (bmp.height * scale).toInt().coerceAtLeast(1), true) else bmp
+            val out = java.io.ByteArrayOutputStream()
+            small.compress(android.graphics.Bitmap.CompressFormat.JPEG, 60, out)
+            online.sendSnapshot(at, android.util.Base64.encodeToString(out.toByteArray(), android.util.Base64.NO_WRAP))
+        }
+    }
+
         val g = game ?: return
         if (g.finished || g.visit.isNotEmpty() || g.visitComplete || g.bullOffActive || !isMyTurn) return
         val darts = decompose(total, g)
@@ -608,7 +679,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun recordMatch() {
         val g = game ?: return
-        if (recorded) return
+        if (recorded || isSpectator) return
         recorded = true
         val stats = g.players.indices.map { g.playerStats(it) }
         val om = onlineMatch
@@ -628,9 +699,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             throws = g.throwLog,
         )
         repo.addMatch(record)
+        // Turnier: Sieger eintragen (Unentschieden lässt das Spiel offen, es wird wiederholt)
+        val ti = tournamentMatch; val t = tournament.value; val w = g.winner
+        if (ti != null && t != null && w != null) {
+            val tm = t.matches[ti]
+            repo.setTournament(t.withResult(ti, if (w == 0) tm.a!! else tm.b!!, stats[0].legsWon, stats[1].legsWon))
+        }
         if (online.session.value != null && online.configured) online.saveMatch(record)
         _lastRecord.value = record
     }
+        if (isSpectator) return stopSpectating()
 
     fun finishToResult() {
         if (_lastRecord.value == null) recordMatch()

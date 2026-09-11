@@ -5,6 +5,7 @@ import com.freedarts.scorer.model.AppSettings
 import com.freedarts.scorer.model.MatchRecord
 import com.freedarts.scorer.model.Player
 import com.freedarts.scorer.online.OnlineSession
+import com.freedarts.scorer.model.Tournament
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -38,6 +39,15 @@ class Repository private constructor(context: Context) {
     /** Sitzung des Online-Modus (Supabase); null = abgemeldet. */
     private val _onlineSession = MutableStateFlow(load("online_session.json", OnlineSession.serializer()))
     val onlineSession: StateFlow<OnlineSession?> = _onlineSession
+    /** Laufendes lokales Turnier; null = keins. */
+    private val _tournament = MutableStateFlow(load("tournament.json", Tournament.serializer()))
+    val tournament: StateFlow<Tournament?> = _tournament
+
+    fun setTournament(t: Tournament?) {
+        _tournament.value = t
+        if (t == null) scope.launch { File(dir, "tournament.json").delete() } else save("tournament.json", Tournament.serializer(), t)
+    }
+
 
     fun setOnlineSession(session: OnlineSession?) {
         _onlineSession.value = session

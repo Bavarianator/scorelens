@@ -1,5 +1,6 @@
 package com.freedarts.scorer.ui.screens
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -48,6 +49,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -116,6 +119,7 @@ fun MatchScreen(vm: AppViewModel) {
     val myTurn = vm.isMyTurn
     val onlineConnection by vm.online.connection.collectAsStateWithLifecycle()
     val presence by vm.online.presence.collectAsStateWithLifecycle()
+    val snapshots by vm.snapshots.collectAsStateWithLifecycle()
     val inputEnabled = !s.finished && !isBotTurn && (!online || myTurn)
     val landscape = LocalConfiguration.current.screenWidthDp > LocalConfiguration.current.screenHeightDp
     val totalAllowed = game.settings.mode in setOf(GameMode.X01, GameMode.COUNT_UP, GameMode.GOTCHA)
@@ -146,7 +150,8 @@ fun MatchScreen(vm: AppViewModel) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = { confirmAbort = true }) { Icon(Icons.Default.Close, "Spiel beenden") }
             Box(Modifier.weight(1f), contentAlignment = Alignment.Center) { Chip("$title · ${s.headline}" + if (s.visitLocked) " · Darts entnehmen" else "") }
-            if (online) {
+            if (vm.isSpectator) StatusPill("Zuschauer", if (onlineConnection == RealtimeClient.State.OPEN) DartColors.Green else DartColors.Accent) { }
+            else if (online) {
                 val opponentsAway = game.players.any { it.id != vm.online.myId && it.id !in presence }
                 StatusPill(if (opponentsAway) "Gegner offline" else "Online", when (onlineConnection) {
                     RealtimeClient.State.OPEN -> if (opponentsAway) DartColors.Accent else DartColors.Green
@@ -177,6 +182,7 @@ fun MatchScreen(vm: AppViewModel) {
                 Spacer(Modifier.height(10.dp))
                 val correctable = if (s.currentVisit.isNotEmpty()) s.currentVisit else vm.correctableDarts()
                 DartRow(correctable, current = s.currentVisit.isNotEmpty(), onTap = { i -> if (!s.finished && !online && i < correctable.size) correctIndex = i })
+                if (online) Ticker(game.throwLog, s.players.map { it.player.name }, snapshots)
                 Banner(s.banner, Modifier.padding(top = 6.dp))
                 s.cricketTargets?.let { Spacer(Modifier.height(6.dp)); CricketTable(s.players, it, Modifier.padding(horizontal = 12.dp), hidden = s.cricketHidden ?: emptySet()) }
                 if (settings.showChalkboard && s.cricketTargets == null && !lensOn) {
@@ -194,7 +200,7 @@ fun MatchScreen(vm: AppViewModel) {
                         Text(s.banner ?: "Spiel beendet", fontFamily = Condensed, fontWeight = FontWeight.Bold, fontSize = 52.sp, color = DartColors.Lime, textAlign = TextAlign.Center,
                             modifier = Modifier.scale(if (settings.animations) winScale else 1f))
                         s.winnerIndex?.let { Text("${s.players[it].player.name} gewinnt!", style = MaterialTheme.typography.headlineMedium) }
-                        PrimaryButton("Finish", Modifier.fillMaxWidth()) { vm.finishToResult() }
+                        PrimaryButton(if (vm.isSpectator) "Zurück" else "Finish", Modifier.fillMaxWidth()) { vm.finishToResult() }
                         if (!online) OutlinedButton(onClick = { vm.undo() }) { Text("Letzten Dart zurücknehmen") }
                     }
                 } else when (inputMethod) {
@@ -494,5 +500,28 @@ private fun BarButton(icon: ImageVector, label: String, active: Boolean, enabled
 fun SettingSwitch(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
     Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(label, Modifier.weight(1f)); Switch(checked = checked, onCheckedChange = onChange)
+    }
+}
+
+/** Live-Ticker im Online-Match: die letzten Darts aller Spieler, neueste zuerst, mit Referee-Bild wo vorhanden (Tippen vergrößert). */
+@Composable
+private fun Ticker(log: List<com.freedarts.scorer.model.ThrowRecord>, names: List<String>, snapshots: Map<Long, ImageBitmap>) {
+    if (log.isEmpty()) return
+    var big by remember { mutableStateOf<ImageBitmap?>(null) }
+    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        for (i in log.indices.reversed().take(10)) {
+            val t = log[i]; val img = snapshots[t.at]
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)).background(if (t.bust) DartColors.RedDark else DartColors.SurfaceHigh).clickable(enabled = img != null) { big = img }, contentAlignment = Alignment.Center) {
+                    if (img != null) Image(img, t.segment.name, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                    Text(t.segment.name, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = if (img != null) DartColors.Lime else DartColors.Text)
+                }
+                Text(names.getOrNull(t.player)?.take(6) ?: "", fontSize = 10.sp, color = DartColors.TextMuted)
+            }
+        }
+    }
+    big?.let { img ->
+        AlertDialog(onDismissRequest = { big = null }, confirmButton = { TextButton(onClick = { big = null }) { Text("OK") } },
+            text = { Image(img, "Referee-Bild", Modifier.fillMaxWidth().height(260.dp), contentScale = ContentScale.Fit) })
     }
 }

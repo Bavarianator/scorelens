@@ -2,6 +2,8 @@
 
 package com.freedarts.scorer.ui.screens
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -98,6 +100,9 @@ fun OnlineScreen(vm: AppViewModel) {
 
     val loggedIn = session != null && online.configured
     LaunchedEffect(loggedIn) { if (loggedIn && profile == null) runCatching { online.loadProfile() } }
+    // Push bei geschlossener App (Einladungen, Freundschaftsanfragen) braucht ab Android 13 die Erlaubnis für Mitteilungen.
+    val notifications = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
+    LaunchedEffect(loggedIn) { if (loggedIn && android.os.Build.VERSION.SDK_INT >= 33) notifications.launch(android.Manifest.permission.POST_NOTIFICATIONS) }
     DisposableEffect(loggedIn) {
         if (loggedIn) online.startLobbyPolling()
         onDispose { online.stopLobbyPolling() }
@@ -196,7 +201,10 @@ fun OnlineScreen(vm: AppViewModel) {
                     })
                     val others = lobbies.filter { it.id != currentLobby?.id }
                     if (others.isEmpty()) AdCard { Text("Gerade keine offenen Lobbys – erstelle eine oder nutze „Gegner finden“.", color = DartColors.TextMuted) }
-                    others.forEach { l -> LobbyRow(l, enabled = !busy && !l.isFull) { online.joinByCode(l.code); vm.openOnlineLobby() } }
+                    others.forEach { l ->
+                        if (l.status == "running") LobbyRow(l, enabled = !busy && l.currentMatchId != null) { vm.spectate(l) }
+                        else LobbyRow(l, enabled = !busy && !l.isFull) { online.joinByCode(l.code); vm.openOnlineLobby() }
+                    }
                 }
             }
             Spacer(Modifier.height(24.dp))
@@ -271,7 +279,7 @@ private fun LobbyRow(l: Lobby, enabled: Boolean, onJoin: () -> Unit) {
         Spacer(Modifier.height(8.dp))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) { settingsChips(l.settings).take(4).forEach { Chip(it) } }
         Spacer(Modifier.height(8.dp))
-        PrimaryButton(if (l.isFull) "Voll" else "Beitreten", Modifier.fillMaxWidth(), enabled = enabled, height = 42, onClick = onJoin)
+        PrimaryButton(if (l.status == "running") "Zuschauen" else if (l.isFull) "Voll" else "Beitreten", Modifier.fillMaxWidth(), enabled = enabled, height = 42, onClick = onJoin)
     }
 }
 

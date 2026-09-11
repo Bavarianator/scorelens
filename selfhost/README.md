@@ -43,12 +43,13 @@ zurückgerufen; diese URL ist in `ADDITIONAL_REDIRECT_URLS` bereits eingetragen.
 
 | Dienst | Image | Aufgabe |
 |---|---|---|
-| gateway | caddy | `/auth/v1` → auth, `/rest/v1` → rest, `/realtime/v1` → realtime (WebSocket); optional TLS |
+| gateway | caddy | `/auth/v1` → auth, `/rest/v1` → rest, `/realtime/v1` → realtime (WebSocket), `/functions/v1/friend/<id>` → Freundes-Link-Seite; optional TLS |
 | auth | supabase/gotrue | Konten, Passwort-Login, OAuth, Gast-Login, JWT |
 | rest | postgrest | Tabellen und RPCs als REST-API, Zugriff über RLS |
 | realtime | supabase/realtime | Live-Updates (postgres_changes) für Lobbys und Match-Ereignisse, Presence |
 | db | supabase/postgres | Postgres 17 mit Supabase-Rollen; Schema aus `../supabase/migrations` |
 | studio, meta | supabase/studio, postgres-meta | optional (Profil `studio`) |
+| push | ../push (Node) | optional (Profil `push`): Push-Mitteilungen bei geschlossener App, siehe `../push/README.md` |
 
 Die Datenbank liegt im Docker-Volume `db-data`. Sicherung: `docker compose exec db pg_dump -U postgres postgres > backup.sql`.
 

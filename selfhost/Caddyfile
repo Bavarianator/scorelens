@@ -21,6 +21,15 @@
 		}
 	}
 
+	# Freundes-Link (gleiche Seite wie supabase/functions/friend): öffnet die App per intent://
+	@friend path_regexp friend ^/functions/v1/friend/([0-9a-fA-F-]{36})$
+	handle @friend {
+		header Content-Type "text/html; charset=utf-8"
+		respond `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Scorelens – Freund hinzufügen</title>
+<p style="font-family:sans-serif;padding:24px">Scorelens wird geöffnet …<br><br>Passiert nichts? <a href="scorelens://friend/{re.friend.1}">App öffnen</a> (Scorelens muss installiert sein).</p>
+<script>location.replace("intent://friend/{re.friend.1}#Intent;scheme=scorelens;package=com.freedarts.scorer;end")</script>` 200
+	}
+
 	handle {
 		header Content-Type "text/plain; charset=utf-8"
 		respond "Scorelens Online – Supabase (self-hosted). Endpunkte: /auth/v1, /rest/v1, /realtime/v1" 200

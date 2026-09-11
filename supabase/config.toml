@@ -38,3 +38,7 @@ enable_confirmations = false
 # OAuth-Anbieter (Google, GitHub, Discord) bewusst nicht deklariert: sie werden im Dashboard unter
 # Authentication › Providers gepflegt, damit `supabase config push` sie nicht überschreibt.
 # Redirect-URL beim Anbieter: https://<projekt>.supabase.co/auth/v1/callback
+
+# Freundes-Link (supabase/functions/friend): öffentliche Seite, kein Login nötig
+[functions.friend]
+verify_jwt = false

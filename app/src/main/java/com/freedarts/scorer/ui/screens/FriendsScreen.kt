@@ -1,5 +1,6 @@
 package com.freedarts.scorer.ui.screens
 
+import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,6 +33,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -59,6 +61,7 @@ import com.freedarts.scorer.ui.theme.DartColors
 fun FriendsScreen(vm: AppViewModel) {
     val online = vm.online
     val friends by online.friends.collectAsStateWithLifecycle()
+    val onlineIds by online.online.collectAsStateWithLifecycle()
     val invite by online.invite.collectAsStateWithLifecycle()
     val busy by online.busy.collectAsStateWithLifecycle()
     val error by online.error.collectAsStateWithLifecycle()
@@ -66,6 +69,7 @@ fun FriendsScreen(vm: AppViewModel) {
     var showScanner by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
     var results by remember { mutableStateOf<List<Profile>?>(null) }
+    val context = LocalContext.current
     LaunchedEffect(query) { results = if (query.trim().length < 2) null else runCatching { online.searchProfiles(query) }.getOrNull() }
 
     Box(Modifier.fillMaxSize()) { ScreenBackground() }
@@ -81,11 +85,17 @@ fun FriendsScreen(vm: AppViewModel) {
 
             AdCard {
                 Text("MEIN QR-CODE", style = MaterialTheme.typography.headlineSmall)
-                Text("Freunde scannen diesen Code in ihrer App (Symbol oben rechts) und schicken dir eine Anfrage.", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
+                Text("Freunde scannen diesen Code in ihrer App (Symbol oben rechts) oder öffnen deinen geteilten Link und schicken dir eine Anfrage.", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
                 Spacer(Modifier.height(10.dp))
                 online.friendLink?.let { Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) { QrCode(it, size = 200.dp) } }
                 Spacer(Modifier.height(10.dp))
-                PrimaryButton("QR-Code eines Freundes scannen", Modifier.fillMaxWidth(), icon = Icons.Default.QrCodeScanner, height = 44) { showScanner = true }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SecondaryButton("Link teilen", Modifier.weight(1f)) {
+                        val send = Intent(Intent.ACTION_SEND).apply { type = "text/plain"; putExtra(Intent.EXTRA_TEXT, "Füge mich bei Scorelens als Freund hinzu: ${online.friendShareUrl}") }
+                        runCatching { context.startActivity(Intent.createChooser(send, "Freundes-Link teilen").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+                    }
+                    PrimaryButton("Code scannen", Modifier.weight(1f), icon = Icons.Default.QrCodeScanner, height = 44) { showScanner = true }
+                }
             }
 
             AdCard {
@@ -114,7 +124,7 @@ fun FriendsScreen(vm: AppViewModel) {
 
             val incoming = friends.filter { !it.accepted && it.incoming }
             val outgoing = friends.filter { !it.accepted && !it.incoming }
-            val accepted = friends.filter { it.accepted }
+            val accepted = friends.filter { it.accepted }.sortedByDescending { it.id in onlineIds }
             if (incoming.isNotEmpty()) {
                 SectionLabel("Anfragen")
                 incoming.forEach { f ->
@@ -142,7 +152,7 @@ fun FriendsScreen(vm: AppViewModel) {
 
             SectionLabel("Freunde (${accepted.size})")
             if (accepted.isEmpty()) AdCard { Text("Noch keine Freunde – scanne einen QR-Code oder suche nach dem Namen.", color = DartColors.TextMuted) }
-            accepted.forEach { f -> FriendRow(f, online, busy, onInvite = { vm.inviteFriend(f.id) }, onJoin = { code -> online.joinByCode(code); vm.openOnlineLobby() }) }
+            accepted.forEach { f -> FriendRow(f, online, busy, isOnline = f.id in onlineIds, onInvite = { vm.inviteFriend(f.id) }, onJoin = { code -> online.joinByCode(code); vm.openOnlineLobby() }) }
             Spacer(Modifier.height(24.dp))
         }
     }
@@ -180,9 +190,9 @@ fun InviteCard(invite: Invite, friends: List<Friend>, onAccept: () -> Unit, onDi
 }
 
 @Composable
-private fun FriendHeader(f: Friend) {
+private fun FriendHeader(f: Friend, isOnline: Boolean = false) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Avatar(f.player(), 40, online = false)
+        Avatar(f.player(), 40, online = isOnline)
         Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
             val (lvl, bg, fg) = levelOf(f.avg)
@@ -193,10 +203,10 @@ private fun FriendHeader(f: Friend) {
 }
 
 @Composable
-private fun FriendRow(f: Friend, online: OnlineController, busy: Boolean, onInvite: () -> Unit, onJoin: (String) -> Unit) {
+private fun FriendRow(f: Friend, online: OnlineController, busy: Boolean, isOnline: Boolean, onInvite: () -> Unit, onJoin: (String) -> Unit) {
     AdCard(padding = 12) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.weight(1f)) { FriendHeader(f) }
+            Box(Modifier.weight(1f)) { FriendHeader(f, isOnline) }
             IconButton(onClick = { online.removeFriend(f.id) }, enabled = !busy) { Icon(Icons.Default.Close, "Freund entfernen", tint = DartColors.TextMuted) }
         }
         Spacer(Modifier.height(6.dp))

@@ -11,6 +11,8 @@ data class Player(
     val color: Long = 0xFF3F51B5,
     /** 0 = Mensch, 1..11 = Bot-Stufe (wie bei Autodarts elf Stufen). */
     val botLevel: Int = 0,
+    /** Profilbild als Base64-JPEG (max. 128 px), null = Initialen. */
+    val avatar: String? = null,
 ) {
     val isBot: Boolean get() = botLevel > 0
     val initials: String get() = name.trim().split(" ").filter { it.isNotBlank() }.take(2).joinToString("") { it.first().uppercase() }

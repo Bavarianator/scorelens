@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
@@ -61,6 +62,7 @@ import com.freedarts.scorer.ui.AppViewModel
 import com.freedarts.scorer.ui.components.AdCard
 import com.freedarts.scorer.ui.components.AdTopBar
 import com.freedarts.scorer.ui.components.Avatar
+import com.freedarts.scorer.ui.components.AvatarPicker
 import com.freedarts.scorer.ui.components.Chip
 import com.freedarts.scorer.ui.components.ModeBadge
 import com.freedarts.scorer.ui.components.NameRibbon
@@ -88,6 +90,8 @@ fun OnlineScreen(vm: AppViewModel) {
     val lobbies by online.lobbies.collectAsStateWithLifecycle()
     val currentLobby by online.lobby.collectAsStateWithLifecycle()
     val connection by online.connection.collectAsStateWithLifecycle()
+    val friends by online.friends.collectAsStateWithLifecycle()
+    val invite by online.invite.collectAsStateWithLifecycle()
     var showServer by remember { mutableStateOf(!online.configured) }
     var showCreate by remember { mutableStateOf(false) }
     var showProfile by remember { mutableStateOf(false) }
@@ -139,7 +143,7 @@ fun OnlineScreen(vm: AppViewModel) {
                     val p = profile
                     AdCard(onClick = { showProfile = true }) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            val player = Player(id = p?.id ?: "", name = p?.name ?: "…", color = p?.color ?: 0xFF3F51B5)
+                            val player = Player(id = p?.id ?: "", name = p?.name ?: "…", color = p?.color ?: 0xFF3F51B5, avatar = p?.avatar)
                             Avatar(player, 44)
                             Spacer(Modifier.width(10.dp))
                             Column(Modifier.weight(1f)) {
@@ -157,6 +161,11 @@ fun OnlineScreen(vm: AppViewModel) {
                             OnlineStat("%.0f%%".format(p?.winRate ?: 0.0), "Win Rate", Modifier.weight(1f))
                         }
                     }
+
+                    invite?.let { InviteCard(it, friends, onAccept = { vm.acceptInvite(it) }, onDismiss = { online.dismissInvite(it) }) }
+                    val requests = friends.count { !it.accepted && it.incoming }
+                    SecondaryButton(if (requests > 0) "Freunde · $requests Anfrage${if (requests > 1) "n" else ""}" else "Freunde (${friends.count { it.accepted }})",
+                        Modifier.fillMaxWidth(), icon = Icons.Default.Group) { vm.openFriends() }
 
                     currentLobby?.let { l ->
                         AdCard(background = DartColors.GreenDark, onClick = { vm.openOnlineLobby() }) {
@@ -216,6 +225,8 @@ fun OnlineScreen(vm: AppViewModel) {
             title = { Text("Online-Profil") },
             text = {
                 Column {
+                    AvatarPicker(Player(id = p?.id ?: "", name = name.ifBlank { "?" }, color = color, avatar = p?.avatar)) { online.updateAvatar(it) }
+                    Spacer(Modifier.height(8.dp))
                     OutlinedTextField(value = name, onValueChange = { name = it.take(32) }, label = { Text("Anzeigename") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                     Spacer(Modifier.height(8.dp))
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -247,7 +258,7 @@ private fun LobbyRow(l: Lobby, enabled: Boolean, onJoin: () -> Unit) {
     AdCard(padding = 12) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             val host = l.host
-            Avatar(Player(id = host?.id ?: "", name = host?.name ?: "?", color = host?.color ?: 0xFF546E7A), 36)
+            Avatar(Player(id = host?.id ?: "", name = host?.name ?: "?", color = host?.color ?: 0xFF546E7A, avatar = host?.avatar), 36)
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
                 Text(l.name.ifBlank { host?.name ?: "Lobby" }, fontWeight = FontWeight.Bold)

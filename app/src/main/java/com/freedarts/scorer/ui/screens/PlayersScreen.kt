@@ -79,20 +79,23 @@ fun PlayersScreen(vm: AppViewModel) {
         }
     }
 
-    if (creating) PlayerDialog(null, onDismiss = { creating = false }) { name, color -> vm.addPlayer(name, color); creating = false }
-    editing?.let { p -> PlayerDialog(p, onDismiss = { editing = null }) { name, color -> vm.updatePlayer(p.copy(name = name, color = color)); editing = null } }
+    if (creating) PlayerDialog(null, onDismiss = { creating = false }) { name, color, avatar -> vm.addPlayer(name, color, avatar); creating = false }
+    editing?.let { p -> PlayerDialog(p, onDismiss = { editing = null }) { name, color, avatar -> vm.updatePlayer(p.copy(name = name, color = color, avatar = avatar)); editing = null } }
 }
 
 @Composable
-private fun PlayerDialog(player: Player?, onDismiss: () -> Unit, onSave: (String, Long) -> Unit) {
+private fun PlayerDialog(player: Player?, onDismiss: () -> Unit, onSave: (String, Long, String?) -> Unit) {
     var name by remember { mutableStateOf(player?.name ?: "") }
     var color by remember { mutableStateOf(player?.color ?: Player.AVATAR_COLORS.random()) }
+    var avatar by remember { mutableStateOf(player?.avatar) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(if (player == null) "Neuer Spieler" else "Spieler bearbeiten") },
         text = {
             Column {
                 OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Name") }, singleLine = true)
+                Spacer(Modifier.size(12.dp))
+                com.freedarts.scorer.ui.components.AvatarPicker(Player(name = name.ifBlank { "?" }, color = color, avatar = avatar)) { avatar = it }
                 Spacer(Modifier.size(12.dp))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Player.AVATAR_COLORS.forEach { c ->
@@ -105,7 +108,7 @@ private fun PlayerDialog(player: Player?, onDismiss: () -> Unit, onSave: (String
                 }
             }
         },
-        confirmButton = { TextButton(onClick = { if (name.isNotBlank()) onSave(name, color) }, enabled = name.isNotBlank()) { Text("Speichern") } },
+        confirmButton = { TextButton(onClick = { if (name.isNotBlank()) onSave(name, color, avatar) }, enabled = name.isNotBlank()) { Text("Speichern") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } },
     )
 }

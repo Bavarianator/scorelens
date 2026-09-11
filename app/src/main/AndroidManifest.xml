@@ -33,6 +33,7 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="scorelens" android:host="auth" />
+                <data android:host="friend" />
             </intent-filter>
         </activity>
     </application>

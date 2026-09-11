@@ -1,6 +1,7 @@
 package com.freedarts.scorer.online
 
 import com.freedarts.scorer.model.GameSettings
+import com.freedarts.scorer.model.Player
 import com.freedarts.scorer.model.Segment
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -40,6 +41,7 @@ data class Profile(
     val avg: Double = 0.0,
     val matches: Int = 0,
     val wins: Int = 0,
+    val avatar: String? = null,
 ) {
     val winRate: Double get() = if (matches == 0) 0.0 else 100.0 * wins / matches
 }
@@ -75,11 +77,12 @@ data class LobbyPlayer(
 ) {
     val name: String get() = profile?.name ?: "Spieler"
     val color: Long get() = profile?.color ?: 0xFF3F51B5
+    val avatar: String? get() = profile?.avatar
 }
 
 /** Spieler eines Matches in Wurfreihenfolge (jsonb-Spalte matches.players). */
 @Serializable
-data class MatchPlayer(val id: String, val name: String, val color: Long = 0xFF3F51B5)
+data class MatchPlayer(val id: String, val name: String, val color: Long = 0xFF3F51B5, val avatar: String? = null)
 
 /** Ein Spiel einer Lobby (Tabelle matches). Seed + Einstellungen + Spieler ergeben auf allen Geräten dieselbe Engine. */
 @Serializable
@@ -120,3 +123,36 @@ data class MatchEvent(
         const val KIND_UNDO = "undo"
     }
 }
+
+/** Freund aus der RPC friends(): Profil, Status der Anfrage, Kopf-an-Kopf-Bilanz und offene Lobby des Freundes. */
+@Serializable
+data class Friend(
+    val id: String,
+    val name: String = "",
+    val color: Long = 0xFF3F51B5,
+    val avatar: String? = null,
+    val avg: Double = 0.0,
+    val matches: Int = 0,
+    val wins: Int = 0,
+    /** pending | accepted */
+    val status: String = "pending",
+    /** Anfrage kam vom Freund (wartet auf meine Antwort). */
+    val incoming: Boolean = false,
+    /** Gemeinsame abgeschlossene Online-Matches und meine Siege daraus. */
+    val played: Int = 0,
+    val won: Int = 0,
+    @SerialName("lobby_code") val lobbyCode: String? = null,
+) {
+    val accepted: Boolean get() = status == "accepted"
+    val winRate: Double get() = if (matches == 0) 0.0 else 100.0 * wins / matches
+    fun player(): Player = Player(id = id, name = name, color = color, avatar = avatar)
+}
+
+/** Einladung eines Freundes in seine Lobby (Tabelle invites). */
+@Serializable
+data class Invite(
+    @SerialName("lobby_id") val lobbyId: String,
+    @SerialName("from_id") val fromId: String,
+    @SerialName("to_id") val toId: String,
+    val code: String,
+)

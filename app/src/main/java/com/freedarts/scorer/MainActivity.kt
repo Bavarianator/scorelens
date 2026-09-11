@@ -31,6 +31,7 @@ import com.freedarts.scorer.ui.AppViewModel
 import com.freedarts.scorer.ui.Screen
 import com.freedarts.scorer.ui.screens.BoardScreen
 import com.freedarts.scorer.ui.screens.DevicesScreen
+import com.freedarts.scorer.ui.screens.FriendsScreen
 import com.freedarts.scorer.ui.screens.HelpScreen
 import com.freedarts.scorer.ui.screens.OnboardingScreen
 import com.freedarts.scorer.ui.screens.HomeScreen
@@ -117,5 +118,6 @@ private fun ScreenContent(screen: Screen, vm: AppViewModel) {
         Screen.Help -> HelpScreen(vm)
         Screen.Online -> OnlineScreen(vm)
         Screen.OnlineLobby -> OnlineLobbyScreen(vm)
+        Screen.Friends -> FriendsScreen(vm)
     }
 }

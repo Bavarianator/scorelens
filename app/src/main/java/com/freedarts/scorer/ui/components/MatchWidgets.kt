@@ -1,6 +1,7 @@
 package com.freedarts.scorer.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -18,9 +19,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -32,6 +38,15 @@ import com.freedarts.scorer.model.Player
 import com.freedarts.scorer.model.Segment
 import com.freedarts.scorer.ui.theme.DartColors
 
+/** Base64-JPEG (profiles.avatar / Player.avatar) → ImageBitmap; null bei fehlendem oder kaputtem Bild. */
+fun decodeAvatar(base64: String?): ImageBitmap? {
+    if (base64.isNullOrBlank()) return null
+    return runCatching {
+        val bytes = android.util.Base64.decode(base64, android.util.Base64.DEFAULT)
+        android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
+    }.getOrNull()
+}
+
 @Composable
 fun Avatar(player: Player, size: Int = 36, online: Boolean = size >= 32) {
     Box(Modifier.size(size.dp)) {
@@ -40,7 +55,9 @@ fun Avatar(player: Player, size: Int = 36, online: Boolean = size >= 32) {
                 .border((size / 18).coerceAtLeast(1).dp, Color(player.color).copy(alpha = 0.55f).compositeOver(Color.White), CircleShape),
             contentAlignment = Alignment.Center,
         ) {
-            Text(if (player.isBot) "B" else player.initials, color = Color.White, fontWeight = FontWeight.Bold, fontSize = (size / 2.4).sp)
+            val image = remember(player.avatar) { decodeAvatar(player.avatar) }
+            if (image != null) Image(image, player.name, Modifier.size(size.dp).clip(CircleShape), contentScale = ContentScale.Crop)
+            else Text(if (player.isBot) "B" else player.initials, color = Color.White, fontWeight = FontWeight.Bold, fontSize = (size / 2.4).sp)
         }
         if (online && !player.isBot) Box(
             Modifier.align(Alignment.BottomEnd).size((size / 3.2).dp).background(DartColors.Green, CircleShape).border(2.dp, DartColors.Surface, CircleShape),

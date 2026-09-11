@@ -27,6 +27,7 @@ import com.freedarts.scorer.model.OutMode
 import com.freedarts.scorer.model.Player
 import com.freedarts.scorer.model.Segment
 import com.freedarts.scorer.BuildConfig
+import com.freedarts.scorer.online.Invite
 import com.freedarts.scorer.online.MatchEvent
 import com.freedarts.scorer.online.OnlineController
 import com.freedarts.scorer.online.OnlineMatch
@@ -60,6 +61,8 @@ sealed class Screen {
     data object Online : Screen()
     /** Wartebereich einer Online-Lobby. */
     data object OnlineLobby : Screen()
+    /** Freunde: QR-Code, Suche, Anfragen, Statistik, Einladen. */
+    data object Friends : Screen()
 }
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
@@ -173,13 +176,25 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun openOnlineLobby() { navigate(Screen.OnlineLobby) }
 
+    fun openFriends() { online.loadFriends(); navigate(Screen.Friends) }
+
+    /** Freund einladen: eigene offene Lobby oder neue private Lobby, dann in die Lobby wechseln. */
+    fun inviteFriend(friendId: String) {
+        val last = settings.value.lastGameSettings
+        val gs = if (last.mode.category == GameMode.Category.COMPETITIVE) last else GameSettings(mode = GameMode.X01, baseScore = 501, legs = 3)
+        online.inviteFriend(friendId, gs)
+        navigate(Screen.OnlineLobby)
+    }
+
+    fun acceptInvite(i: Invite) { online.acceptInvite(i); navigate(Screen.OnlineLobby) }
+
     fun leaveOnlineLobby() {
         if (onlineMatch != null) { caller.stop(); game = null; _gameState.value = null; onlineMatch = null }
         online.leaveLobby()
         backStack.clear(); _screen.value = Screen.Online
     }
 
-    private fun onlinePlayers(m: OnlineMatch): List<Player> = m.players.map { Player(id = it.id, name = it.name, color = it.color) }
+    private fun onlinePlayers(m: OnlineMatch): List<Player> = m.players.map { Player(id = it.id, name = it.name, color = it.color, avatar = it.avatar) }
 
     private fun replay(g: DartGame, events: List<MatchEvent>) {
         for (e in events) when (e.kind) {
@@ -342,7 +357,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     // ---------- Spieler ----------
 
-    fun addPlayer(name: String, color: Long) = repo.addPlayer(Player(name = name.trim(), color = color))
+    fun addPlayer(name: String, color: Long, avatar: String? = null) = repo.addPlayer(Player(name = name.trim(), color = color, avatar = avatar))
     fun updatePlayer(player: Player) {
         repo.updatePlayer(player)
         _lobbyPlayers.update { list -> list.map { if (it.id == player.id) player else it } }

@@ -138,7 +138,7 @@ fun OnlineLobbyScreen(vm: AppViewModel) {
                 Spacer(Modifier.height(8.dp))
                 l.sortedPlayers.forEach { p ->
                     Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Avatar(Player(id = p.userId, name = p.name, color = p.color), 36)
+                        Avatar(Player(id = p.userId, name = p.name, color = p.color, avatar = p.avatar), 36)
                         Spacer(Modifier.width(8.dp))
                         val (lvl, bg, fg) = levelOf(p.profile?.avg ?: 0.0)
                         NameRibbon(p.name + (if (p.userId == me) " (du)" else ""), lvl, bg, fg)

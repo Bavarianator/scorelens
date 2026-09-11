@@ -105,7 +105,7 @@ class OnlineController(private val context: Context, private val repo: Repositor
         if (api?.baseUrl == u && api?.anonKey == k) return
         api = SupabaseApi(u, k).also { it.accessToken = session.value?.accessToken }
         realtime.disconnect()
-        if (session.value != null) scope.launch { runCatching { ensureFresh(); loadProfile(); connectRealtime() } }
+        if (session.value != null) scope.launch { runCatching { ensureFresh(); loadProfile(); connectRealtime(); connectUserChannel() } }
     }
 
     private fun requireApi(): SupabaseApi = api ?: throw OnlineException(0, "Kein Server eingetragen (Supabase-URL und Anon-Key).")
@@ -133,6 +133,7 @@ class OnlineController(private val context: Context, private val repo: Repositor
         setSession(s)
         loadProfile()
         connectRealtime()
+        connectUserChannel()
     }
 
     fun signUp(email: String, password: String, name: String) = scope.launch { guarded { afterLogin(requireApi().signUp(email, password, name)) } }
@@ -141,8 +142,9 @@ class OnlineController(private val context: Context, private val repo: Repositor
 
     fun signOut() = scope.launch {
         leaveLobby()
+        myId?.let { realtime.unsubscribe("realtime:user:$it") }
         runCatching { requireApi().signOut() }
-        setSession(null); _profile.value = null; _lobbies.value = emptyList()
+        setSession(null); _profile.value = null; _lobbies.value = emptyList(); _friends.value = emptyList(); invite.value = null
         realtime.disconnect()
     }
 
@@ -161,6 +163,7 @@ class OnlineController(private val context: Context, private val repo: Repositor
     /** Rückkehr aus dem Browser: Code (PKCE) oder Token (Implicit Flow) auswerten. */
     fun handleRedirect(uri: Uri?): Boolean {
         if (uri == null || uri.scheme != "scorelens") return false
+        if (uri.host == "friend") { friendIdFrom(uri.toString())?.let { addFriend(it) }; return true }
         val code = uri.getQueryParameter("code")
         val fragment = uri.fragment?.split("&")?.mapNotNull { p -> p.split("=", limit = 2).takeIf { it.size == 2 }?.let { it[0] to Uri.decode(it[1]) } }?.toMap().orEmpty()
         val errorDescription = uri.getQueryParameter("error_description") ?: fragment["error_description"]
@@ -375,7 +378,7 @@ class OnlineController(private val context: Context, private val repo: Repositor
         if (!isHost) return@launch
         guarded {
             ensureFresh()
-            val players = l.sortedPlayers.map { MatchPlayer(it.userId, it.name, it.color) }
+            val players = l.sortedPlayers.map { MatchPlayer(it.userId, it.name, it.color, it.avatar) }
             if (players.size < 2) throw OnlineException(0, "Mindestens zwei Spieler")
             val args = buildJsonObject {
                 put("p_lobby", l.id)
@@ -513,6 +516,121 @@ class OnlineController(private val context: Context, private val repo: Repositor
         runCatching { ensureFresh(); requireApi().rpc("abort_match", buildJsonObject { put("p_match", m.id) }) }.onFailure { error.value = it.message }
     }
 
+    // ---------- Profilbild, Freunde und Einladungen ----------
+
+    private val _friends = MutableStateFlow<List<Friend>>(emptyList())
+    val friends: StateFlow<List<Friend>> = _friends
+    /** Offene Einladung eines Freundes in seine Lobby (kommt per Realtime); null = keine. */
+    val invite = MutableStateFlow<Invite?>(null)
+
+    /** Inhalt des eigenen QR-Codes; wird von [friendIdFrom] wieder gelesen. */
+    val friendLink: String? get() = myId?.let { "$FRIEND_LINK$it" }
+
+    /** Profilbild setzen (Base64-JPEG aus [com.freedarts.scorer.ui.components.encodeAvatar]) oder mit null entfernen. */
+    fun updateAvatar(base64: String?) = scope.launch {
+        guarded {
+            ensureFresh()
+            val id = myId ?: return@guarded
+            requireApi().update("profiles", "id=eq.$id", buildJsonObject { put("avatar", base64) }.toString())
+            loadProfile()
+        }
+    }
+
+    fun loadFriends() = scope.launch {
+        runCatching {
+            ensureFresh()
+            _friends.value = SupabaseApi.json.decodeFromString(ListSerializer(Friend.serializer()), requireApi().rpc("friends", JsonObject(emptyMap())))
+        }.onFailure { error.value = it.message }
+    }
+
+    /** Spieler nach Anzeigename suchen (Teilstring, ohne Groß/Klein). */
+    suspend fun searchProfiles(query: String): List<Profile> {
+        val q = query.trim()
+        if (q.length < 2) return emptyList()
+        ensureFresh()
+        val text = requireApi().select("profiles", "select=*&id=neq.$myId&name=ilike.${SupabaseApi.enc("*$q*")}&order=name&limit=20")
+        return SupabaseApi.json.decodeFromString(ListSerializer(Profile.serializer()), text)
+    }
+
+    /** Freundschaftsanfrage (Nutzer-ID aus QR-Code, Link oder Suche); Gegenanfrage wird direkt angenommen. */
+    fun addFriend(userId: String) = scope.launch {
+        guarded {
+            ensureFresh()
+            requireApi().rpc("request_friend", buildJsonObject { put("p_user", userId) })
+            notice.value = "Freundschaftsanfrage gesendet"
+            loadFriends().join()
+        }
+    }
+
+    fun acceptFriend(userId: String) = scope.launch {
+        guarded {
+            ensureFresh()
+            requireApi().update("friendships", "requester=eq.$userId&addressee=eq.$myId", """{"status":"accepted"}""")
+            loadFriends().join()
+        }
+    }
+
+    /** Anfrage ablehnen / zurückziehen oder Freund entfernen (beide Richtungen). */
+    fun removeFriend(userId: String) = scope.launch {
+        guarded {
+            ensureFresh()
+            val me = myId ?: return@guarded
+            requireApi().delete("friendships", "or=(and(requester.eq.$me,addressee.eq.$userId),and(requester.eq.$userId,addressee.eq.$me))")
+            loadFriends().join()
+        }
+    }
+
+    /** Freund in die eigene offene Lobby einladen; gibt es keine, wird eine private Lobby angelegt. */
+    fun inviteFriend(friendId: String, settings: GameSettings) = scope.launch {
+        guarded {
+            ensureFresh()
+            val l = _lobby.value?.takeIf { it.status == "open" } ?: run {
+                val args = buildJsonObject {
+                    put("p_settings", SupabaseApi.json.encodeToJsonElement(GameSettings.serializer(), settings))
+                    put("p_public", false); put("p_max_players", 2); put("p_name", "Mit Freunden")
+                }
+                enterLobby(requireApi().rpc("create_lobby", args).trim('"', ' ', '\n'))
+                _lobby.value ?: return@guarded
+            }
+            val me = myId ?: return@guarded
+            try {
+                requireApi().insert("invites", SupabaseApi.json.encodeToString(Invite.serializer(), Invite(l.id, me, friendId, l.code)), returning = false)
+                notice.value = "Einladung gesendet"
+            } catch (e: OnlineException) {
+                if (e.status == 409) notice.value = "Schon eingeladen" else throw e
+            }
+        }
+    }
+
+    fun acceptInvite(i: Invite) { dismissInvite(i); joinByCode(i.code) }
+
+    fun dismissInvite(i: Invite) = scope.launch {
+        invite.value = null
+        runCatching { ensureFresh(); requireApi().delete("invites", "lobby_id=eq.${i.lobbyId}&to_id=eq.${i.toId}") }
+    }
+
+    /** Eigener Kanal: Einladungen und Änderungen an Freundschaften kommen sofort an. */
+    private fun connectUserChannel() {
+        val me = myId ?: return
+        val changes = listOf(
+            pgChange("INSERT", "invites", "to_id=eq.$me"),
+            pgChange("*", "friendships", "addressee=eq.$me"),
+            pgChange("*", "friendships", "requester=eq.$me"),
+        )
+        realtime.subscribe("realtime:user:$me", changes, onMessage = { event, payload -> onUserMessage(event, payload) }, onJoined = { loadFriends() })
+    }
+
+    private fun onUserMessage(event: String, payload: JsonObject) {
+        if (event != "postgres_changes") return
+        val data = payload["data"]?.jsonObject ?: return
+        when (data["table"]?.jsonPrimitive?.contentOrNull) {
+            "invites" -> data["record"]?.jsonObject?.let { r ->
+                runCatching { SupabaseApi.json.decodeFromJsonElement(Invite.serializer(), r) }.getOrNull()?.let { if (it.fromId != myId) invite.value = it }
+            }
+            "friendships" -> loadFriends()
+        }
+    }
+
     // ---------- Verlauf in der Cloud (Tabelle saved_matches) ----------
 
     @kotlinx.serialization.Serializable
@@ -562,6 +680,9 @@ class OnlineController(private val context: Context, private val repo: Repositor
 
     companion object {
         const val REDIRECT_URI = "scorelens://auth/callback"
+        /** Freundes-Link (QR-Code): scorelens://friend/<Nutzer-ID> */
+        const val FRIEND_LINK = "scorelens://friend/"
+        fun friendIdFrom(text: String): String? = text.trim().removePrefix(FRIEND_LINK).takeIf { text.trim().startsWith(FRIEND_LINK) && it.length == 36 }
         val PROVIDERS = listOf("google" to "Google", "github" to "GitHub")
 
         private fun pgChange(event: String, table: String, filter: String): JsonObject =

@@ -58,7 +58,7 @@ Daten bleiben auf dem Gerät. Optional ein **Online-Modus wie bei Autodarts** (L
   neu zu; neu sichtbare (vorher verdeckte) Darts werden nachgetragen.
 - **Beschleunigung**: TensorFlow Lite mit GPU-Delegate (Rückfall CPU/XNNPACK); Objektivverzerrung wird, wenn der
   Kamera-HAL es unterstützt, korrigiert.
-- **Online-Modus (Supabase)**: Konto per E-Mail, Supabase OAuth (Google, GitHub, Discord) oder als Gast; Profil mit
+- **Online-Modus (Supabase)**: Konto per E-Mail, Supabase OAuth (Google, GitHub) oder als Gast; Profil mit
   Online-Average; Lobbys wie bei Autodarts (6-stelliger Code, öffentlich/privat, 2–6 Spieler, Host wählt Modus und
   Einstellungen), „Gegner finden“ (Matchmaking nach Average) und Live-Matches: jeder wirft an seinem eigenen Board
   (Lens, Board Manager oder manuell), alle Geräte spielen dasselbe Ereignisprotokoll in die Spiel-Engine ein
@@ -162,13 +162,12 @@ app/src/main/java/com/freedarts/scorer/
   board/     BoardManagerClient (Autodarts Board Manager, Port 3180)
   lens/      LensController (CameraX, Ablauf), FrameConverter (YUV → Bild), BoardFinder + CalibrationTracker
              (Kalibrierung), DartDetector (Differenzbild), YoloDartModel + TipTracker (KI-Spitzen), Homography
-  remote/    RemoteServer (Mini-HTTP-Server für Remote Scoring), CloudRelayClient (Online-Remote)
+  remote/    RemoteServer (Mini-HTTP-Server für Remote Scoring)
   online/    SupabaseApi (Auth + REST), RealtimeClient (Phoenix-WebSocket), OnlineController (Konto, Lobbys, Match-Sync)
   audio/     Caller (TextToSpeech, Töne)
   ui/        AppViewModel (Navigation, Match-Logik), screens/, components/, theme/
 supabase/    Datenbankschema (migrations/) und CLI-Konfiguration für supabase.com
 selfhost/    Docker-Compose-Stack zum Selbsthosten (setup.sh, migrate.sh, Caddyfile)
-relay/       Cloudflare-Relay für das Online-Remote-Scoring (Zuschauer-Link)
 ```
 
 ## Design

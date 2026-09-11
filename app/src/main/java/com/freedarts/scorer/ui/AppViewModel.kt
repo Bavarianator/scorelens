@@ -12,7 +12,6 @@ import com.freedarts.scorer.engine.DartGame
 import com.freedarts.scorer.engine.GameFactory
 import com.freedarts.scorer.engine.GameState
 import com.freedarts.scorer.lens.LensController
-import com.freedarts.scorer.remote.CloudRelayClient
 import com.freedarts.scorer.remote.RemoteServer
 import android.os.Build
 import android.os.VibrationEffect
@@ -72,11 +71,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val remote = RemoteServer({ remoteState() }) { cmd -> viewModelScope.launch { when (cmd) { "undo" -> undo(); "next" -> nextPlayer() } } }
     private val _remoteUrl = MutableStateFlow<String?>(null)
     val remoteUrl: StateFlow<String?> = _remoteUrl
-    val cloud = CloudRelayClient(viewModelScope) { cmd -> viewModelScope.launch { when (cmd) { "undo" -> undo(); "next" -> nextPlayer() } } }
-    val cloudStatus: StateFlow<CloudRelayClient.Status> = cloud.status
-    private val _cloudUrl = MutableStateFlow<String?>(null)
-    /** Zuschauer-Link des Online-Remotes (null = aus). */
-    val cloudUrl: StateFlow<String?> = _cloudUrl
 
     /** Online-Modus (Supabase): Konto, Lobbys, synchronisierte Matches. */
     val online = OnlineController(app, repo, viewModelScope)
@@ -123,12 +117,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val s = settings.value
         if (s.boardManagerEnabled) board.connect(s.boardManagerHost, s.boardManagerPort)
         if (s.remoteEnabled) startRemote()
-        if (s.cloudRelayEnabled) startCloud()
-        cloud.onCodeRejected = { viewModelScope.launch { newCloudSession() } }
-        // Online-Remote: Zustand nur bei Änderung schicken (kein Polling).
-        viewModelScope.launch {
-            combine(_gameState, lens.status) { _, _ -> remoteState() }.distinctUntilChanged().collect { if (cloud.isActive) cloud.sendState(it) }
-        }
         lens.onReady = { vibrate() }
 
         // Online-Modus: Server aus den Einstellungen (oder Build-Voreinstellung), Match-Ereignisse in die Engine
@@ -277,36 +265,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         remote.stop(); _remoteUrl.value = null
         repo.updateSettings { it.copy(remoteEnabled = false) }
     }
-
-    // ---------- Online-Remote (Cloudflare-Relay) ----------
-
-    fun startCloud() {
-        val base = settings.value.cloudRelayUrl.trim().trimEnd('/')
-        if (base.isBlank()) return
-        if (settings.value.cloudSessionCode.isBlank() || settings.value.cloudSessionToken.isBlank()) {
-            updateSettings { it.copy(cloudSessionCode = CloudRelayClient.newCode(), cloudSessionToken = CloudRelayClient.newToken()) }
-        }
-        val s = settings.value
-        cloud.start(base, s.cloudSessionCode, s.cloudSessionToken)
-        _cloudUrl.value = CloudRelayClient.viewerUrl(base, s.cloudSessionCode)
-        updateSettings { it.copy(cloudRelayEnabled = true) }
-    }
-
-    fun stopCloud() {
-        cloud.stop(); _cloudUrl.value = null
-        updateSettings { it.copy(cloudRelayEnabled = false) }
-    }
-
-    /** Neuen Code + Token würfeln (z. B. Link zurückziehen oder Code vom Relay abgelehnt). */
-    fun newCloudSession() {
-        updateSettings { it.copy(cloudSessionCode = CloudRelayClient.newCode(), cloudSessionToken = CloudRelayClient.newToken()) }
-        if (_cloudUrl.value != null || settings.value.cloudRelayEnabled) startCloud()
-    }
-
-    fun setCloudRelayUrl(url: String) = updateSettings { it.copy(cloudRelayUrl = url) }
-
-    /** Nach Änderung der Relay-URL neu verbinden, falls aktiv. */
-    fun applyCloudRelayUrl() { if (_cloudUrl.value != null) startCloud() }
 
     private fun remoteState(): RemoteServer.RemoteState {
         val g = game; val st = _gameState.value
@@ -716,7 +674,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         board.disconnect()
         lens.stop()
         remote.stop()
-        cloud.stop()
         online.shutdown()
     }
 }

@@ -69,7 +69,6 @@ fun LensScreen(vm: AppViewModel) {
     var cropView by remember { mutableStateOf(true) }
     var showTools by remember { mutableStateOf(false) }
     val remoteUrl by vm.remoteUrl.collectAsStateWithLifecycle()
-    val cloudUrl by vm.cloudUrl.collectAsStateWithLifecycle()
     val gameState by vm.gameState.collectAsStateWithLifecycle()
     var calibration by remember { mutableStateOf(settings.lensCalibration.takeIf { it.size == 8 } ?: defaultCalibration()) }
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
@@ -109,7 +108,7 @@ fun LensScreen(vm: AppViewModel) {
             // ---- Detection Mode (wie Autodarts): nur Kamera, Status-Pill, drei Dart-Symbole, Tipps ----
             if (!showTools && !manual) {
                 DetectionMode(
-                    vm, status, detections, calibration, cropView, remoteUrl, cloudUrl,
+                    vm, status, detections, calibration, cropView, remoteUrl,
                     visitCount = gameState?.currentVisit?.size ?: detections.size,
                     onTools = { showTools = true },
                 )
@@ -217,7 +216,6 @@ private fun DetectionMode(
     calibration: List<Float>,
     crop: Boolean,
     remoteUrl: String?,
-    cloudUrl: String?,
     visitCount: Int,
     onTools: () -> Unit,
 ) {
@@ -266,12 +264,6 @@ private fun DetectionMode(
         AdCard(padding = 10) {
             Text("Remote Scoring aktiv", fontWeight = FontWeight.Bold)
             Text("Spielansicht im Browser eines zweiten Geräts: $remoteUrl", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
-        }
-    }
-    if (cloudUrl != null) {
-        AdCard(padding = 10) {
-            Text("Online-Remote aktiv", fontWeight = FontWeight.Bold)
-            Text("Von überall im Browser: $cloudUrl", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
         }
     }
     Text(

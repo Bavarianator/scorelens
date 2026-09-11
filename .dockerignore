@@ -12,7 +12,6 @@ local.properties
 captures
 out/
 design/
-relay/
 tools/
 scripts/
 *.md

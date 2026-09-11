@@ -33,10 +33,14 @@ class Caller(context: Context) {
     var enabled = true
     var soundEffects = true
 
-    fun say(text: String) {
+    /** [flush] verwirft noch nicht gesprochene Ansagen (z. B. Game Shot statt Score-Rückstau). */
+    fun say(text: String, flush: Boolean = false) {
         if (!enabled || !ready) return
-        tts?.speak(text, TextToSpeech.QUEUE_ADD, null, "call-${System.nanoTime()}")
+        tts?.speak(text, if (flush) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD, null, "call-${System.nanoTime()}")
     }
+
+    /** Laufende und wartende Ansagen abbrechen (Match beendet oder verlassen). */
+    fun stop() { tts?.stop() }
 
     fun callScore(score: Int) {
         when (score) {
@@ -48,7 +52,7 @@ class Caller(context: Context) {
 
     fun callRemaining(name: String, remaining: Int) = say("$name, du brauchst $remaining")
     fun callBust() = say("Bust")
-    fun callGameShot(winner: String) = say("Game Shot! $winner gewinnt")
+    fun callGameShot(winner: String) = say("Game Shot! $winner gewinnt", flush = true)
     fun callLeg(winner: String) = say("Leg für $winner")
     fun callPlayer(name: String) = say("$name, du bist dran")
 

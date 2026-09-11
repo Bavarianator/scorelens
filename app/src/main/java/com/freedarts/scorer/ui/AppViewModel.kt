@@ -130,14 +130,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         online.onRemoteEvent = { e -> applyRemoteEvent(e) }
         online.onMatchEnded = { m, aborted ->
             if (onlineMatch?.id == m.id && game?.finished != true) {
-                botJob?.cancel(); autoNextJob?.cancel()
+                botJob?.cancel(); autoNextJob?.cancel(); caller.stop()
                 game = null; _gameState.value = null; onlineMatch = null
                 online.notice.value = if (aborted) "Das Match wurde abgebrochen" else "Das Match ist beendet"
                 if (_screen.value == Screen.Match) { backStack.clear(); _screen.value = Screen.OnlineLobby }
             }
         }
         online.onLobbyClosed = {
-            if (onlineMatch != null) { game = null; _gameState.value = null; onlineMatch = null }
+            if (onlineMatch != null) { caller.stop(); game = null; _gameState.value = null; onlineMatch = null }
             if (_screen.value == Screen.OnlineLobby || _screen.value == Screen.Match) { backStack.clear(); _screen.value = Screen.Online }
         }
     }
@@ -174,7 +174,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun openOnlineLobby() { navigate(Screen.OnlineLobby) }
 
     fun leaveOnlineLobby() {
-        if (onlineMatch != null) { game = null; _gameState.value = null; onlineMatch = null }
+        if (onlineMatch != null) { caller.stop(); game = null; _gameState.value = null; onlineMatch = null }
         online.leaveLobby()
         backStack.clear(); _screen.value = Screen.Online
     }
@@ -318,7 +318,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         return true
     }
 
-    fun goHome() { backStack.clear(); _screen.value = Screen.Home }
+    fun goHome() { caller.stop(); backStack.clear(); _screen.value = Screen.Home }
 
     /** Tab der unteren Navigation: kein Backstack, Zurück führt immer auf Home. */
     fun switchTab(target: Screen) { backStack.clear(); _screen.value = target }
@@ -389,6 +389,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun rematch() {
         val g = game ?: return
+        caller.stop()
         if (onlineMatch != null) {
             // Online: zurück in die Lobby, der Host startet das nächste Match
             onlineMatch = null; game = null; _gameState.value = null
@@ -411,7 +412,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun abortGame() {
-        botJob?.cancel(); autoNextJob?.cancel()
+        botJob?.cancel(); autoNextJob?.cancel(); caller.stop()
         game = null
         _gameState.value = null
         if (onlineMatch != null) {

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -451,7 +452,8 @@ private fun MatchRow(m: MatchRecord, selectedId: String?, df: SimpleDateFormat) 
 
 @Composable
 private fun TabLabel(text: String, selected: Boolean, onClick: () -> Unit) {
-    Column(Modifier.clickable(onClick = onClick)) {
+    // Breite = Textbreite, sonst nimmt der fillMaxWidth-Unterstrich des ersten Tabs die ganze Zeile
+    Column(Modifier.width(IntrinsicSize.Max).clickable(onClick = onClick)) {
         Text(text, fontSize = androidx.compose.ui.unit.TextUnit(16f, androidx.compose.ui.unit.TextUnitType.Sp), fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal, color = if (selected) Color.White else DartColors.TextMuted)
         Box(Modifier.padding(top = 8.dp).fillMaxWidth().height(2.dp).background(if (selected) Color.White else Color.Transparent))
     }

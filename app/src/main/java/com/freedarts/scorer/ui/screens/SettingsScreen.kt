@@ -2,10 +2,14 @@
 
 package com.freedarts.scorer.ui.screens
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -18,41 +22,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.freedarts.scorer.ui.AppViewModel
-import com.freedarts.scorer.ui.components.SectionLabel
-import com.freedarts.scorer.ui.components.Chip
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.runtime.getValue
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
-import com.freedarts.scorer.ui.theme.DartColors
-import android.content.Intent
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
-import com.freedarts.scorer.remote.CloudRelayClient
 import com.freedarts.scorer.ui.Screen
-import com.freedarts.scorer.ui.components.AdCard
-import com.freedarts.scorer.ui.components.QrCode
+import com.freedarts.scorer.ui.components.Chip
+import com.freedarts.scorer.ui.components.ScreenBackground
 import com.freedarts.scorer.ui.components.SecondaryButton
+import com.freedarts.scorer.ui.components.SectionLabel
+import com.freedarts.scorer.ui.theme.DartColors
 
 @Composable
 fun SettingsScreen(vm: AppViewModel) {
     val s by vm.settings.collectAsStateWithLifecycle()
-    androidx.compose.foundation.layout.Box(Modifier.fillMaxSize()) { com.freedarts.scorer.ui.components.ScreenBackground() }
+    Box(Modifier.fillMaxSize()) { ScreenBackground() }
     Column(Modifier.fillMaxSize()) {
         TopBar("Einstellungen", onBack = { vm.back() })
         val players by vm.players.collectAsStateWithLifecycle()
@@ -84,19 +64,14 @@ fun SettingsScreen(vm: AppViewModel) {
             Text(remoteUrl?.let { "Im WLAN öffnen: $it" } ?: "Das Handy bleibt als Lens-Kamera am Board, Scores laufen auf Tablet, PC oder TV.",
                 color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
 
-            SectionLabel("Online-Remote (Cloudflare)")
-            CloudRemoteSection(vm)
-
-            SectionLabel("Online-Modus (Supabase)")
-            Text("Online-Lobbys und Matches gegen andere Spieler. Server: kostenloses Projekt auf supabase.com oder eigener Docker-Stack (selfhost/ im Projekt). Konto und Lobbys unter „Online“ auf der Startseite.",
-                color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
-            Spacer(Modifier.height(6.dp))
-            OnlineServerFields(vm)
+            SectionLabel("Online-Konto")
             val onlineSession by vm.online.session.collectAsStateWithLifecycle()
             if (onlineSession != null) {
-                Spacer(Modifier.height(6.dp))
                 Text("Angemeldet (${onlineSession?.user?.email ?: onlineSession?.user?.provider ?: "Konto"})", color = DartColors.Green, style = MaterialTheme.typography.bodySmall)
+                Spacer(Modifier.height(6.dp))
                 SecondaryButton("Abmelden", Modifier.fillMaxWidth()) { vm.online.signOut() }
+            } else {
+                Text("Nicht angemeldet – Startseite › Online spielen.", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
             }
 
             SectionLabel("Bot")
@@ -108,63 +83,12 @@ fun SettingsScreen(vm: AppViewModel) {
             SecondaryButton("Umstieg von Autodarts", Modifier.fillMaxWidth()) { vm.navigate(Screen.Help) }
 
             SectionLabel("Über")
-            Text("Scorelens ist ein kostenloser Darts-Scorer ohne Abo. Lokal ohne Konto; der Online-Modus ist optional und läuft über einen frei wählbaren Supabase-Server. " +
+            Text("Scorelens ist ein kostenloser Darts-Scorer ohne Abo. Lokal ohne Konto; der Online-Modus ist optional. " +
                 "Eingabe über Lens (Handykamera), virtuelles Board, Gesamtscore oder Dart für Dart – optional über einen Autodarts Board Manager im lokalen Netzwerk.",
                 style = MaterialTheme.typography.bodyMedium, color = DartColors.TextMuted)
             Spacer(Modifier.height(8.dp))
             Text("KI-Modell: „dart-sense“ von Ben Willshaw (YOLOv8n), Lizenz CC BY-NC 4.0 – nur nicht-kommerzielle Nutzung. " +
                 "Board-Erkennung, Spielmodi und Oberfläche: Scorelens.", style = MaterialTheme.typography.bodySmall, color = DartColors.TextMuted)
-        }
-    }
-}
-
-/** Online-Remote: Spielansicht von überall über ein eigenes Relay auf Cloudflare (Ordner relay/ im Projekt). */
-@Composable
-private fun CloudRemoteSection(vm: AppViewModel) {
-    val s by vm.settings.collectAsStateWithLifecycle()
-    val cloudUrl by vm.cloudUrl.collectAsStateWithLifecycle()
-    val status by vm.cloudStatus.collectAsStateWithLifecycle()
-    val context = LocalContext.current
-    val clipboard = LocalClipboardManager.current
-    val focus = LocalFocusManager.current
-    var url by remember { mutableStateOf(s.cloudRelayUrl) }
-
-    Text("Spielansicht von überall im Browser, auch außerhalb des WLANs. Braucht ein eigenes, kostenloses Relay auf Cloudflare – Anleitung in relay/README.md.",
-        color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
-    Spacer(Modifier.height(6.dp))
-    OutlinedTextField(
-        value = url, onValueChange = { url = it; vm.setCloudRelayUrl(it) },
-        label = { Text("Relay-URL") }, placeholder = { Text("https://freedarts-relay.<account>.workers.dev") },
-        singleLine = true, modifier = Modifier.fillMaxWidth(),
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Done),
-        keyboardActions = KeyboardActions(onDone = { focus.clearFocus(); vm.applyCloudRelayUrl() }),
-    )
-    SettingSwitch("Online-Remote aktiv", cloudUrl != null) { on -> if (on) vm.startCloud() else vm.stopCloud() }
-    if (cloudUrl == null && url.isBlank()) {
-        Text("Zuerst die Relay-URL eintragen.", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
-    }
-    val link = cloudUrl ?: return
-    AdCard(padding = 12) {
-        val statusColor = when (status.phase) {
-            CloudRelayClient.Phase.ONLINE -> DartColors.Green
-            CloudRelayClient.Phase.REJECTED -> DartColors.Red
-            else -> DartColors.Accent
-        }
-        Text(status.message.ifBlank { "Aus" }, color = statusColor, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(6.dp))
-        Text("Zuschauer-Link (Undo/Next möglich):", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
-        Text(link, fontWeight = FontWeight.Bold)
-        Text("Code: ${s.cloudSessionCode}", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
-        Spacer(Modifier.height(10.dp))
-        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { QrCode(link, size = 200.dp) }
-        Spacer(Modifier.height(10.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            SecondaryButton("Teilen", Modifier.weight(1f)) {
-                val send = Intent(Intent.ACTION_SEND).apply { type = "text/plain"; putExtra(Intent.EXTRA_TEXT, "Scorelens Live: $link") }
-                runCatching { context.startActivity(Intent.createChooser(send, "Link teilen").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-            }
-            SecondaryButton("Kopieren", Modifier.weight(1f)) { clipboard.setText(AnnotatedString(link)) }
-            SecondaryButton("Neuer Code", Modifier.weight(1f)) { vm.newCloudSession() }
         }
     }
 }

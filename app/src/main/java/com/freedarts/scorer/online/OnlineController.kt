@@ -219,7 +219,8 @@ class OnlineController(private val context: Context, private val repo: Repositor
 
     // ---------- Lobbys ----------
 
-    private val lobbySelect = "select=*,host:profiles(*),players:lobby_players(*,profile:profiles(*))"
+    // profiles!host_id: lobbies→profiles gibt es direkt (host_id) und über lobby_players – PostgREST braucht die Angabe
+    private val lobbySelect = "select=*,host:profiles!host_id(*),players:lobby_players(*,profile:profiles(*))"
 
     fun refreshLobbies() = scope.launch {
         guarded {

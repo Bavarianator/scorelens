@@ -34,7 +34,6 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.SportsScore
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -67,7 +66,6 @@ import com.freedarts.scorer.ui.components.HeaderSwoosh
 import com.freedarts.scorer.ui.components.OAuthButton
 import com.freedarts.scorer.ui.components.PrimaryButton
 import com.freedarts.scorer.ui.components.ScreenBackground
-import com.freedarts.scorer.ui.components.SecondaryButton
 import com.freedarts.scorer.ui.theme.Condensed
 import com.freedarts.scorer.ui.theme.DartColors
 
@@ -117,7 +115,7 @@ fun OnboardingScreen(vm: AppViewModel) {
                     )
                     Spacer(Modifier.height(20.dp))
                     if (s == 0) ProfileStep(name, color, onName = { name = it }, onColor = { color = it }) { step = 1 }
-                    else AccountStep(vm, name, busy, pending, error, onPending = { pending = it }) { vm.finishOnboarding(name, color) }
+                    else AccountStep(vm, busy, pending, error, onPending = { pending = it }) { vm.finishOnboarding(name, color) }
                 }
             }
             Spacer(Modifier.height(30.dp))
@@ -169,20 +167,13 @@ private fun Feature(icon: ImageVector, text: String) {
 }
 
 @Composable
-private fun AccountStep(vm: AppViewModel, name: String, busy: Boolean, pending: String?, error: String?, onPending: (String?) -> Unit, onSkip: () -> Unit) {
+private fun AccountStep(vm: AppViewModel, busy: Boolean, pending: String?, error: String?, onPending: (String?) -> Unit, onSkip: () -> Unit) {
     val locked = busy || pending != null
     AdCard(padding = 16) {
         OnlineController.PROVIDERS.forEach { (id, label) ->
             OAuthButton(id, label, Modifier.fillMaxWidth(), enabled = !locked, height = 54) { if (vm.online.beginOAuth(id)) onPending(id) }
             Spacer(Modifier.height(10.dp))
         }
-        Row(Modifier.padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            HorizontalDivider(Modifier.weight(1f), color = DartColors.Outline)
-            Text("  oder  ", color = DartColors.TextMuted, style = MaterialTheme.typography.labelSmall)
-            HorizontalDivider(Modifier.weight(1f), color = DartColors.Outline)
-        }
-        Spacer(Modifier.height(10.dp))
-        SecondaryButton("Als Gast spielen", Modifier.fillMaxWidth(), enabled = !locked) { vm.online.signInAsGuest(name.trim()) }
     }
     if (busy || pending != null) {
         Row(Modifier.fillMaxWidth().padding(top = 16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {

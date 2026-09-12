@@ -90,7 +90,7 @@ fun SettingsScreen(vm: AppViewModel) {
 
                 val user = session?.user
                 SettingsCard(Icons.Default.AccountCircle, "Online-Konto", user?.email ?: user?.provider?.replaceFirstChar { it.uppercase() } ?: "Nicht angemeldet",
-                    status = if (user != null) "Angemeldet" to DartColors.Green else "Gast" to DartColors.TextMuted) {
+                    status = if (user != null) "Angemeldet" to DartColors.Green else "Nicht angemeldet" to DartColors.TextMuted) {
                     if (user != null) SecondaryButton("Abmelden", Modifier.fillMaxWidth()) { vm.online.signOut() }
                     else SecondaryButton("Anmelden und online spielen", Modifier.fillMaxWidth()) { vm.navigate(Screen.Online) }
                 }

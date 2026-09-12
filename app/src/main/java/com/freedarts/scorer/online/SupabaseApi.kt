@@ -79,12 +79,6 @@ class SupabaseApi(baseUrl: String, val anonKey: String) {
         return session(call("POST", "/auth/v1/token?grant_type=password", body.toString(), auth = false))
     }
 
-    /** Gastkonto (bei Supabase "Anonymous sign-ins" bzw. ENABLE_ANONYMOUS_USERS). */
-    suspend fun signInAnonymously(name: String): OnlineSession {
-        val body = buildJsonObject { put("data", buildJsonObject { put("name", name.trim().ifEmpty { "Gast" }) }) }
-        return session(call("POST", "/auth/v1/signup", body.toString(), auth = false))
-    }
-
     suspend fun refresh(refreshToken: String): OnlineSession {
         val body = buildJsonObject { put("refresh_token", refreshToken) }
         return session(call("POST", "/auth/v1/token?grant_type=refresh_token", body.toString(), auth = false))

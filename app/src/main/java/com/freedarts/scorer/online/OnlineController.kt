@@ -103,6 +103,7 @@ class OnlineController(private val context: Context, private val repo: Repositor
         val u = url.trim().trimEnd('/'); val k = anonKey.trim()
         if (u.isBlank() || k.isBlank()) { api = null; realtime.disconnect(); return }
         if (api?.baseUrl == u && api?.anonKey == k) return
+        if (session.value?.user?.isAnonymous == true) setSession(null) // alte Gastsitzung aus früheren Versionen
         api = SupabaseApi(u, k).also { it.accessToken = session.value?.accessToken }
         realtime.disconnect()
         if (session.value != null) scope.launch { runCatching { ensureFresh(); loadProfile(); connectRealtime(); connectUserChannel() } }
@@ -130,13 +131,13 @@ class OnlineController(private val context: Context, private val repo: Repositor
     }
 
     private suspend fun afterLogin(s: OnlineSession) {
+        // Nur per OAuth registrierte Konten (Google/GitHub); Gastsitzungen werden verworfen
+        if (s.user.isAnonymous) { setSession(null); throw OnlineException(0, "Bitte mit Google oder GitHub anmelden.") }
         setSession(s)
         loadProfile()
         connectRealtime()
         connectUserChannel()
     }
-
-    fun signInAsGuest(name: String) = scope.launch { guarded { afterLogin(requireApi().signInAnonymously(name)) } }
 
     fun signOut() = scope.launch {
         leaveLobby()

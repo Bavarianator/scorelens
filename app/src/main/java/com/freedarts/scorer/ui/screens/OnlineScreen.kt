@@ -157,7 +157,7 @@ fun OnlineScreen(vm: AppViewModel) {
                             Column(Modifier.weight(1f)) {
                                 val (lvl, bg, fg) = levelOf(p?.avg ?: 0.0)
                                 NameRibbon(p?.name ?: "Profil wird geladen …", lvl, bg, fg)
-                                Text(session?.user?.email ?: (if (session?.user?.isAnonymous == true) "Gastkonto" else session?.user?.provider ?: ""),
+                                Text(session?.user?.email ?: session?.user?.provider ?: "",
                                     color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
                             }
                             ConnectionDot(connection)
@@ -313,18 +313,16 @@ private fun LobbyRow(l: Lobby, enabled: Boolean, onJoin: () -> Unit) {
 @Composable
 private fun LoginCard(vm: AppViewModel) {
     val online = vm.online
-    val players by vm.players.collectAsStateWithLifecycle()
     val busy by online.busy.collectAsStateWithLifecycle()
     AdCard {
         Text("ONLINE SPIELEN", style = MaterialTheme.typography.headlineSmall)
-        Text("Ein Tap, und du spielst gegen andere. Deine Online-Statistik bleibt erhalten.", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
+        Text("Online spielen geht nur mit Konto: ein Tap mit Google oder GitHub, deine Statistik bleibt auf allen Geräten.", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
         Spacer(Modifier.height(10.dp))
         // Supabase OAuth im Browser; Anbieter müssen im Projekt bzw. in selfhost/.env aktiviert sein
         OnlineController.PROVIDERS.forEach { (id, label) ->
             OAuthButton(id, label, Modifier.fillMaxWidth(), enabled = !busy) { online.beginOAuth(id) }
             Spacer(Modifier.height(8.dp))
         }
-        SecondaryButton("Als Gast spielen", Modifier.fillMaxWidth(), enabled = !busy) { online.signInAsGuest(players.firstOrNull { !it.isBot }?.name ?: "Gast") }
     }
 }
 

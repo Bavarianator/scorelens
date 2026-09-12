@@ -173,7 +173,7 @@ fun HomeScreen(vm: AppViewModel) {
                                 onlineLobby != null -> "Deine Lobby ${onlineLobby?.code} · ${onlineLobby?.players?.size}/${onlineLobby?.maxPlayers} Spieler"
                                 friendsOnline > 0 -> "$friendsOnline ${if (friendsOnline == 1) "Freund" else "Freunde"} online · Lobbys, Turniere"
                                 loggedIn -> "Lobbys, Freunde, Turniere · ${onlineProfile?.name ?: "…"}"
-                                vm.online.configured -> "Mit Google, GitHub oder als Gast"
+                                vm.online.configured -> "Mit Google oder GitHub anmelden"
                                 else -> "Server eintragen"
                             },
                             fontSize = 13.sp, color = Color(0xFFDDE6F5), maxLines = 2, overflow = TextOverflow.Ellipsis,

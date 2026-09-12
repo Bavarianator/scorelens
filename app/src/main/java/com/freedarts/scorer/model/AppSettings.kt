@@ -29,13 +29,13 @@ data class AppSettings(
     /** Empfindlichkeit 0..100 (höher = kleinere Änderungen erkennen). */
     val lensSensitivity: Int = 50,
     val lensUseFrontCamera: Boolean = false,
-    /** Belichtungskorrektur (EV-Index der Kamera, 0 = Automatik). */
-    val lensExposure: Int = 0,
     /** Lens speichert erkannte Darts als Trainingsbilder + Labels (tools/finetune/). */
     val lensCaptureTraining: Boolean = false,
 
     /** Remote Scoring: Spielansicht im Browser eines zweiten Geräts (Port 8765). */
     val remoteEnabled: Boolean = false,
+    /** Dieses Gerät ist Zweitgerät: Adresse des Board-Handys (http://<ip>:8765), leer = nicht gekoppelt. */
+    val remotePairedUrl: String = "",
 
     /** Online-Modus (Supabase): Projekt-URL und Anon-/Publishable-Key – supabase.com oder eigener Server (selfhost/). */
     val onlineUrl: String = "",

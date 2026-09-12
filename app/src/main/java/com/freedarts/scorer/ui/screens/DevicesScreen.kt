@@ -23,10 +23,16 @@ import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -42,6 +48,8 @@ import com.freedarts.scorer.ui.Screen
 import com.freedarts.scorer.ui.components.AdCard
 import com.freedarts.scorer.ui.components.AdTopBar
 import com.freedarts.scorer.ui.components.PrimaryButton
+import com.freedarts.scorer.ui.components.QrCode
+import com.freedarts.scorer.ui.components.QrScannerDialog
 import com.freedarts.scorer.ui.components.ScreenBackground
 import com.freedarts.scorer.ui.components.SecondaryButton
 import com.freedarts.scorer.ui.components.SectionLabel
@@ -97,6 +105,48 @@ fun DevicesScreen(vm: AppViewModel) {
                             style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
                         Switch(checked = remoteUrl != null, onCheckedChange = { on -> if (on) vm.startRemote() else vm.stopRemote() })
                     }
+                    remoteUrl?.takeIf { it.startsWith("http://") && !it.contains("<") }?.let { u ->
+                        Spacer(Modifier.height(8.dp))
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) { QrCode(u, size = 160.dp) }
+                        Text("Am Zweitgerät: Scorelens → Devices → „Als Zweitgerät koppeln“ und den Code scannen.", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+
+                // Dieses Gerät als Zweitgerät: Remote-Seite eines anderen Board-Handys in der App
+                var scan by remember { mutableStateOf(false) }
+                var manual by remember { mutableStateOf(false) }
+                DeviceCard(
+                    icon = Icons.Default.Language, title = "Als Zweitgerät koppeln", subtitle = "Spiel eines anderen Board-Handys hier anzeigen und bedienen",
+                    status = if (settings.remotePairedUrl.isNotBlank()) "Gekoppelt" to DartColors.Green else "Nicht gekoppelt" to DartColors.TextMuted,
+                ) {
+                    if (settings.remotePairedUrl.isNotBlank()) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        PrimaryButton(settings.remotePairedUrl.removePrefix("http://"), Modifier.weight(1f), height = 48) { vm.navigate(Screen.RemoteView) }
+                        SecondaryButton("Trennen", Modifier.width(88.dp)) { vm.updateSettings { it.copy(remotePairedUrl = "") } }
+                    } else Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        PrimaryButton("QR-Code scannen", Modifier.weight(1f), height = 48) { scan = true }
+                        SecondaryButton("Adresse", Modifier.width(100.dp)) { manual = true }
+                    }
+                }
+                if (scan) QrScannerDialog(onDismiss = { scan = false }) { text ->
+                    scan = false
+                    if (text.startsWith("http://")) { vm.updateSettings { it.copy(remotePairedUrl = text.trim()) }; vm.navigate(Screen.RemoteView) }
+                }
+                if (manual) {
+                    var host by remember { mutableStateOf("") }
+                    AlertDialog(
+                        onDismissRequest = { manual = false },
+                        title = { Text("Board-Handy koppeln") },
+                        text = { Column {
+                            Text("IP-Adresse aus der Remote-Karte des Board-Handys (gleiches WLAN).", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
+                            OutlinedTextField(value = host, onValueChange = { host = it }, label = { Text("IP oder Adresse") }, placeholder = { Text("192.168.1.10") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                        } },
+                        confirmButton = { TextButton(enabled = host.isNotBlank(), onClick = {
+                            val h = host.trim().removePrefix("http://").removeSuffix("/")
+                            vm.updateSettings { it.copy(remotePairedUrl = "http://" + (if (h.contains(":")) h else "$h:${com.freedarts.scorer.remote.RemoteServer.PORT}")) }
+                            manual = false; vm.navigate(Screen.RemoteView)
+                        }) { Text("Verbinden") } },
+                        dismissButton = { TextButton(onClick = { manual = false }) { Text("Abbrechen") } },
+                    )
                 }
 
                 Text("Wie bei Autodarts: Ein Gerät bleibt im Detection Mode am Board, das Spiel läuft auf demselben oder einem zweiten Gerät.",

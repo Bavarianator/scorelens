@@ -306,6 +306,11 @@ fun MatchScreen(vm: AppViewModel) {
                     SettingSwitch("Chalkboard anzeigen", settings.showChalkboard) { v -> vm.updateSettings { it.copy(showChalkboard = v) } }
                     SettingSwitch("Checkout-Guide", settings.showCheckoutGuide) { v -> vm.updateSettings { it.copy(showCheckoutGuide = v) } }
                     SettingSwitch("Jeden Dart ansagen", settings.countEachThrow) { v -> vm.updateSettings { it.copy(countEachThrow = v) } }
+                    if (lensOn) {
+                        Spacer(Modifier.height(8.dp))
+                        // Positionswechsel mitten im Match: Board neu suchen, Darts auf dem Board bleiben erhalten
+                        SecondaryButton("Lens neu kalibrieren", Modifier.fillMaxWidth()) { vm.lens.startSearch(); showSettings = false }
+                    }
                     if (settings.boardManagerEnabled) {
                         Spacer(Modifier.height(8.dp)); Text("Board Controls", style = MaterialTheme.typography.titleMedium)
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {

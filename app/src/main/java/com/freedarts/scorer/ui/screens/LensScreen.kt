@@ -162,9 +162,11 @@ fun LensScreen(vm: AppViewModel) {
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                SecondaryButton("Neu erkennen", Modifier.weight(1f), icon = Icons.Default.Refresh) { manual = false; vm.lens.startSearch() }
+                SecondaryButton("Neu kalibrieren", Modifier.weight(1f), icon = Icons.Default.Refresh) { manual = false; vm.lens.startSearch() }
                 SecondaryButton("Kamera stoppen", Modifier.weight(1f)) { vm.stopLens() }
             }
+            Text("Nach Positionswechsel oder am nächsten Spieltag: „Neu kalibrieren“ sucht das Board frisch. Bei jedem Kamerastart passiert das automatisch, nur manuell gezogene Punkte bleiben stehen.",
+                color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
 
             TextButton(onClick = { showAdvanced = !showAdvanced }) { Text(if (showAdvanced) "Erweitert ausblenden" else "Erweitert …") }
             if (showAdvanced) {

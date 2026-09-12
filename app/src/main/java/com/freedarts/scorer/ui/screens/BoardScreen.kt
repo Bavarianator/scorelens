@@ -74,7 +74,7 @@ fun BoardScreen(vm: AppViewModel) {
                 color = if (connection == BoardManagerClient.Connection.CONNECTED) DartColors.Green else DartColors.TextMuted)
             if (connection == BoardManagerClient.Connection.CONNECTED) {
                 Text("Board-Status: ${state.status.ifEmpty { "–" }}   Event: ${state.event.ifEmpty { "–" }}")
-                Text("Aktuelle Würfe: " + (state.throws.joinToString("  ") { it.name }.ifEmpty { "–" }))
+                Text("Aktuelle Würfe: " + (state.throws.joinToString("  ") { it.segment.name }.ifEmpty { "–" }))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(onClick = { vm.board.command("start") }) { Text("Start") }
                     OutlinedButton(onClick = { vm.board.command("stop") }) { Text("Stop") }

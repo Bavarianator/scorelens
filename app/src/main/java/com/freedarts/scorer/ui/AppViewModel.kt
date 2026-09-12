@@ -133,7 +133,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     init {
         applyAudioSettings()
-        viewModelScope.launch { board.throws.collect { seg -> onBoardThrow(seg, null, null) } }
+        viewModelScope.launch { board.throws.collect { t -> onBoardThrow(t.segment, t.x, t.y) } }
         viewModelScope.launch { board.takeout.collect { onBoardTakeout() } }
         viewModelScope.launch { lens.throws.collect { t -> onBoardThrow(t.segment, t.boardX, t.boardY) } }
         viewModelScope.launch { lens.takeout.collect { onBoardTakeout() } }

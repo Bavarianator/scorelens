@@ -85,7 +85,9 @@ class LensController(private val context: Context) {
      * Erkannter Dart in Analyse-Koordinaten. [snapshot] = Kamera-Ausschnitt um die Spitze (Referee-Bild),
      * [tipX]/[tipY] = Lage der Spitze darin (0..1).
      */
-    data class Detection(val segment: Segment, val imageX: Float, val imageY: Float, val snapshot: Bitmap? = null, val tipX: Float = 0.5f, val tipY: Float = 0.5f)
+    data class Detection(val segment: Segment, val imageX: Float, val imageY: Float, val snapshot: Bitmap? = null, val tipX: Float = 0.5f, val tipY: Float = 0.5f,
+        /** Auftreffpunkt in Board-Millimetern (Mitte 0/0), für Heatmap und /api/state. */
+        val boardX: Float? = null, val boardY: Float? = null)
     /** Erkannter Wurf mit Auftreffpunkt in Board-Millimetern (Mitte 0/0). */
     data class Throw(val segment: Segment, val boardX: Float? = null, val boardY: Float? = null)
 
@@ -372,7 +374,7 @@ class LensController(private val context: Context) {
         when (ev) {
             is DartDetector.Event.Dart -> {
                 val snap = snapshot(ev.imageX, ev.imageY)
-                _detections.value = (_detections.value + Detection(ev.segment, ev.imageX, ev.imageY, snap?.first, snap?.second ?: 0.5f, snap?.third ?: 0.5f)).takeLast(3)
+                _detections.value = (_detections.value + Detection(ev.segment, ev.imageX, ev.imageY, snap?.first, snap?.second ?: 0.5f, snap?.third ?: 0.5f, ev.boardX.toFloat(), ev.boardY.toFloat())).takeLast(3)
                 _throws.tryEmit(Throw(ev.segment, ev.boardX.toFloat(), ev.boardY.toFloat()))
             }
             DartDetector.Event.Takeout -> { _detections.value = emptyList(); tips.reset(); _takeout.tryEmit(Unit) }

@@ -17,6 +17,7 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.floatOrNull
 import kotlinx.serialization.json.intOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -39,7 +40,10 @@ class BoardManagerClient(private val scope: CoroutineScope) {
 
     enum class Connection { DISCONNECTED, CONNECTING, CONNECTED, ERROR }
 
-    data class BoardState(val status: String = "", val event: String = "", val numThrows: Int = 0, val throws: List<Segment> = emptyList())
+    /** Wurf mit Auftreffpunkt in Board-Millimetern, sofern der Board-Server ihn mit unit=mm liefert (Scorelens-Board-Handy). */
+    data class Throw(val segment: Segment, val x: Float? = null, val y: Float? = null)
+
+    data class BoardState(val status: String = "", val event: String = "", val numThrows: Int = 0, val throws: List<Throw> = emptyList())
 
     private val http = OkHttpClient.Builder()
         .connectTimeout(1500, TimeUnit.MILLISECONDS)
@@ -51,8 +55,8 @@ class BoardManagerClient(private val scope: CoroutineScope) {
     val connection: StateFlow<Connection> = _connection
     private val _state = MutableStateFlow(BoardState())
     val state: StateFlow<BoardState> = _state
-    private val _throws = MutableSharedFlow<Segment>(extraBufferCapacity = 16)
-    val throws: SharedFlow<Segment> = _throws
+    private val _throws = MutableSharedFlow<Throw>(extraBufferCapacity = 16)
+    val throws: SharedFlow<Throw> = _throws
     /** Wird ausgelöst, wenn das Board von "Throw" auf "Takeout" wechselt (Aufnahme beendet). */
     private val _takeout = MutableSharedFlow<Unit>(extraBufferCapacity = 4)
     val takeout: SharedFlow<Unit> = _takeout
@@ -95,21 +99,24 @@ class BoardManagerClient(private val scope: CoroutineScope) {
         }
     }
 
-    private fun parse(body: String) {
+    internal fun parse(body: String) {
         val obj = json.parseToJsonElement(body).jsonObject
         val status = obj["status"]?.jsonPrimitive?.contentOrNull ?: ""
         val event = obj["event"]?.jsonPrimitive?.contentOrNull ?: ""
         val throwsArr = obj["throws"]?.let { if (it is kotlinx.serialization.json.JsonNull) null else it.jsonArray } ?: emptyList()
         val segs = throwsArr.mapNotNull { t ->
             val seg = t.jsonObject["segment"]?.jsonObject ?: return@mapNotNull null
+            val coords = t.jsonObject["coords"]?.let { it as? kotlinx.serialization.json.JsonObject }?.takeIf { it["unit"]?.jsonPrimitive?.contentOrNull == "mm" }
+            val x = coords?.get("x")?.jsonPrimitive?.floatOrNull; val y = coords?.get("y")?.jsonPrimitive?.floatOrNull
             val number = seg["number"]?.jsonPrimitive?.intOrNull
             val mult = seg["multiplier"]?.jsonPrimitive?.intOrNull
             val name = seg["name"]?.jsonPrimitive?.contentOrNull
-            when {
+            val segment = when {
                 number != null && mult != null -> if (number == 0 || mult == 0) Segment.MISS else Segment(number, mult)
                 name != null -> Segment.parse(name)
                 else -> null
-            }
+            } ?: return@mapNotNull null
+            Throw(segment, x, y)
         }
         val num = obj["numThrows"]?.jsonPrimitive?.intOrNull ?: segs.size
 

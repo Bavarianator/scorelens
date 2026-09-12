@@ -754,7 +754,7 @@ class OnlineController(private val context: Context, private val repo: Repositor
         val localIds = local.map { it.id }.toSet()
         val missing = remoteIds.filter { it !in localIds }
         if (missing.isEmpty()) return emptyList()
-        val q = "select=record&id=in.(${missing.joinToString(",") { SupabaseApi.enc("\"$it\"") }})"
+        val q = "select=*&id=in.(${missing.joinToString(",") { SupabaseApi.enc("\"$it\"") }})"
         return SupabaseApi.json.decodeFromString(ListSerializer(SavedMatch.serializer()), a.select("saved_matches", q)).map { it.record }
     }
 

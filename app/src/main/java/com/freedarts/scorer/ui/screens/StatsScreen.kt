@@ -2,22 +2,24 @@
 
 package com.freedarts.scorer.ui.screens
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -30,21 +32,21 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.freedarts.scorer.engine.Statistics
 import com.freedarts.scorer.model.GameMode
 import com.freedarts.scorer.model.MatchRecord
+import com.freedarts.scorer.model.Player
 import com.freedarts.scorer.model.PlayerMatchStats
 import com.freedarts.scorer.ui.AppViewModel
 import com.freedarts.scorer.ui.components.AdCard
 import com.freedarts.scorer.ui.components.AdTopBar
+import com.freedarts.scorer.ui.components.Avatar
 import com.freedarts.scorer.ui.components.Badge
 import com.freedarts.scorer.ui.components.BarChart
 import com.freedarts.scorer.ui.components.BrandTitle
@@ -57,6 +59,7 @@ import com.freedarts.scorer.ui.components.SectionLabel
 import com.freedarts.scorer.ui.components.Sparkline
 import com.freedarts.scorer.ui.components.StatTile
 import com.freedarts.scorer.ui.components.topSegments
+import com.freedarts.scorer.ui.theme.Condensed
 import com.freedarts.scorer.ui.theme.DartColors
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -64,31 +67,35 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * Statistik wie bei Autodarts, für alle Modi: Übersicht über alle Modi (Aktivität, Serien, Spielzeit) oder je Modus
- * Kennzahlen, Trend über die letzten Spiele, Vergleich der letzten 10 Spiele, Details, Verteilungen aus dem
- * Wurfprotokoll, Trefferbild und Head-to-Head. Zweiter Tab: Match-Verlauf mit Leg-Details.
+ * Statistik-Seite, eine Spalte ohne Tabs: Spieler (Avatare) → Zeitraum (Segmented Control) → Modus (Chips) →
+ * Hero-Kennzahl mit Trend → Kennzahlen → je nach Modus Aktivität/Modi-Liste oder Details/Verteilungen →
+ * Trefferbild → Head-to-Head → letzte Matches (aufklappbar). [startTab] = 1 öffnet den Verlauf komplett.
  */
 @Composable
 fun StatsScreen(vm: AppViewModel, startTab: Int = 0) {
     val players by vm.players.collectAsStateWithLifecycle()
     val matches by vm.matches.collectAsStateWithLifecycle()
     val settings by vm.settings.collectAsStateWithLifecycle()
-    var tab by remember { mutableIntStateOf(startTab) }
-    var selected by remember { mutableStateOf((players.firstOrNull { it.id == settings.profilePlayerId } ?: players.firstOrNull())?.id) }
+    var playerId by remember { mutableStateOf((players.firstOrNull { it.id == settings.profilePlayerId } ?: players.firstOrNull { !it.isBot })?.id) }
     /** null = alle Modi. */
-    var modeFilter by remember { mutableStateOf<GameMode?>(null) }
-    /** Zeitraum: 0 = heute, 1 = 7 Tage, 2 = 30 Tage, 3 = gesamt (wie der Zeitraum-Filter bei Autodarts). */
+    var mode by remember { mutableStateOf<GameMode?>(null) }
+    /** 0 = heute, 1 = 7 Tage, 2 = 30 Tage, 3 = gesamt. */
     var range by remember { mutableIntStateOf(3) }
+    var showAll by remember { mutableStateOf(startTab == 1) }
     val df = remember { SimpleDateFormat("dd.MM.yy HH:mm", Locale.GERMANY) }
     val since = remember(range) {
-        val now = System.currentTimeMillis()
         when (range) {
             0 -> Calendar.getInstance().apply { set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0) }.timeInMillis
-            1 -> now - 7 * 86_400_000L
-            2 -> now - 30 * 86_400_000L
+            1 -> System.currentTimeMillis() - 7 * 86_400_000L
+            2 -> System.currentTimeMillis() - 30 * 86_400_000L
             else -> 0L
         }
     }
+    val mine = remember(matches, playerId, since) { matches.filter { m -> m.finishedAt >= since && m.players.any { it.playerId == playerId } }.sortedBy { it.finishedAt } }
+    val perMode = remember(mine) { mine.groupBy { it.mode } }
+    val ms = mode?.let { perMode[it].orEmpty() } ?: mine
+    val id = playerId
+    val stats = remember(ms, id) { ms.mapNotNull { m -> m.players.firstOrNull { it.playerId == id } } }
 
     Box(Modifier.fillMaxSize()) {
         ScreenBackground()
@@ -97,58 +104,60 @@ fun StatsScreen(vm: AppViewModel, startTab: Int = 0) {
             AdTopBar("", onBack = { vm.back() })
             Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 12.dp)) {
                 BrandTitle("Statistics")
+                Spacer(Modifier.height(12.dp))
+                ChipRow(gap = 14) { players.filter { !it.isBot }.forEach { p -> PlayerPick(p, p.id == id) { playerId = p.id } } }
                 Spacer(Modifier.height(10.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-                    TabLabel("Overview", tab == 0) { tab = 0 }
-                    TabLabel("Match History", tab == 1) { tab = 1 }
-                }
-                Spacer(Modifier.height(10.dp))
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    players.forEach { p -> Chip(p.name, selected = selected == p.id) { selected = p.id } }
-                }
-                Spacer(Modifier.height(6.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    listOf("Heute", "7 Tage", "30 Tage", "Gesamt").forEachIndexed { i, label -> Chip(label, selected = range == i) { range = i } }
-                }
-                Spacer(Modifier.height(6.dp))
-
-                val playerId = selected
-                val mine = matches.filter { m -> m.finishedAt >= since && m.players.any { it.playerId == playerId } }.sortedBy { it.finishedAt }
-                val perMode = mine.groupBy { it.mode }
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Chip("Alle", selected = modeFilter == null) { modeFilter = null }
+                Segmented(listOf("Heute", "7 Tage", "30 Tage", "Gesamt"), range) { range = it }
+                Spacer(Modifier.height(8.dp))
+                ChipRow {
+                    Chip("Alle", selected = mode == null) { mode = null }
                     GameMode.entries.forEach { m ->
                         val n = perMode[m]?.size ?: 0
-                        Chip(if (n > 0) "${m.title} · $n" else m.title, selected = modeFilter == m) { modeFilter = m }
+                        Chip(if (n > 0) "${m.title} · $n" else m.title, selected = mode == m) { mode = m }
                     }
                 }
-                val filtered = modeFilter?.let { perMode[it].orEmpty() } ?: mine
-                if (playerId == null) {
-                    AdCard(Modifier.padding(top = 8.dp)) { Text("Lege zuerst einen Spieler an.", color = DartColors.TextMuted) }
-                } else if (tab == 0) {
-                    val mode = modeFilter
-                    if (mode == null) AllModesOverview(mine, perMode, playerId) else ModeOverview(mode, filtered, playerId)
-                    val heat = remember(filtered, playerId) { Statistics.heatmap(filtered, playerId) }
-                    if (heat.darts > 0) {
-                        SectionLabel("Trefferbild", trailing = { Chip("${heat.darts} Darts") })
-                        AdCard {
-                            HeatmapBoard(heat, Modifier.padding(4.dp))
-                            Text(topSegments(heat), fontWeight = FontWeight.SemiBold)
-                            Text("Rot = oft, Blau = selten" + (if (heat.points.isNotEmpty()) " · Punkte = Auftreffpunkte (Lens)" else ""),
-                                color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
+
+                when {
+                    id == null -> AdCard(Modifier.padding(top = 10.dp)) { Text("Lege zuerst einen Spieler an.", color = DartColors.TextMuted) }
+                    ms.isEmpty() -> AdCard(Modifier.padding(top = 10.dp)) {
+                        Text("NOCH NICHTS ZU SEHEN", fontFamily = Condensed, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                        Text(if (mine.isEmpty()) "Spiel ein Match, dann stehen hier deine Zahlen." else "Keine ${mode?.title}-Spiele im Zeitraum.", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
+                    }
+                    else -> {
+                        Spacer(Modifier.height(10.dp))
+                        Hero(mode, ms, stats)
+                        Spacer(Modifier.height(8.dp))
+                        val streak = remember(ms, id) { Statistics.streaks(ms, id) }
+                        AdCard { Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            StatTile(ms.size.toString(), "Spiele", Modifier.weight(1f))
+                            StatTile("%.0f %%".format(100.0 * stats.count { it.won } / ms.size), "Siegquote", Modifier.weight(1f), barColor = DartColors.Green)
+                            StatTile(if (streak.current >= 0) "${streak.current}" else "${-streak.current}", if (streak.current >= 0) "Siege in Folge" else "Niederlagen in Folge", Modifier.weight(1f), barColor = if (streak.current >= 0) DartColors.Lime else DartColors.Red)
+                        } }
+                        val m = mode
+                        if (m == null) AllModes(mine, perMode, id) { mode = it } else ModeDetails(m, ms, stats, id)
+
+                        val heat = remember(ms, id) { Statistics.heatmap(ms, id) }
+                        if (heat.darts > 0) {
+                            SectionLabel("Trefferbild", trailing = { Chip("${heat.darts} Darts") })
+                            AdCard {
+                                HeatmapBoard(heat, Modifier.padding(4.dp))
+                                Text(topSegments(heat), fontWeight = FontWeight.SemiBold)
+                                Text("Rot = oft, Blau = selten" + (if (heat.points.isNotEmpty()) " · Punkte = Auftreffpunkte (Lens)" else ""), color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                        val h2h = remember(ms, id) { Statistics.headToHead(ms, id) }
+                        if (h2h.isNotEmpty()) {
+                            SectionLabel("Head-to-Head")
+                            AdCard { h2h.forEach { HeadToHeadRow(it) } }
+                        }
+
+                        SectionLabel("Matches", trailing = { Chip("${ms.size}") })
+                        ms.asReversed().take(if (showAll) Int.MAX_VALUE else 5).forEach { MatchRow(it, id, df) }
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            if (ms.size > 5) TextButton(onClick = { showAll = !showAll }) { Text(if (showAll) "Weniger" else "Alle ${ms.size} anzeigen") } else Spacer(Modifier.width(1.dp))
+                            TextButton(onClick = { vm.clearHistory() }) { Text("Verlauf löschen", color = DartColors.Red) }
                         }
                     }
-                    val h2h = remember(filtered, playerId) { Statistics.headToHead(filtered, playerId) }
-                    if (h2h.isNotEmpty()) {
-                        SectionLabel("Head-to-Head")
-                        AdCard { h2h.forEach { HeadToHeadRow(it) } }
-                    }
-                } else {
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 6.dp)) {
-                        Text("${filtered.size} Matches", color = DartColors.TextMuted, modifier = Modifier.weight(1f))
-                        TextButton(onClick = { vm.clearHistory() }, enabled = matches.isNotEmpty()) { Text("Verlauf löschen", color = DartColors.Red) }
-                    }
-                    filtered.reversed().forEach { m -> MatchRow(m, playerId, df) }
                 }
                 Spacer(Modifier.height(24.dp))
             }
@@ -156,36 +165,53 @@ fun StatsScreen(vm: AppViewModel, startTab: Int = 0) {
     }
 }
 
-private fun minutes(min: Long): String = if (min < 60) "$min min" else "%d:%02d h".format(min / 60, min % 60)
-
-/** Übersicht über alle Modi: Gesamtzahlen, Aktivität, Serien und je Modus die Kennzahl. */
+/** Große Kennzahl mit Vergleich der letzten 10 gegen die 10 Spiele davor und Verlauf der letzten 20 Spiele. */
 @Composable
-private fun AllModesOverview(mine: List<MatchRecord>, perMode: Map<GameMode, List<MatchRecord>>, playerId: String) {
-    val stats = mine.mapNotNull { m -> m.players.firstOrNull { it.playerId == playerId } }
-    val wins = stats.count { it.won }
-    SectionLabel("Gesamt")
-    AdCard { Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        StatTile(mine.size.toString(), "Spiele", Modifier.weight(1f))
-        StatTile(if (mine.isEmpty()) "–" else "%.0f %%".format(100.0 * wins / mine.size), "Siegquote", Modifier.weight(1f), barColor = DartColors.Green)
-        StatTile(minutes(Statistics.playTimeMinutes(mine)), "Spielzeit", Modifier.weight(1f), barColor = DartColors.Accent)
-    } }
-    Spacer(Modifier.height(8.dp))
-    StreakCard(mine, playerId, stats)
-    if (mine.isNotEmpty()) {
-        SectionLabel("Aktivität", trailing = { Chip("28 Tage") })
-        val act = remember(mine) { Statistics.activity(mine, 28) }
-        AdCard {
-            BarChart(act, labels = List(28) { i -> if ((27 - i) % 7 == 0) Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, i - 27) }.get(Calendar.DAY_OF_MONTH).toString() + "." else "" })
-            Text("${act.sum()} Spiele in 28 Tagen · aktivster Tag ${act.max()} Spiele · heute ${act.last()}", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
+private fun Hero(mode: GameMode?, ms: List<MatchRecord>, stats: List<PlayerMatchStats>) {
+    AdCard(padding = 16) {
+        if (mode == null) {
+            Text(ms.size.toString(), fontFamily = Condensed, fontWeight = FontWeight.Bold, fontSize = 56.sp, lineHeight = 56.sp)
+            Text("Spiele · ${stats.count { it.won }} Siege · ${minutes(Statistics.playTimeMinutes(ms))} Spielzeit", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
+            return@AdCard
+        }
+        val total = Statistics.metricTotal(mode, stats)
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text(Statistics.formatMetric(mode, total), fontFamily = Condensed, fontWeight = FontWeight.Bold, fontSize = 56.sp, lineHeight = 56.sp)
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.padding(bottom = 10.dp)) {
+                Text(Statistics.metricLabel(mode), color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
+                val prev = stats.dropLast(10).takeLast(10)
+                if (prev.isNotEmpty()) {
+                    val d = Statistics.metricTotal(mode, stats.takeLast(10)) - Statistics.metricTotal(mode, prev)
+                    // alle Kennzahlen: höher = besser
+                    Text((if (d >= 0) "▲ +" else "▼ −") + Statistics.formatMetric(mode, kotlin.math.abs(d)) + " vs. 10 davor", color = if (d >= 0) DartColors.Lime else DartColors.Red, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
+        }
+        val values = stats.takeLast(20).map { Statistics.metric(mode, it) }
+        if (values.size >= 2) {
+            Spacer(Modifier.height(6.dp))
+            Sparkline(values, format = { Statistics.formatMetric(mode, it) })
+            Text("Letzte ${values.size} Spiele · gestrichelt = Durchschnitt · grün = Bestwert", color = DartColors.TextMuted, style = MaterialTheme.typography.labelSmall)
         }
     }
-    SectionLabel("Alle Modi")
+}
+
+/** Alle Modi: Aktivität der letzten 28 Tage und je Modus die Kennzahl; Tipp auf eine Zeile filtert auf den Modus. */
+@Composable
+private fun AllModes(mine: List<MatchRecord>, perMode: Map<GameMode, List<MatchRecord>>, playerId: String, onPick: (GameMode) -> Unit) {
+    SectionLabel("Aktivität", trailing = { Chip("28 Tage") })
+    val act = remember(mine) { Statistics.activity(mine, 28) }
     AdCard {
-        if (perMode.isEmpty()) Text("Noch keine Spiele im Zeitraum.", color = DartColors.TextMuted)
+        BarChart(act, labels = List(28) { i -> if ((27 - i) % 7 == 0) Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, i - 27) }.get(Calendar.DAY_OF_MONTH).toString() + "." else "" })
+        Text("${act.sum()} Spiele in 28 Tagen · aktivster Tag ${act.max()} · heute ${act.last()}", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
+    }
+    SectionLabel("Modi")
+    AdCard(padding = 6) {
         GameMode.entries.forEach { mode ->
             val ms = perMode[mode] ?: return@forEach
             val s = ms.mapNotNull { m -> m.players.firstOrNull { it.playerId == playerId } }
-            Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable { onPick(mode) }.padding(horizontal = 8.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(mode.title, fontWeight = FontWeight.SemiBold)
                     Text("${ms.size} Spiele · ${s.count { it.won }} Siege · ${s.sumOf { it.dartsThrown }} Darts", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
@@ -194,93 +220,30 @@ private fun AllModesOverview(mine: List<MatchRecord>, perMode: Map<GameMode, Lis
                     Text(Statistics.formatMetric(mode, Statistics.metricTotal(mode, s)), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                     Text(Statistics.metricLabel(mode), color = DartColors.TextMuted, style = MaterialTheme.typography.labelSmall)
                 }
+                Text("›", color = DartColors.TextMuted, fontSize = 22.sp, modifier = Modifier.padding(start = 10.dp))
             }
         }
     }
 }
 
+/** Ein Modus: Detailzeilen und Verteilungen aus dem Wurfprotokoll. */
 @Composable
-private fun StreakCard(ms: List<MatchRecord>, playerId: String, stats: List<PlayerMatchStats>) {
-    if (ms.isEmpty()) return
-    val streak = remember(ms) { Statistics.streaks(ms, playerId) }
-    AdCard { Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        StatTile(if (streak.current >= 0) "${streak.current}" else "${-streak.current} ✗", if (streak.current >= 0) "Siege in Folge" else "Niederlagen in Folge", Modifier.weight(1f), barColor = if (streak.current >= 0) DartColors.Green else DartColors.Red)
-        StatTile(streak.longestWin.toString(), "Längste Siegesserie", Modifier.weight(1f))
-        StatTile("%.0f".format(stats.sumOf { it.dartsThrown }.toDouble() / ms.size), "Darts pro Spiel", Modifier.weight(1f), barColor = DartColors.Accent)
-    } }
-}
-
-/** Ein Modus: Kennzahlen, Trend, Vergleich letzte 10, Details, Verteilungen. */
-@Composable
-private fun ModeOverview(mode: GameMode, ms: List<MatchRecord>, playerId: String) {
-    val stats = ms.mapNotNull { m -> m.players.firstOrNull { it.playerId == playerId } }
-    val label = Statistics.metricLabel(mode)
-    SectionLabel("${mode.title} Performance")
-    AdCard { Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        StatTile(ms.size.toString(), "Spiele", Modifier.weight(1f))
-        StatTile(if (ms.isEmpty()) "–" else "%.0f %%".format(100.0 * stats.count { it.won } / ms.size), "Siegquote", Modifier.weight(1f), barColor = DartColors.Green)
-        StatTile(Statistics.formatMetric(mode, Statistics.metricTotal(mode, stats)), label, Modifier.weight(1f), barColor = DartColors.Accent)
-    } }
-    if (ms.isEmpty()) {
-        Spacer(Modifier.height(8.dp))
-        AdCard { Text("Noch keine ${mode.title}-Spiele im Zeitraum.", color = DartColors.TextMuted) }
-        return
-    }
-    Spacer(Modifier.height(8.dp))
-    StreakCard(ms, playerId, stats)
-
-    // Trend: Kennzahl je Spiel, chronologisch (letzte 20)
-    val values = stats.takeLast(20).map { Statistics.metric(mode, it) }
-    if (values.size >= 2) {
-        SectionLabel("Trend", trailing = { Chip("Letzte ${values.size} Spiele") })
-        AdCard {
-            Sparkline(values, format = { Statistics.formatMetric(mode, it) })
-            Text("$label je Spiel · gestrichelt = Durchschnitt · grün = Bestwert", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
-        }
-    }
-
-    // Vergleich: letzte 10 gegen die 10 davor (wie der Autodarts-Breakdown)
-    val last10 = stats.takeLast(10); val prev10 = stats.dropLast(10).takeLast(10)
-    if (prev10.isNotEmpty()) {
-        val cur = Statistics.metricTotal(mode, last10); val prev = Statistics.metricTotal(mode, prev10)
-        SectionLabel("Breakdown", trailing = { Chip("Letzte 10 Spiele") })
-        Text("Vergleich mit den 10 Spielen davor", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
-        Spacer(Modifier.height(8.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            AdCard(Modifier.weight(1f)) {
-                BarCompare(cur, prev, maxOf(cur, prev, 1.0))
-                Text(Statistics.formatMetric(mode, cur), style = MaterialTheme.typography.titleLarge)
-                Text(label, color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
-                Text("Vorher " + Statistics.formatMetric(mode, prev), color = DartColors.TextMuted, style = MaterialTheme.typography.labelSmall)
-            }
-            AdCard(Modifier.weight(1f)) {
-                val w = last10.count { it.won }; val pw = prev10.count { it.won }
-                Donut(w.toDouble() / last10.size, "$w / ${last10.size}")
-                Text("%.0f %%".format(100.0 * w / last10.size), style = MaterialTheme.typography.titleLarge)
-                Text("Siegquote", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
-                Text("Vorher %.0f %%".format(100.0 * pw / prev10.size), color = DartColors.TextMuted, style = MaterialTheme.typography.labelSmall)
-            }
-        }
-    }
-
+private fun ModeDetails(mode: GameMode, ms: List<MatchRecord>, stats: List<PlayerMatchStats>, playerId: String) {
     SectionLabel("Details")
     AdCard {
-        StatLine("Spiele / Siege", "${ms.size} / ${stats.count { it.won }}")
         StatLine("Darts geworfen", stats.sumOf { it.dartsThrown }.toString())
+        StatLine("Darts pro Spiel", "%.0f".format(stats.sumOf { it.dartsThrown }.toDouble() / ms.size))
         StatLine("Spielzeit", minutes(Statistics.playTimeMinutes(ms)))
         modeLines(mode, ms, stats).forEach { (l, v) -> StatLine(l, v) }
     }
-
-    // Verteilungen aus dem Wurfprotokoll
     when (mode) {
         GameMode.X01, GameMode.COUNT_UP, GameMode.GOTCHA, GameMode.SHANGHAI, GameMode.BERMUDA -> {
             val visits = remember(ms, playerId) { Statistics.visits(ms, playerId) }
             if (visits.isNotEmpty()) {
-                SectionLabel("Aufnahmen", trailing = { Chip("${visits.size} Aufnahmen") })
+                SectionLabel("Aufnahmen", trailing = { Chip("${visits.size}") })
                 AdCard {
                     BarChart(Statistics.visitDistribution(visits), Statistics.VISIT_BUCKETS)
-                    Text("Höchste Aufnahme ${visits.max()} · Ø %.1f pro Aufnahme · %.0f %% über 60".format(visits.average(), 100.0 * visits.count { it >= 60 } / visits.size),
-                        color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
+                    Text("Höchste Aufnahme ${visits.max()} · Ø %.1f · %.0f %% über 60".format(visits.average(), 100.0 * visits.count { it >= 60 } / visits.size), color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
                 }
             }
             if (mode == GameMode.X01) {
@@ -317,6 +280,35 @@ private fun ModeOverview(mode: GameMode, ms: List<MatchRecord>, playerId: String
         else -> {}
     }
 }
+
+/** Avatar mit Namen; der gewählte Spieler bekommt einen weißen Ring. */
+@Composable
+private fun PlayerPick(p: Player, selected: Boolean, onClick: () -> Unit) {
+    Column(Modifier.clip(RoundedCornerShape(12.dp)).clickable(onClick = onClick).padding(4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(Modifier.border(2.dp, if (selected) Color.White else Color.Transparent, CircleShape).padding(3.dp)) { Avatar(p, 44, online = false) }
+        Text(p.name, fontSize = 11.sp, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal, color = if (selected) Color.White else DartColors.TextMuted, maxLines = 1)
+    }
+}
+
+/** Segmented Control wie bei iOS: gleich breite Segmente, das gewählte weiß. */
+@Composable
+private fun Segmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit) {
+    Row(Modifier.fillMaxWidth().background(DartColors.SurfaceHigh, RoundedCornerShape(12.dp)).padding(3.dp)) {
+        options.forEachIndexed { i, o ->
+            Box(Modifier.weight(1f).clip(RoundedCornerShape(10.dp)).background(if (i == selected) Color.White else Color.Transparent).clickable { onSelect(i) }.padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
+                Text(o, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = if (i == selected) DartColors.Background else Color(0xFFC7CDD8))
+            }
+        }
+    }
+}
+
+/** Eine Zeile Chips, horizontal scrollbar. */
+@Composable
+private fun ChipRow(gap: Int = 6, content: @Composable RowScope.() -> Unit) {
+    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(vertical = 3.dp), horizontalArrangement = Arrangement.spacedBy(gap.dp), content = content)
+}
+
+private fun minutes(min: Long): String = if (min < 60) "$min min" else "%d:%02d h".format(min / 60, min % 60)
 
 /** Modus-spezifische Detailzeilen (Label → Wert). */
 private fun modeLines(mode: GameMode, ms: List<MatchRecord>, stats: List<PlayerMatchStats>): List<Pair<String, String>> {
@@ -452,43 +444,8 @@ private fun MatchRow(m: MatchRecord, selectedId: String?, df: SimpleDateFormat) 
 }
 
 @Composable
-private fun TabLabel(text: String, selected: Boolean, onClick: () -> Unit) {
-    // Unterstrich per drawBehind statt eigener Box: Breite = Textbreite, keine Intrinsic-/fillMaxWidth-Fallen in der Row
-    Text(
-        text,
-        Modifier.clickable(onClick = onClick).drawBehind { if (selected) drawRect(Color.White, Offset(0f, size.height - 2.dp.toPx()), Size(size.width, 2.dp.toPx())) }.padding(bottom = 10.dp),
-        fontSize = androidx.compose.ui.unit.TextUnit(16f, androidx.compose.ui.unit.TextUnitType.Sp),
-        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-        color = if (selected) Color.White else DartColors.TextMuted,
-    )
-}
-
-@Composable
 private fun StatLine(label: String, value: String) {
     Row(Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
         Text(label, Modifier.weight(1f), color = DartColors.TextMuted); Text(value, fontWeight = FontWeight.SemiBold)
-    }
-}
-
-@Composable
-private fun BarCompare(current: Double, previous: Double, max: Double) {
-    Canvas(Modifier.fillMaxWidth().height(70.dp)) {
-        val w = size.width; val h = size.height
-        val bw = w * 0.28f
-        val ch = (current / max).toFloat().coerceIn(0f, 1f) * h
-        val ph = (previous / max).toFloat().coerceIn(0f, 1f) * h
-        drawRect(DartColors.Primary, topLeft = androidx.compose.ui.geometry.Offset(w * 0.15f, h - ch), size = Size(bw, ch))
-        drawRect(DartColors.Outline, topLeft = androidx.compose.ui.geometry.Offset(w * 0.55f, h - ph), size = Size(bw, ph), style = Stroke(3f))
-    }
-}
-
-@Composable
-private fun Donut(fraction: Double, label: String) {
-    Box(Modifier.size(70.dp), contentAlignment = Alignment.Center) {
-        Canvas(Modifier.size(70.dp)) {
-            drawArc(DartColors.Outline, 0f, 360f, false, style = Stroke(10f))
-            drawArc(DartColors.Primary, -90f, (360 * fraction).toFloat().coerceIn(0f, 360f), false, style = Stroke(10f))
-        }
-        Text(label, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
     }
 }

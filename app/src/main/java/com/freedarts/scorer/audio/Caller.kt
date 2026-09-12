@@ -4,7 +4,9 @@ import android.content.Context
 import android.media.AudioAttributes
 import android.media.ToneGenerator
 import android.media.AudioManager
+import android.media.SoundPool
 import android.speech.tts.TextToSpeech
+import com.freedarts.scorer.R
 import java.util.Locale
 
 /**
@@ -29,6 +31,10 @@ class Caller(context: Context) {
         }
     }
     private val tone: ToneGenerator? = try { ToneGenerator(AudioManager.STREAM_MUSIC, 70) } catch (e: Exception) { null }
+    private val pool = SoundPool.Builder().setMaxStreams(1)
+        .setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_GAME).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build()).build()
+    /** 180-Ruf („One hundred and eighty“, Russ Bray) von myinstants.com/media/sounds/180-russ-bray.mp3 – keine freie Lizenz, nur privat nutzen. */
+    private val oneEighty = pool.load(context.applicationContext, R.raw.one_eighty, 1)
 
     var enabled = true
     var soundEffects = true
@@ -44,7 +50,7 @@ class Caller(context: Context) {
 
     fun callScore(score: Int) {
         when (score) {
-            180 -> say("Einhundertachtzig!")
+            180 -> if (soundEffects) pool.play(oneEighty, 1f, 1f, 1, 0, 1f) else say("Einhundertachtzig!")
             0 -> say("Keine Punkte")
             else -> say(score.toString())
         }
@@ -60,5 +66,5 @@ class Caller(context: Context) {
     fun ding() { if (soundEffects) tone?.startTone(ToneGenerator.TONE_PROP_ACK, 150) }
     fun error() { if (soundEffects) tone?.startTone(ToneGenerator.TONE_PROP_NACK, 200) }
 
-    fun shutdown() { tts?.stop(); tts?.shutdown(); tone?.release() }
+    fun shutdown() { tts?.stop(); tts?.shutdown(); tone?.release(); pool.release() }
 }

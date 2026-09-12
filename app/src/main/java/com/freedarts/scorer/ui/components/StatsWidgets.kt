@@ -122,12 +122,14 @@ fun Sparkline(values: List<Double>, modifier: Modifier = Modifier, color: Color 
     val textPaint = remember {
         android.graphics.Paint().apply { this.color = android.graphics.Color.LTGRAY; isAntiAlias = true; textSize = 26f }
     }
-    val lo = values.min(); val hi = values.max()
+    // Achse um 10 % (min. 1) gepolstert: flache Verläufe liegen mittig statt am Boden, Punkte nicht am Rand
+    val pad = ((values.max() - values.min()) * 0.1).coerceAtLeast(1.0)
+    val lo = values.min() - pad; val hi = values.max() + pad
     val mean = values.average()
     Canvas(modifier.fillMaxWidth().height(110.dp)) {
         val padTop = 28f; val padBottom = 8f; val padX = 8f
         val w = size.width - 2 * padX; val h = size.height - padTop - padBottom
-        val span = (hi - lo).takeIf { it > 0 } ?: 1.0
+        val span = hi - lo
         fun x(i: Int) = padX + if (values.size == 1) w / 2 else w * i / (values.size - 1)
         fun y(v: Double) = padTop + h - ((v - lo) / span * h).toFloat()
         val ym = y(mean)
@@ -135,10 +137,14 @@ fun Sparkline(values: List<Double>, modifier: Modifier = Modifier, color: Color 
         val path = Path()
         values.forEachIndexed { i, v -> if (i == 0) path.moveTo(x(i), y(v)) else path.lineTo(x(i), y(v)) }
         drawPath(path, color, style = Stroke(4f))
-        values.forEachIndexed { i, v -> drawCircle(if (v == hi) DartColors.Green else color, 5f, Offset(x(i), y(v))) }
-        val best = values.indexOf(hi)
-        drawContext.canvas.nativeCanvas.drawText("Best ${format(hi)}", (x(best) - 40f).coerceIn(0f, size.width - 120f), y(hi) - 10f, textPaint)
-        drawContext.canvas.nativeCanvas.drawText("Ø ${format(mean)}", padX, (ym - 6f).coerceAtLeast(padTop), textPaint)
+        val top = values.max()
+        values.forEachIndexed { i, v -> drawCircle(if (v == top) DartColors.Green else color, 5f, Offset(x(i), y(v))) }
+        val best = values.indexOf(top)
+        drawContext.canvas.nativeCanvas.drawText("Best ${format(top)}", (x(best) - 40f).coerceIn(0f, size.width - 120f), y(top) - 10f, textPaint)
+        // Ø-Label auf der dem Bestpunkt abgewandten Seite, damit sich die Texte nicht überlagern
+        textPaint.textAlign = if (best < values.size / 2) android.graphics.Paint.Align.RIGHT else android.graphics.Paint.Align.LEFT
+        drawContext.canvas.nativeCanvas.drawText("Ø ${format(mean)}", if (best < values.size / 2) padX + w else padX, (ym - 6f).coerceAtLeast(padTop), textPaint)
+        textPaint.textAlign = android.graphics.Paint.Align.LEFT
     }
 }
 

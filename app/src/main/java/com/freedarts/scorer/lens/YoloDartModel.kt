@@ -8,6 +8,7 @@ import com.freedarts.scorer.engine.Board
 import org.tensorflow.lite.Interpreter
 import org.tensorflow.lite.gpu.CompatibilityList
 import org.tensorflow.lite.gpu.GpuDelegate
+import org.tensorflow.lite.gpu.GpuDelegateFactory
 import java.io.FileInputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -50,8 +51,12 @@ class YoloDartModel(context: Context) {
         private const val TAG = "YoloDartModel"
         private const val PREFS = "yolo_dart_model"
         private const val PREF_GPU_FAILED = "gpuInitFailed"
-        /** Frist für die GPU-Initialisierung; danach Umschalten auf CPU (manche Treiber hängen dabei). */
-        private const val GPU_INIT_TIMEOUT_MS = 10_000L
+        /**
+         * Frist für die GPU-Initialisierung; danach Umschalten auf CPU (manche Treiber hängen dabei).
+         * Großzügig, weil Mali (Pixel/Tensor) die Shader beim allerersten Start kompiliert; danach
+         * kommen sie aus dem Cache ([GpuDelegateFactory.Options.setSerializationParams]).
+         */
+        private const val GPU_INIT_TIMEOUT_MS = 30_000L
         /** Frist für eine einzelne GPU-Inferenz (Größenordnung über den normalen Laufzeiten). */
         private const val INVOKE_TIMEOUT_MS = 5_000L
     }
@@ -242,17 +247,22 @@ class YoloDartModel(context: Context) {
             val afd = appContext.assets.openFd(ASSET)
             val channel = FileInputStream(afd.fileDescriptor).channel
             val buffer = channel.map(FileChannel.MapMode.READ_ONLY, afd.startOffset, afd.declaredLength)
-            // Wie Autodarts Lens: Beschleuniger (GPU) nutzen, wenn das Gerät ihn unterstützt; sonst CPU (XNNPACK)
+            // Wie Autodarts Lens: Beschleuniger (GPU) nutzen; sonst CPU (XNNPACK).
+            // Die GPU wird auf jedem Gerät probiert, nicht nur auf denen aus TFLites Allowlist – dort
+            // fehlen Tensor (Pixel, Mali) und die meisten Snapdragon/Dimensity-Geräte (OnePlus).
+            // Fehlversuche fangen Watchdog, Inferenz-Timeout und PREF_GPU_FAILED ab.
             if (useGpu) {
                 var d: GpuDelegate? = null
                 try {
                     val compat = CompatibilityList()
-                    if (compat.isDelegateSupportedOnThisDevice) {
-                        d = GpuDelegate(compat.bestOptionsForThisDevice)
-                        made = Interpreter(buffer, Interpreter.Options().addDelegate(d))
-                        delegate = d
-                        backendName = "GPU"
-                    }
+                    val opts: GpuDelegateFactory.Options = if (compat.isDelegateSupportedOnThisDevice) compat.bestOptionsForThisDevice
+                               else GpuDelegateFactory.Options()
+                    // Kompilierte Shader/Kernel cachen: Erststart dauert auf Mali/Adreno Sekunden, danach nicht mehr
+                    opts.setSerializationParams(appContext.cacheDir.absolutePath, ASSET)
+                    d = GpuDelegate(opts)
+                    made = Interpreter(buffer, Interpreter.Options().addDelegate(d))
+                    delegate = d
+                    backendName = "GPU"
                 } catch (e: Throwable) {
                     Log.w(TAG, "GPU-Initialisierung fehlgeschlagen: ${e.message}")
                     prefs.edit().putBoolean(PREF_GPU_FAILED, true).apply()

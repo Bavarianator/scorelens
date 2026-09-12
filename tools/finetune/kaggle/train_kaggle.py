@@ -25,7 +25,10 @@ import zipfile  # noqa: E402
 z = hf_hub_download(REPO, DATA + ".zip", repo_type="dataset", local_dir="/kaggle/tmp")
 with zipfile.ZipFile(z) as zf: zf.extractall("/kaggle/tmp")
 data_dir = Path("/kaggle/tmp") / DATA
-base = hf_hub_download(REPO, "base.pt", repo_type="dataset", local_dir="/kaggle/tmp")
+BASE_RUN = os.environ.get("BASE_RUN", "")  # z. B. kg_dd4: Warmstart aus dem Output des Kernels in kernel_sources; Baseline = dieses Modell
+import glob  # noqa: E402
+base = glob.glob(f"/kaggle/input/**/{BASE_RUN}/best.pt", recursive=True)[0] if BASE_RUN else hf_hub_download(REPO, "base.pt", repo_type="dataset", local_dir="/kaggle/tmp")
+print("Startgewichte:", base, flush=True)
 yaml_path = work / "data.yaml"
 yaml_path.write_text((data_dir / "data.yaml").read_text().replace("path: .", f"path: {data_dir}"))
 if D2_WEIGHT > 1:  # seltene, relevante Bilder öfter zeigen: D2-Originale und ihre Schrägsichten (D2_WEIGHT-1)-mal kopieren
@@ -76,7 +79,7 @@ print(f"Training fertig nach {(time.time() - t0) / 60:.1f} min", flush=True)
 run = Path(model.trainer.save_dir)
 best = run / "weights/best.pt" if (run / "weights/best.pt").exists() else run / "weights/last.pt"
 result = evaluate(str(best))
-metrics = dict(name=NAME, data=DATA, epochs=EPOCHS, imgsz=IMGSZ, freeze=FREEZE, lr0=LR0, cos_lr=COS_LR, d2_weight=D2_WEIGHT, train_images=n_train, val_images=n_val, baseline=baseline, result=result,
+metrics = dict(name=NAME, data=DATA, base=BASE_RUN or "dart-sense", epochs=EPOCHS, imgsz=IMGSZ, freeze=FREEZE, lr0=LR0, cos_lr=COS_LR, d2_weight=D2_WEIGHT, train_images=n_train, val_images=n_val, baseline=baseline, result=result,
                better=result["tip_recall_10px"] >= baseline["tip_recall_10px"] and result["tip_precision_10px"] >= baseline["tip_precision_10px"])
 print(json.dumps(metrics, indent=1), flush=True)
 shutil.copy(best, out / "best.pt")

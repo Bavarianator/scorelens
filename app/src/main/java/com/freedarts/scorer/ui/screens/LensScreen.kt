@@ -154,7 +154,13 @@ fun LensScreen(vm: AppViewModel) {
                 ready -> {
                     DartTiles(detections, gameState?.currentVisit?.size ?: detections.size)
                     if (vm.game != null) PrimaryButton("Zum Match", Modifier.fillMaxWidth()) { vm.navigate(Screen.Match) }
-                    else PrimaryButton("Spiel starten", Modifier.fillMaxWidth()) { vm.navigate(Screen.Lobby) }
+                    else {
+                        // Kalibriert → sofort losspielen mit den letzten Einstellungen; Lobby nur, wenn man etwas ändern will
+                        val last = settings.lastGameSettings
+                        PrimaryButton("Sofort spielen · ${last.mode.title}" + (if (last.mode == com.freedarts.scorer.model.GameMode.X01) " ${last.baseScore}" else ""), Modifier.fillMaxWidth()) { vm.playNow() }
+                        Spacer(Modifier.height(6.dp))
+                        SecondaryButton("Neues Spiel einrichten", Modifier.fillMaxWidth()) { vm.navigate(Screen.Lobby) }
+                    }
                     Text("Verdeckt ein Dart einen anderen: vorderen ziehen oder Handy leicht drehen – der fehlende Dart wird nachgetragen.",
                         color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
                 }

@@ -4,7 +4,7 @@ import android.content.Context
 import android.media.AudioAttributes
 import android.media.ToneGenerator
 import android.media.AudioManager
-import android.media.SoundPool
+import android.media.MediaPlayer
 import android.speech.tts.TextToSpeech
 import com.freedarts.scorer.R
 import java.util.Locale
@@ -14,6 +14,7 @@ import java.util.Locale
  * und spielt einfache Soundeffekte.
  */
 class Caller(context: Context) {
+    private val ctx = context.applicationContext
     private var ready = false
     private var tts: TextToSpeech? = null
 
@@ -31,10 +32,9 @@ class Caller(context: Context) {
         }
     }
     private val tone: ToneGenerator? = try { ToneGenerator(AudioManager.STREAM_MUSIC, 70) } catch (e: Exception) { null }
-    private val pool = SoundPool.Builder().setMaxStreams(1)
-        .setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_GAME).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build()).build()
-    /** 180-Ruf („One hundred and eighty“, Russ Bray) von myinstants.com/media/sounds/180-russ-bray.mp3 – keine freie Lizenz, nur privat nutzen. */
-    private val oneEighty = pool.load(context.applicationContext, R.raw.one_eighty, 1)
+    /** Laufender 180-Clip; solange er spielt, warten TTS-Ansagen in [pending] (kein SoundPool: der kappt Samples über ~1 MB PCM). */
+    private var clip: MediaPlayer? = null
+    private val pending = ArrayDeque<Pair<String, Boolean>>()
 
     var enabled = true
     var soundEffects = true
@@ -42,15 +42,29 @@ class Caller(context: Context) {
     /** [flush] verwirft noch nicht gesprochene Ansagen (z. B. Game Shot statt Score-Rückstau). */
     fun say(text: String, flush: Boolean = false) {
         if (!enabled || !ready) return
+        if (clip != null) { if (flush) pending.clear(); pending += text to flush; return }
         tts?.speak(text, if (flush) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD, null, "call-${System.nanoTime()}")
     }
 
     /** Laufende und wartende Ansagen abbrechen (Match beendet oder verlassen). */
-    fun stop() { tts?.stop() }
+    fun stop() { tts?.stop(); pending.clear(); clip?.release(); clip = null }
+
+    /** 180-Ruf („One hundred and eighty“, Russ Bray) von myinstants.com/media/sounds/180-russ-bray.mp3 – keine freie Lizenz, nur privat nutzen. */
+    private fun playOneEighty() {
+        clip?.release()
+        val attrs = AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_GAME).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build()
+        clip = MediaPlayer.create(ctx, R.raw.one_eighty, attrs, 0)?.apply {
+            setOnCompletionListener {
+                it.release(); clip = null
+                while (pending.isNotEmpty()) pending.removeFirst().let { (t, f) -> say(t, f) }
+            }
+            start()
+        } ?: run { say("Einhundertachtzig!") }
+    }
 
     fun callScore(score: Int) {
         when (score) {
-            180 -> if (soundEffects) pool.play(oneEighty, 1f, 1f, 1, 0, 1f) else say("Einhundertachtzig!")
+            180 -> if (soundEffects) playOneEighty() else say("Einhundertachtzig!")
             0 -> say("Keine Punkte")
             else -> say(score.toString())
         }
@@ -66,5 +80,5 @@ class Caller(context: Context) {
     fun ding() { if (soundEffects) tone?.startTone(ToneGenerator.TONE_PROP_ACK, 150) }
     fun error() { if (soundEffects) tone?.startTone(ToneGenerator.TONE_PROP_NACK, 200) }
 
-    fun shutdown() { tts?.stop(); tts?.shutdown(); tone?.release(); pool.release() }
+    fun shutdown() { stop(); tts?.shutdown(); tone?.release() }
 }

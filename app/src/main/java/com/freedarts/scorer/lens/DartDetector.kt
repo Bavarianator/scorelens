@@ -59,6 +59,8 @@ class DartDetector(val width: Int, val height: Int) {
     var dartsOnBoard = 0; private set
     private var stableFrames = 0
     private var motionFrames = 0
+    /** Größte Änderung während der Bewegungsphase; über [maxBlob] war es eine Hand, kein Bouncer. */
+    private var peakChange = 0
 
     /** Schwellwert für Pixelveränderung (0..255). */
     var pixelThreshold = 38
@@ -184,19 +186,20 @@ class DartDetector(val width: Int, val height: Int) {
         when (phase) {
             Phase.IDLE -> {
                 if (changed >= minBlob) {
-                    phase = Phase.MOTION; stableFrames = 0; motionFrames = 0
+                    phase = Phase.MOTION; stableFrames = 0; motionFrames = 0; peakChange = changed
                     handFrames = if (changed > roiCount * handFraction) 1 else 0
                 }
                 return null
             }
             Phase.MOTION -> {
+                if (changed > peakChange) peakChange = changed
                 // Hand im Bild: erst nach [minHandFrames] Frames in Folge Takeout-Phase
                 if (changed > roiCount * handFraction) handFrames++ else handFrames = 0
                 if (handFrames >= minHandFrames) { phase = Phase.TAKEOUT; stableFrames = 0; handFrames = 0; return null }
                 if (stableFrames < stableNeeded) return null
                 // Stabil: auswerten
                 return when {
-                    changed < minBlob -> { phase = Phase.IDLE; Event.Bounce }
+                    changed < minBlob -> { phase = Phase.IDLE; if (peakChange <= maxBlob) Event.Bounce else null }
                     dartsOnBoard > 0 && looksEmpty(gray, thr) -> {
                         // Darts wurden entfernt, ohne dass eine Hand erkannt wurde
                         System.arraycopy(gray, 0, reference, 0, reference.size)

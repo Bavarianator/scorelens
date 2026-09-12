@@ -23,9 +23,10 @@ data class Player(
             0xFF00ACC1, 0xFFD81B60, 0xFF6D4C41, 0xFF039BE5, 0xFF7CB342,
         )
 
-        fun bot(level: Int): Player = Player(
-            id = "bot-$level",
-            name = "Bot Stufe $level",
+        /** [n] > 1: weiterer Bot derselben Stufe in einer Lobby (eigene ID, Statistik des ersten bleibt unter bot-<Stufe>). */
+        fun bot(level: Int, n: Int = 1): Player = Player(
+            id = if (n == 1) "bot-$level" else "bot-$level-$n",
+            name = "Bot Stufe $level" + (if (n > 1) " #$n" else ""),
             color = 0xFF546E7A,
             botLevel = level,
         )

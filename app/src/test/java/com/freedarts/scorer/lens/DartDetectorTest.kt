@@ -64,6 +64,24 @@ class DartDetectorTest {
         assertEquals(0, d.dartsOnBoard)
     }
 
+    @Test fun dartSizedBlobThatVanishesIsABounceOut() {
+        val d = detector()
+        val frame = empty.copyOf(); drawDart(frame, 0.0, 103.0)
+        d.process(frame)                     // Dart erscheint (Bewegung)
+        assertEquals(DartDetector.Phase.MOTION, d.phase)
+        assertEquals(DartDetector.Event.Bounce, lastEvent(d, empty, 6))
+        assertEquals(0, d.dartsOnBoard)
+    }
+
+    @Test fun handThatVanishesIsNotABounceOut() {
+        val d = detector()
+        // Ein Frame Hand (weit über maxBlob), dann wieder leer: kein Bouncer, kein Ereignis
+        val hand = empty.copyOf(); for (i in 0 until w * h) if ((i / w) in 100..300) hand[i] = 200.toByte()
+        d.process(hand)
+        assertEquals(null, lastEvent(d, empty, 6))
+        assertEquals(DartDetector.Phase.IDLE, d.phase)
+    }
+
     @Test fun oversizedBlobIsNotADart() {
         val d = detector()
         // 40×40 Pixel Fläche mitten auf dem Board: zu groß für einen Dart, zu klein für eine Hand

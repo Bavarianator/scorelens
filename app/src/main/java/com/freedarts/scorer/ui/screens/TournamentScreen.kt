@@ -52,7 +52,7 @@ fun TournamentScreen(vm: AppViewModel) {
     Box(Modifier.fillMaxSize()) { ScreenBackground() }
     Column(Modifier.fillMaxSize()) {
         AdTopBar("Turnier", onBack = { vm.back() }) {
-            if (t != null) IconButton(onClick = { confirmEnd = true }) { Icon(Icons.Default.Delete, "Turnier beenden") }
+            if (t != null && vm.canRunTournament) IconButton(onClick = { confirmEnd = true }) { Icon(Icons.Default.Delete, "Turnier beenden") }
         }
         val tour = t
         if (tour == null) { Text("Kein Turnier – in der Lobby „Als Turnier starten“ wählen.", Modifier.padding(16.dp), color = DartColors.TextMuted); return }
@@ -66,6 +66,7 @@ fun TournamentScreen(vm: AppViewModel) {
                 Text(matchTitle(tour.settings) + " · ${real.count { it.winner != null }}/${real.size} Spiele gespielt",
                     color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
             }
+            if (!vm.canRunTournament) Text("Der Host startet die Spiele – der Spielplan aktualisiert sich live.", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
             tour.champion?.let { c ->
                 AdCard(background = DartColors.GreenDark) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -91,7 +92,7 @@ fun TournamentScreen(vm: AppViewModel) {
             }
             for (r in 1..tour.rounds) {
                 SectionLabel(roundName(tour, r))
-                tour.matches.forEachIndexed { i, m -> if (m.round == r) MatchRow(tour, m) { vm.playTournamentMatch(i) } }
+                tour.matches.forEachIndexed { i, m -> if (m.round == r) MatchRow(tour, m, vm.canRunTournament) { vm.playTournamentMatch(i) } }
             }
             Spacer(Modifier.height(24.dp))
         }
@@ -116,7 +117,7 @@ private fun roundName(t: Tournament, r: Int): String = when {
 }
 
 @Composable
-private fun MatchRow(t: Tournament, m: TournamentMatch, onPlay: () -> Unit) {
+private fun MatchRow(t: Tournament, m: TournamentMatch, canPlay: Boolean, onPlay: () -> Unit) {
     val a = m.a?.let { t.players[it].name }; val b = m.b?.let { t.players[it].name }
     AdCard(padding = 12) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -127,7 +128,7 @@ private fun MatchRow(t: Tournament, m: TournamentMatch, onPlay: () -> Unit) {
                         color = DartColors.Green, style = MaterialTheme.typography.bodySmall)
                 }
             }
-            if (m.open) PrimaryButton("Spielen", height = 40, onClick = onPlay)
+            if (m.open && canPlay) PrimaryButton("Spielen", height = 40, onClick = onPlay)
         }
     }
 }

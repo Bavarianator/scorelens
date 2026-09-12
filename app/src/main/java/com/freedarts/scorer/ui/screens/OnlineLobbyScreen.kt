@@ -51,6 +51,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.freedarts.scorer.model.GameMode
 import com.freedarts.scorer.model.Player
 import com.freedarts.scorer.ui.AppViewModel
+import com.freedarts.scorer.ui.Screen
 import com.freedarts.scorer.ui.components.AdCard
 import com.freedarts.scorer.ui.components.AdTopBar
 import com.freedarts.scorer.ui.components.Avatar
@@ -78,6 +79,7 @@ fun OnlineLobbyScreen(vm: AppViewModel) {
     val clipboard = LocalClipboardManager.current
     var showSettings by remember { mutableStateOf(false) }
     var showHowTo by remember { mutableStateOf(false) }
+    var showTournament by remember { mutableStateOf(false) }
     var confirmLeave by remember { mutableStateOf(false) }
     val isHost = online.isHost
     val me = online.myId
@@ -189,7 +191,11 @@ fun OnlineLobbyScreen(vm: AppViewModel) {
             Spacer(Modifier.height(70.dp))
         }
         if (l != null) Box(Modifier.fillMaxWidth().padding(12.dp)) {
-            if (isHost) PrimaryButton(if (l.players.size < 2) "Warten auf Spieler …" else "Start Game", Modifier.fillMaxWidth(), enabled = l.players.size >= 2 && !busy, height = 56) { online.startMatch() }
+            if (l.tournament != null) PrimaryButton("Turnier-Spielplan", Modifier.fillMaxWidth(), height = 56) { vm.navigate(Screen.Tournament) }
+            else if (isHost) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                PrimaryButton(if (l.players.size < 2) "Warten auf Spieler …" else "Start Game", Modifier.weight(1f), enabled = l.players.size >= 2 && !busy, height = 56) { online.startMatch() }
+                if (l.players.size >= 3) SecondaryButton("Turnier", enabled = !busy) { showTournament = true }
+            }
             else {
                 val meReady = l.players.firstOrNull { it.userId == me }?.ready == true
                 PrimaryButton(if (meReady) "Bereit ✓ – warten auf Host" else "Bereit", Modifier.fillMaxWidth(), height = 56) { online.setReady(!meReady) }
@@ -198,6 +204,15 @@ fun OnlineLobbyScreen(vm: AppViewModel) {
     }
 
     val l = lobby
+    if (showTournament) AlertDialog(
+        onDismissRequest = { showTournament = false },
+        title = { Text("Als Turnier starten") },
+        text = { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Alle Spieler der Lobby; jedes Spiel ist ein Online-Match der beiden Beteiligten, die anderen schauen zu.", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
+            com.freedarts.scorer.model.TournamentMode.entries.forEach { m -> PrimaryButton(m.title, Modifier.fillMaxWidth(), height = 46) { showTournament = false; vm.startOnlineTournament(m) } }
+        } },
+        confirmButton = {}, dismissButton = { TextButton(onClick = { showTournament = false }) { Text("Abbrechen") } },
+    )
     if (showSettings && l != null) {
         var draft by remember(l.settings) { mutableStateOf(l.settings) }
         AlertDialog(

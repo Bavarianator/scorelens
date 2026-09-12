@@ -128,13 +128,13 @@ fun LobbyScreen(vm: AppViewModel) {
                         val (lvl, lvlBg, lvlFg) = levelOf(avgOf(p))
                         NameRibbon(p.name, lvl, lvlBg, lvlFg)
                         Spacer(Modifier.weight(1f))
-                        IconButton(onClick = { if (p.isBot) vm.removeBot() else vm.toggleLobbyPlayer(p) }) { Icon(Icons.Default.Close, "Entfernen", tint = DartColors.TextMuted) }
+                        IconButton(onClick = { vm.toggleLobbyPlayer(p) }) { Icon(Icons.Default.Close, "Entfernen", tint = DartColors.TextMuted) }
                     }
                 }
                 Spacer(Modifier.height(6.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     PrimaryButton("Add Player", Modifier.weight(1f), icon = Icons.Default.Add, enabled = lobby.size < 6) { showAddPlayer = true }
-                    PrimaryButton("Add Bot", Modifier.weight(1f), icon = Icons.Default.SmartToy, enabled = lobby.size < 6 || lobby.any { it.isBot }) { showBots = true }
+                    PrimaryButton("Add Bot", Modifier.weight(1f), icon = Icons.Default.SmartToy, enabled = lobby.size < 6) { showBots = true }
                 }
             }
 
@@ -230,7 +230,7 @@ fun LobbyScreen(vm: AppViewModel) {
             title = { Text("Bot hinzufügen") },
             text = {
                 Column {
-                    Text("Elf Stufen – der Bot wirft mit realistischer Streuung.", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
+                    Text("Elf Stufen, auch mehrere Bots – jeder wirft mit realistischer Streuung.", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
                     Spacer(Modifier.height(6.dp))
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         (1..11).forEach { lvl ->
@@ -241,7 +241,7 @@ fun LobbyScreen(vm: AppViewModel) {
                 }
             },
             confirmButton = { TextButton(onClick = { showBots = false }) { Text("Schließen") } },
-            dismissButton = { if (lobby.any { it.isBot }) TextButton(onClick = { vm.removeBot(); showBots = false }) { Text("Bot entfernen") } },
+            dismissButton = { if (lobby.any { it.isBot }) TextButton(onClick = { vm.removeBot(); showBots = false }) { Text("Alle Bots entfernen") } },
         )
     }
     if (showSettings) {

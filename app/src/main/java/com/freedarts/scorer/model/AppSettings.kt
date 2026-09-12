@@ -29,6 +29,8 @@ data class AppSettings(
     /** Empfindlichkeit 0..100 (höher = kleinere Änderungen erkennen). */
     val lensSensitivity: Int = 50,
     val lensUseFrontCamera: Boolean = false,
+    /** Belichtungskorrektur (EV-Index der Kamera, 0 = Automatik). */
+    val lensExposure: Int = 0,
     /** Lens speichert erkannte Darts als Trainingsbilder + Labels (tools/finetune/). */
     val lensCaptureTraining: Boolean = false,
 

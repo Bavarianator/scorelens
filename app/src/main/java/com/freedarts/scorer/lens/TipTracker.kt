@@ -74,6 +74,7 @@ class TipTracker(private val detector: DartDetector) {
             previous
         }
         DartDetector.Event.Takeout -> { reset(); ev }
+        DartDetector.Event.Bounce -> { candidate = null; ev }
         DartDetector.Event.ReferenceUpdated -> { if (known.size < MAX_DARTS && candidate == null) afterReference = true; null }
         else -> null
     }

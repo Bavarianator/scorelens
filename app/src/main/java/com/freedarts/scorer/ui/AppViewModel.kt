@@ -42,6 +42,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -77,7 +78,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val caller = Caller(app)
     val board = BoardManagerClient(viewModelScope)
     val lens = LensController(app)
-    val remote = RemoteServer({ remoteState() }) { cmd -> viewModelScope.launch { when (cmd) { "undo" -> undo(); "next" -> nextPlayer() } } }
+    val remote = RemoteServer({ remoteState() }) { cmd -> viewModelScope.launch { when (cmd) { "undo" -> undo(); "next" -> nextPlayer(); else -> Segment.parse(cmd)?.let { s -> game?.let { g -> if (!g.finished && !g.players[g.current].isBot) throwDart(s) } } } } }
     private val _remoteUrl = MutableStateFlow<String?>(null)
     val remoteUrl: StateFlow<String?> = _remoteUrl
 
@@ -91,7 +92,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val players: StateFlow<List<Player>> = repo.players
     val settings: StateFlow<AppSettings> = repo.settings
     val matches: StateFlow<List<MatchRecord>> = repo.matches
-    val tournament: StateFlow<Tournament?> = repo.tournament
+    /** Laufendes Turnier: das der Online-Lobby (steht im Lobby-Datensatz) oder das lokale. */
+    val tournament: StateFlow<Tournament?> = kotlinx.coroutines.flow.combine(repo.tournament, online.lobby) { local, lobby -> lobby?.tournament ?: local }
+        .stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.Eagerly, repo.tournament.value)
+    /** Spiele starten und Turnier beenden darf lokal jeder, online nur der Host. */
+    val canRunTournament: Boolean get() = online.lobby.value?.tournament == null || online.isHost
     /** Index des laufenden Turnierspiels in [Tournament.matches]; null = normales Match. */
     private var tournamentMatch: Int? = null
     val inTournament: Boolean get() = tournamentMatch != null
@@ -401,7 +406,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun toggleLobbyPlayer(p: Player) {
         _lobbyPlayers.update { list -> if (list.any { it.id == p.id }) list.filter { it.id != p.id } else list + p }
     }
-    fun addBot(level: Int) { _lobbyPlayers.update { list -> list.filter { !it.isBot } + Player.bot(level) } }
+    fun addBot(level: Int) { _lobbyPlayers.update { list -> if (list.size >= 6) list else list + Player.bot(level, list.count { it.isBot } + 1) } }
     fun removeBot() { _lobbyPlayers.update { list -> list.filter { !it.isBot } } }
     fun moveLobbyPlayer(from: Int, to: Int) {
         _lobbyPlayers.update { list ->
@@ -440,15 +445,33 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         navigate(Screen.Tournament)
     }
 
+    /** Host: Turnier mit den Spielern der Online-Lobby; jedes Spiel ist ein Online-Match der beiden Beteiligten. */
+    fun startOnlineTournament(mode: TournamentMode) {
+        val l = online.lobby.value ?: return
+        val ps = l.sortedPlayers.map { Player(id = it.userId, name = it.name, color = it.color, avatar = it.avatar) }
+        if (ps.size < 2 || !online.isHost) return
+        online.setTournament(Tournament.create(mode, ps, l.settings))
+        navigate(Screen.Tournament)
+    }
+
     fun playTournamentMatch(index: Int) {
         val t = tournament.value ?: return
         val m = t.matches.getOrNull(index)?.takeIf { it.open } ?: return
+        if (online.lobby.value?.tournament != null) {
+            if (!online.isHost) return
+            tournamentMatch = index
+            online.startMatch(listOf(t.players[m.a!!].id, t.players[m.b!!].id))
+            return
+        }
         launchGame(listOf(t.players[m.a!!], t.players[m.b!!]), t.settings)
         tournamentMatch = index
         navigate(Screen.Match)
     }
 
-    fun endTournament() { repo.setTournament(null); tournamentMatch = null }
+    fun endTournament() {
+        if (online.lobby.value?.tournament != null) online.setTournament(null) else repo.setTournament(null)
+        tournamentMatch = null
+    }
 
     /** Nach Ergebnis oder Abbruch zurück zur Turnierübersicht. */
     private fun backToTournament() {
@@ -703,7 +726,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val ti = tournamentMatch; val t = tournament.value; val w = g.winner
         if (ti != null && t != null && w != null) {
             val tm = t.matches[ti]
-            repo.setTournament(t.withResult(ti, if (w == 0) tm.a!! else tm.b!!, stats[0].legsWon, stats[1].legsWon))
+            val result = t.withResult(ti, if (w == 0) tm.a!! else tm.b!!, stats[0].legsWon, stats[1].legsWon)
+            if (om != null) { online.setTournament(result); tournamentMatch = null } else repo.setTournament(result)
         }
         if (online.session.value != null && online.configured) online.saveMatch(record)
         _lastRecord.value = record
@@ -713,6 +737,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun finishToResult() {
         if (_lastRecord.value == null) recordMatch()
         navigate(Screen.Result)
+    }
+
+    /** Spieler und Verlauf als JSON in eine vom Nutzer gewählte Datei (Storage Access Framework). */
+    fun exportTo(uri: android.net.Uri) = viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+        runCatching { getApplication<Application>().contentResolver.openOutputStream(uri)?.use { it.write(repo.exportJson().toByteArray()) } }
     }
 
     // ---------- Board Manager ----------
@@ -746,6 +775,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun startLens(owner: LifecycleOwner) {
         lens.setSensitivity(settings.value.lensSensitivity)
         lens.training.enabled = settings.value.lensCaptureTraining
+        lens.useFrontCamera = settings.value.lensUseFrontCamera
+        lens.exposure = settings.value.lensExposure
         lens.onCalibrationChanged = { pts -> updateSettings { it.copy(lensCalibration = pts) } }
         lens.start(owner, null)
         updateSettings { it.copy(lensEnabled = true) }

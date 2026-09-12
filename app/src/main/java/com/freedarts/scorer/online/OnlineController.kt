@@ -378,19 +378,32 @@ class OnlineController(private val context: Context, private val repo: Repositor
         }
     }
 
+    /** Host: Turnier im Lobby-Datensatz setzen oder löschen; alle Clients sehen es über den Lobby-Kanal. */
+    fun setTournament(t: com.freedarts.scorer.model.Tournament?) = scope.launch {
+        val l = _lobby.value ?: return@launch
+        if (!isHost) return@launch
+        guarded {
+            ensureFresh()
+            val body = buildJsonObject { put("tournament", t?.let { SupabaseApi.json.encodeToJsonElement(com.freedarts.scorer.model.Tournament.serializer(), it) } ?: kotlinx.serialization.json.JsonNull) }.toString()
+            requireApi().update("lobbies", "id=eq.${l.id}", body)
+            refreshLobby()
+        }
+    }
+
     fun kick(userId: String) = scope.launch {
         val l = _lobby.value ?: return@launch
         if (!isHost || userId == myId) return@launch
         guarded { ensureFresh(); requireApi().delete("lobby_players", "lobby_id=eq.${l.id}&user_id=eq.$userId") }
     }
 
-    /** Host: Match starten. Spielerreihenfolge = Lobby-Reihenfolge. */
-    fun startMatch() = scope.launch {
+    /** Host: Match starten. Spielerreihenfolge = Lobby-Reihenfolge, oder [userIds] (Turnierspiel: nur die beiden). */
+    fun startMatch(userIds: List<String>? = null) = scope.launch {
         val l = _lobby.value ?: return@launch
         if (!isHost) return@launch
         guarded {
             ensureFresh()
-            val players = l.sortedPlayers.map { MatchPlayer(it.userId, it.name, it.color, it.avatar) }
+            val chosen = userIds?.mapNotNull { id -> l.players.firstOrNull { it.userId == id } } ?: l.sortedPlayers
+            val players = chosen.map { MatchPlayer(it.userId, it.name, it.color, it.avatar) }
             if (players.size < 2) throw OnlineException(0, "Mindestens zwei Spieler")
             val args = buildJsonObject {
                 put("p_lobby", l.id)

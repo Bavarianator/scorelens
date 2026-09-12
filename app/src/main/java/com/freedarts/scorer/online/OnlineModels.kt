@@ -61,6 +61,8 @@ data class Lobby(
     @SerialName("created_at") val createdAt: String = "",
     val host: Profile? = null,
     val players: List<LobbyPlayer> = emptyList(),
+    /** Laufendes Turnier der Lobby (Host schreibt, alle lesen); null = keins. */
+    val tournament: com.freedarts.scorer.model.Tournament? = null,
 ) {
     val sortedPlayers: List<LobbyPlayer> get() = players.sortedWith(compareBy({ it.position }, { it.joinedAt }))
     val isFull: Boolean get() = players.size >= maxPlayers

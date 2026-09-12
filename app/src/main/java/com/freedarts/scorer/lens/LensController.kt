@@ -73,6 +73,12 @@ class LensController(private val context: Context) {
         /** Mittlerer Kalibrierfehler in mm (null = unbekannt). */
         val calibResidualMm: Double? = null,
         val cameraSize: String = "",
+        /** Mittlere Helligkeit des Analysebilds 0..255 (Lichtwarnung). */
+        val brightness: Int = 0,
+        /** Belichtungskorrektur (EV-Index) und erlaubter Bereich der Kamera. */
+        val exposure: Int = 0,
+        val exposureRange: IntRange = 0..0,
+        val frontCamera: Boolean = false,
     )
 
     /**
@@ -81,7 +87,7 @@ class LensController(private val context: Context) {
      */
     data class Detection(val segment: Segment, val imageX: Float, val imageY: Float, val snapshot: Bitmap? = null, val tipX: Float = 0.5f, val tipY: Float = 0.5f)
     /** Erkannter Wurf mit Auftreffpunkt in Board-Millimetern (Mitte 0/0). */
-    data class Throw(val segment: Segment, val boardX: Float, val boardY: Float)
+    data class Throw(val segment: Segment, val boardX: Float? = null, val boardY: Float? = null)
 
     val detector = DartDetector(frameWidth, frameHeight)
     private val finder = BoardFinder(frameWidth, frameHeight)
@@ -128,7 +134,11 @@ class LensController(private val context: Context) {
     private var fpsWindowStart = 0L
     private var fpsCache = 0
     @Volatile private var pendingReference = false
-    @Volatile var paused = false
+    @Volatile var useFrontCamera = false
+    var exposure = 0
+        set(v) { field = v; applyExposure(); publish() }
+    private var brightness = 0
+    private var lastPreview: PreviewView? = null
 
     @Volatile private var setup = Setup.OFF
     @Volatile private var autoCalibrate = true
@@ -203,6 +213,18 @@ class LensController(private val context: Context) {
 
     fun requestReference() { pendingReference = true }
 
+    fun setFrontCamera(on: Boolean) {
+        useFrontCamera = on
+        if (provider != null) bind(lastPreview)
+    }
+
+    private fun applyExposure() {
+        val cam = camera ?: return
+        val st = cam.cameraInfo.exposureState
+        if (!st.isExposureCompensationSupported) return
+        runCatching { cam.cameraControl.setExposureCompensationIndex(exposure.coerceIn(st.exposureCompensationRange.lower, st.exposureCompensationRange.upper)) }
+    }
+
     fun setTorch(on: Boolean) {
         torchOn = on
         camera?.cameraControl?.enableTorch(on)
@@ -238,6 +260,7 @@ class LensController(private val context: Context) {
     private fun bind(previewView: PreviewView?) {
         val p = provider ?: return
         val owner = lifecycleOwner ?: return
+        lastPreview = previewView
         p.unbindAll()
         val selector = ResolutionSelector.Builder()
             .setAspectRatioStrategy(AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY)
@@ -261,8 +284,9 @@ class LensController(private val context: Context) {
             useCases.add(pv)
         } else preview = null
         try {
-            camera = p.bindToLifecycle(owner, CameraSelector.DEFAULT_BACK_CAMERA, *useCases.toTypedArray())
+            camera = p.bindToLifecycle(owner, if (useFrontCamera) CameraSelector.DEFAULT_FRONT_CAMERA else CameraSelector.DEFAULT_BACK_CAMERA, *useCases.toTypedArray())
             if (torchOn) camera?.cameraControl?.enableTorch(true)
+            applyExposure()
             lockCamera(setup == Setup.READY)
             publish()
         } catch (e: Exception) {
@@ -307,6 +331,8 @@ class LensController(private val context: Context) {
             val wantColor = autoCalibrate && (setup == Setup.SEARCHING || (setup == Setup.READY && now - lastFinderTime > 4000 && idleStill))
             val (gray, rgb) = frames.scaled(img, wantColor)
             lastFrame = gray
+            // ponytail: Helligkeit = Mittel jedes 61. Pixels; Gegenlicht/Teilschatten bräuchten eine Verteilung
+            if (frameCounter % 8 == 0) { var s = 0L; var i = 0; while (i < gray.size) { s += gray[i].toInt() and 0xFF; i += 61 }; brightness = (s / (gray.size / 61 + 1)).toInt() }
             System.arraycopy(gray, 0, recent[recentIdx], 0, gray.size); recentIdx = (recentIdx + 1) % recent.size; recentCount = min(recentCount + 1, recent.size)
 
             if (pendingReference) { pendingReference = false; setReferenceAveraged(gray) }
@@ -314,7 +340,6 @@ class LensController(private val context: Context) {
                 lastFinderTime = now
                 calibrateFromFrame(img, rgb, gray)
             }
-            if (paused) { publish(); return }
 
             var ev = detector.process(gray)
 
@@ -351,7 +376,9 @@ class LensController(private val context: Context) {
                 _throws.tryEmit(Throw(ev.segment, ev.boardX.toFloat(), ev.boardY.toFloat()))
             }
             DartDetector.Event.Takeout -> { _detections.value = emptyList(); tips.reset(); _takeout.tryEmit(Unit) }
-            DartDetector.Event.ReferenceUpdated, DartDetector.Event.Bounce, null -> {}
+            // Bounce-Out: Dart war kurz da und ist wieder weg – zählt als Miss (0 Punkte)
+            DartDetector.Event.Bounce -> _throws.tryEmit(Throw(Segment.MISS))
+            DartDetector.Event.ReferenceUpdated, null -> {}
         }
     }
 
@@ -490,7 +517,6 @@ class LensController(private val context: Context) {
         val quality = when {
             partial -> BoardFinder.Quality.PARTIAL
             ell.a > 0 && maxOf(ell.a, ell.b) < 0.2 * minOf(frameWidth, frameHeight) -> BoardFinder.Quality.TOO_SMALL
-            ell.a > 0 && BoardFinder.skewQuality(ell.axisRatio) != null -> BoardFinder.skewQuality(ell.axisRatio)!!
             else -> BoardFinder.Quality.GOOD
         }
         return BoardFinder.Fit(b2i, inv, pts, ell, 2.0, 1.0, quality, hypot(ex - cx, ey - cy))
@@ -541,8 +567,8 @@ class LensController(private val context: Context) {
             dartsOnBoard = detector.dartsOnBoard,
             changeFraction = detector.lastChangeFraction,
             fps = fpsCache,
-            message = LensMessages.status(isRunning, setup, paused, tips.checking, detector.phase, detector.dartsOnBoard),
-            guidance = LensMessages.guidance(setup, fit, yolo.available),
+            message = LensMessages.status(isRunning, setup, tips.checking, detector.phase, detector.dartsOnBoard),
+            guidance = LensMessages.guidance(setup, fit, yolo.available, brightness),
             quality = fit?.quality,
             ellipse = fit?.ellipse?.takeIf { it.a > 0 },
             torch = torchOn,
@@ -554,6 +580,10 @@ class LensController(private val context: Context) {
             aiInput = yolo.inputSize,
             calibResidualMm = calibResidual,
             cameraSize = if (cameraW > 0) "${cameraW}×${cameraH}" else "",
+            brightness = brightness,
+            exposure = exposure,
+            exposureRange = camera?.cameraInfo?.exposureState?.takeIf { it.isExposureCompensationSupported }?.exposureCompensationRange?.let { it.lower..it.upper } ?: 0..0,
+            frontCamera = useFrontCamera,
         )
     }
 }

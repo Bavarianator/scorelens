@@ -43,6 +43,11 @@ class Repository private constructor(context: Context) {
     private val _tournament = MutableStateFlow(load("tournament.json", Tournament.serializer()))
     val tournament: StateFlow<Tournament?> = _tournament
 
+    /** Export: Spieler + Verlauf (ohne Einstellungen, die enthalten Schlüssel). */
+    @kotlinx.serialization.Serializable
+    data class Backup(val players: List<Player>, val matches: List<MatchRecord>, val exportedAt: Long = System.currentTimeMillis())
+    fun exportJson(): String = json.encodeToString(Backup.serializer(), Backup(_players.value, _matches.value))
+
     fun setTournament(t: Tournament?) {
         _tournament.value = t
         if (t == null) scope.launch { File(dir, "tournament.json").delete() } else save("tournament.json", Tournament.serializer(), t)

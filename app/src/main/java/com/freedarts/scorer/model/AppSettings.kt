@@ -63,4 +63,6 @@ data class AppSettings(
     /** Zuletzt verwendete Lobby (für "Sofort spielen"). */
     val lastGameSettings: GameSettings = GameSettings(),
     val lastPlayerIds: List<String> = emptyList(),
+    /** Letzte lokale Änderung an Einstellungen oder Spielern (epoch ms), für den Cloud-Abgleich. */
+    val changedAt: Long = 0,
 )

@@ -758,6 +758,25 @@ class OnlineController(private val context: Context, private val repo: Repositor
         return SupabaseApi.json.decodeFromString(ListSerializer(SavedMatch.serializer()), a.select("saved_matches", q)).map { it.record }
     }
 
+    @kotlinx.serialization.Serializable
+    data class UserData(val settings: kotlinx.serialization.json.JsonElement, val players: kotlinx.serialization.json.JsonElement, @kotlinx.serialization.SerialName("updated_at") val updatedAt: Long)
+
+    /** Einstellungen und Spielerliste des Kontos (Tabelle user_data), null = noch nichts gesichert. */
+    suspend fun pullUserData(): UserData? {
+        ensureFresh()
+        val me = myId ?: return null
+        return SupabaseApi.json.decodeFromString(ListSerializer(UserData.serializer()), requireApi().select("user_data", "user_id=eq.$me&select=settings,players,updated_at")).firstOrNull()
+    }
+
+    fun pushUserData(d: UserData) = scope.launch {
+        val me = myId ?: return@launch
+        runCatching {
+            ensureFresh()
+            val body = buildJsonObject { put("user_id", me); put("settings", d.settings); put("players", d.players); put("updated_at", d.updatedAt) }
+            requireApi().upsert("user_data", body.toString())
+        }
+    }
+
     /** Verlauf auch in der Cloud löschen (Nutzer hat "Verlauf löschen" gewählt). */
     fun deleteAllMatches() = scope.launch { val me = myId ?: return@launch; runCatching { ensureFresh(); requireApi().delete("saved_matches", "user_id=eq.$me") } }
 

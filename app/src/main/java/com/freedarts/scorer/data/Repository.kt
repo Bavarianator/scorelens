@@ -70,9 +70,15 @@ class Repository private constructor(context: Context) {
     fun removePlayer(id: String) { _players.update { list -> list.filter { it.id != id } }; persistPlayers() }
 
     fun updateSettings(transform: (AppSettings) -> AppSettings) {
-        _settings.update(transform)
+        _settings.update { transform(it).copy(changedAt = System.currentTimeMillis()) }
         save("settings.json", AppSettings.serializer(), _settings.value)
     }
+
+    /** Einstellungen aus der Cloud übernehmen (changedAt kommt vom Server, nicht von jetzt). */
+    fun setSettingsFromCloud(s: AppSettings) { _settings.value = s; save("settings.json", AppSettings.serializer(), s) }
+
+    /** Spielerliste aus der Cloud übernehmen (ohne changedAt zu bewegen). */
+    fun replacePlayers(list: List<Player>) { _players.value = list; save("players.json", ListSerializer(Player.serializer()), list) }
 
     fun addMatch(record: MatchRecord) {
         _matches.update { (it + record).takeLast(500) }
@@ -93,7 +99,7 @@ class Repository private constructor(context: Context) {
         save("matches.json", ListSerializer(MatchRecord.serializer()), emptyList())
     }
 
-    private fun persistPlayers() = save("players.json", ListSerializer(Player.serializer()), _players.value)
+    private fun persistPlayers() { save("players.json", ListSerializer(Player.serializer()), _players.value); updateSettings { it } }
 
     private fun <T> load(name: String, serializer: kotlinx.serialization.KSerializer<T>): T? = try {
         val f = File(dir, name)

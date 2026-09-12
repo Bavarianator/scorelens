@@ -39,11 +39,14 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.serialization.json.encodeToJsonElement
+import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -149,7 +152,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         online.configure(s.onlineUrl.ifBlank { BuildConfig.SUPABASE_URL }, s.onlineAnonKey.ifBlank { BuildConfig.SUPABASE_ANON_KEY })
         // Verlauf mit der Cloud abgleichen, sobald ein Konto angemeldet ist (auch nach Gerätewechsel)
         viewModelScope.launch {
-            online.session.map { it?.userId }.distinctUntilChanged().collect { if (it != null && online.configured) syncHistory() }
+            online.session.map { it?.userId }.distinctUntilChanged().collect { if (it != null && online.configured) { syncHistory(); syncUserData() } }
+        }
+        // Einstellungen/Spieler bei Änderung in die Cloud (3 s gesammelt), solange ein Konto angemeldet ist
+        viewModelScope.launch {
+            combine(settings, players) { s, p -> s to p }.collectLatest { (s, p) ->
+                if (online.session.value == null || !online.configured || s.changedAt == 0L) return@collectLatest
+                delay(3_000)
+                online.pushUserData(userData(s, p))
+            }
         }
         online.onMatchStarted = { m, events -> startOnlineGame(m, events) }
         online.onResync = { m, events -> if (onlineMatch?.id == m.id) rebuildOnlineGame(m, events) }
@@ -174,6 +185,32 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** Lokalen Verlauf hochladen und fehlende Matches vom Konto holen. */
     fun syncHistory() = viewModelScope.launch {
         runCatching { repo.mergeMatches(online.syncMatches(matches.value)) }.onFailure { online.error.value = it.message }
+    }
+
+    private fun userData(s: AppSettings, p: List<Player>) = OnlineController.UserData(
+        settings = com.freedarts.scorer.online.SupabaseApi.json.encodeToJsonElement(AppSettings.serializer(), s),
+        players = com.freedarts.scorer.online.SupabaseApi.json.encodeToJsonElement(kotlinx.serialization.builtins.ListSerializer(Player.serializer()), p),
+        updatedAt = s.changedAt,
+    )
+
+    /** Einstellungen und Spieler mit dem Konto abgleichen: neuere Seite gewinnt; gerätespezifische Felder bleiben lokal. */
+    fun syncUserData() = viewModelScope.launch {
+        runCatching {
+            val remote = online.pullUserData()
+            val local = settings.value
+            if (remote == null || remote.updatedAt <= local.changedAt) { online.pushUserData(userData(local, players.value)); return@launch }
+            val json = com.freedarts.scorer.online.SupabaseApi.json
+            val r = json.decodeFromJsonElement(AppSettings.serializer(), remote.settings)
+            val l = local
+            repo.setSettingsFromCloud(r.copy(
+                lensEnabled = l.lensEnabled, lensCalibration = l.lensCalibration, lensSensitivity = l.lensSensitivity, lensUseFrontCamera = l.lensUseFrontCamera,
+                lensExposure = l.lensExposure, lensCaptureTraining = l.lensCaptureTraining, boardManagerEnabled = l.boardManagerEnabled, boardManagerHost = l.boardManagerHost,
+                boardManagerPort = l.boardManagerPort, remoteEnabled = l.remoteEnabled, remotePairedUrl = l.remotePairedUrl, onlineUrl = l.onlineUrl, onlineAnonKey = l.onlineAnonKey,
+                onlinePkceVerifier = l.onlinePkceVerifier, onboardingDone = l.onboardingDone, changedAt = remote.updatedAt,
+            ))
+            val ps = json.decodeFromJsonElement(kotlinx.serialization.builtins.ListSerializer(Player.serializer()), remote.players)
+            if (ps.isNotEmpty()) repo.replacePlayers(ps)
+        }.onFailure { online.error.value = it.message }
     }
 
     fun setOnlineServer(url: String, anonKey: String) {

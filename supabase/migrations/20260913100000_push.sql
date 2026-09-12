@@ -1,5 +1,6 @@
 -- Scorelens Online – FCM-Tokens für Push-Mitteilungen bei geschlossener App (Einladungen, Freundschaftsanfragen).
--- Der Versand läuft nicht in der Datenbank, sondern im Relay unter push/ (beobachtet invites/friendships per Realtime).
+-- Der Versand läuft nicht in der Datenbank: auf supabase.com per Edge Function functions/push (Database-Webhook auf
+-- invites/friendships), im selfhost-Stack im Relay unter push/ (beobachtet dieselben Tabellen per Realtime).
 -- Idempotent wie die anderen Migrationen.
 
 create table if not exists public.push_tokens (

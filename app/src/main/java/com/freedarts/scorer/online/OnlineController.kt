@@ -199,6 +199,16 @@ class OnlineController(private val context: Context, private val repo: Repositor
         return try { a.user() } catch (_: Exception) { null } finally { a.accessToken = old }
     }
 
+    /** Top-Liste nach Online-Average (View leaderboard); Spalten passen auf [Profile]. */
+    val leaderboard = MutableStateFlow<List<Profile>>(emptyList())
+
+    fun loadLeaderboard() = scope.launch {
+        runCatching {
+            ensureFresh()
+            leaderboard.value = SupabaseApi.json.decodeFromString(ListSerializer(Profile.serializer()), requireApi().select("leaderboard", "select=*&limit=25"))
+        }
+    }
+
     suspend fun loadProfile() {
         val id = myId ?: return
         val text = requireApi().select("profiles", "id=eq.$id&select=*")

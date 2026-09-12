@@ -1,4 +1,21 @@
-# Scorelens Push-Relay
+# Scorelens Push
+
+Schickt eine Mitteilung aufs Handy, wenn die App zu ist: Lobby-Einladung oder Freundschaftsanfrage. Zwei Wege:
+
+## supabase.com: Edge Function (kein eigener Prozess)
+
+`supabase/functions/push/index.ts` wird per Database-Webhook aufgerufen und sendet über FCM an die Tokens aus `push_tokens`.
+
+```sh
+supabase secrets set FIREBASE_SERVICE_ACCOUNT="$(cat firebase-service-account.json)"
+supabase functions deploy push
+```
+
+Dann im Dashboard → Database → Webhooks zwei Webhooks anlegen: Tabelle `invites` Event `INSERT` und Tabelle `friendships`
+Event `INSERT`, Typ „Supabase Edge Function“ → `push`, HTTP-Header `Authorization: Bearer <service_role-Key>`.
+Die Function lehnt alles ohne service_role ab (403), damit niemand mit dem Anon-Key Pushs auslösen kann.
+
+## Selfhost: Relay (Node)
 
 Schickt eine Mitteilung aufs Handy, wenn die App zu ist: Lobby-Einladung oder Freundschaftsanfrage. Beobachtet
 `invites` und `friendships` per Realtime (service_role) und sendet über Firebase Cloud Messaging an die Tokens aus

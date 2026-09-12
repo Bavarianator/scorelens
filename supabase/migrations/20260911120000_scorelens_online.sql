@@ -307,8 +307,7 @@ begin
   if me is null then
     raise exception 'Nicht angemeldet' using errcode = '42501';
   end if;
-  delete from public.lobbies where status <> 'running' and updated_at < now() - interval '1 day';
-  delete from public.lobbies where status = 'running' and updated_at < now() - interval '3 days';
+  -- Alte Lobbys räumt der Cron-Job public.cleanup() auf (Migration …_leaderboard_cleanup.sql)
   -- Eigene alte Lobbys schließen (ein Host, eine Lobby)
   delete from public.lobbies where host_id = me;
   loop

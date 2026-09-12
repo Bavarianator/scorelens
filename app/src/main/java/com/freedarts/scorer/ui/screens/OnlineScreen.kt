@@ -58,6 +58,7 @@ import com.freedarts.scorer.model.GameSettings
 import com.freedarts.scorer.model.Player
 import com.freedarts.scorer.online.Lobby
 import com.freedarts.scorer.online.OnlineController
+import com.freedarts.scorer.online.Profile
 import com.freedarts.scorer.online.RealtimeClient
 import com.freedarts.scorer.ui.AppViewModel
 import com.freedarts.scorer.ui.components.AdCard
@@ -100,6 +101,8 @@ fun OnlineScreen(vm: AppViewModel) {
 
     val loggedIn = session != null && online.configured
     LaunchedEffect(loggedIn) { if (loggedIn && profile == null) runCatching { online.loadProfile() } }
+    LaunchedEffect(loggedIn) { if (loggedIn) online.loadLeaderboard() }
+    val leaderboard by online.leaderboard.collectAsStateWithLifecycle()
     // Push bei geschlossener App (Einladungen, Freundschaftsanfragen) braucht ab Android 13 die Erlaubnis für Mitteilungen.
     val notifications = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
     LaunchedEffect(loggedIn) { if (loggedIn && android.os.Build.VERSION.SDK_INT >= 33) notifications.launch(android.Manifest.permission.POST_NOTIFICATIONS) }
@@ -205,6 +208,12 @@ fun OnlineScreen(vm: AppViewModel) {
                         if (l.status == "running") LobbyRow(l, enabled = !busy && l.currentMatchId != null) { vm.spectate(l) }
                         else LobbyRow(l, enabled = !busy && !l.isFull) { online.joinByCode(l.code); vm.openOnlineLobby() }
                     }
+
+                    SectionLabel("Rangliste")
+                    if (leaderboard.isEmpty()) AdCard { Text("Noch keine gewerteten Online-Matches.", color = DartColors.TextMuted) }
+                    else AdCard(padding = 8) {
+                        leaderboard.forEachIndexed { i, p -> LeaderboardRow(i + 1, p, mine = p.id == profile?.id) }
+                    }
                 }
             }
             Spacer(Modifier.height(24.dp))
@@ -249,6 +258,24 @@ fun OnlineScreen(vm: AppViewModel) {
             confirmButton = { TextButton(onClick = { online.updateProfile(name, color); showProfile = false }, enabled = name.isNotBlank()) { Text("Speichern") } },
             dismissButton = { TextButton(onClick = { showProfile = false }) { Text("Abbrechen") } },
         )
+    }
+}
+
+@Composable
+private fun LeaderboardRow(rank: Int, p: Profile, mine: Boolean) {
+    Row(
+        Modifier.fillMaxWidth().background(if (mine) DartColors.SurfaceHigh else Color.Transparent, RoundedCornerShape(10.dp)).padding(horizontal = 8.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text("$rank", fontWeight = FontWeight.Bold, color = if (rank <= 3) DartColors.Accent else DartColors.TextMuted, modifier = Modifier.width(28.dp))
+        Avatar(Player(id = p.id, name = p.name, color = p.color, avatar = p.avatar), 32)
+        Spacer(Modifier.width(8.dp))
+        Column(Modifier.weight(1f)) {
+            val (lvl, bg, fg) = levelOf(p.avg)
+            NameRibbon(p.name, lvl, bg, fg, fontSize = 13)
+            Text("${p.matches} Matches · %.0f%% Siege".format(p.winRate), color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
+        }
+        Text("%.1f".format(p.avg), fontFamily = Condensed, fontWeight = FontWeight.Bold, fontSize = 20.sp)
     }
 }
 

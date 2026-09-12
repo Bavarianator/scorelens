@@ -136,8 +136,6 @@ class OnlineController(private val context: Context, private val repo: Repositor
         connectUserChannel()
     }
 
-    fun signUp(email: String, password: String, name: String) = scope.launch { guarded { afterLogin(requireApi().signUp(email, password, name)) } }
-    fun signIn(email: String, password: String) = scope.launch { guarded { afterLogin(requireApi().signInWithPassword(email, password)) } }
     fun signInAsGuest(name: String) = scope.launch { guarded { afterLogin(requireApi().signInAnonymously(name)) } }
 
     fun signOut() = scope.launch {

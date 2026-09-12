@@ -50,7 +50,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -142,7 +141,7 @@ fun OnlineScreen(vm: AppViewModel) {
                         OnlineServerFields(vm)
                     }
                 }
-                session == null -> LoginCard(online)
+                session == null -> LoginCard(vm)
                 else -> {
                     // Profil
                     val p = profile
@@ -284,35 +283,20 @@ private fun LobbyRow(l: Lobby, enabled: Boolean, onJoin: () -> Unit) {
 }
 
 @Composable
-private fun LoginCard(online: OnlineController) {
-    var name by remember { mutableStateOf("") }
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var register by remember { mutableStateOf(false) }
+private fun LoginCard(vm: AppViewModel) {
+    val online = vm.online
+    val players by vm.players.collectAsStateWithLifecycle()
+    val busy by online.busy.collectAsStateWithLifecycle()
     AdCard {
-        Text(if (register) "KONTO ERSTELLEN" else "ANMELDEN", style = MaterialTheme.typography.headlineSmall)
-        Text("Mit Konto spielst du online gegen andere, deine Online-Statistik bleibt erhalten.", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
-        Spacer(Modifier.height(8.dp))
-        // Supabase OAuth (Anbieter müssen im Projekt bzw. in selfhost/.env aktiviert sein)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OnlineController.PROVIDERS.forEach { (id, label) -> SecondaryButton(label, Modifier.weight(1f)) { online.beginOAuth(id) } }
-        }
-        Text("Anmeldung im Browser über Supabase OAuth; danach geht es automatisch in der App weiter.", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
+        Text("ONLINE SPIELEN", style = MaterialTheme.typography.headlineSmall)
+        Text("Ein Tap, und du spielst gegen andere. Deine Online-Statistik bleibt erhalten.", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
         Spacer(Modifier.height(10.dp))
-        if (register) OutlinedTextField(value = name, onValueChange = { name = it.take(32) }, label = { Text("Anzeigename") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("E-Mail") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email))
-        OutlinedTextField(value = password, onValueChange = { password = it }, label = { Text("Passwort") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
-            visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password))
-        Spacer(Modifier.height(8.dp))
-        val valid = email.contains("@") && password.length >= 6 && (!register || name.isNotBlank())
-        PrimaryButton(if (register) "Konto erstellen" else "Anmelden", Modifier.fillMaxWidth(), enabled = valid) {
-            if (register) online.signUp(email, password, name) else online.signIn(email, password)
+        // Supabase OAuth im Browser; Anbieter müssen im Projekt bzw. in selfhost/.env aktiviert sein
+        OnlineController.PROVIDERS.forEach { (id, label) ->
+            PrimaryButton("Mit $label anmelden", Modifier.fillMaxWidth(), enabled = !busy) { online.beginOAuth(id) }
+            Spacer(Modifier.height(8.dp))
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = { register = !register }) { Text(if (register) "Ich habe schon ein Konto" else "Neues Konto erstellen") }
-            TextButton(onClick = { online.signInAsGuest(name.ifBlank { "Gast" }) }) { Text("Als Gast spielen") }
-        }
+        SecondaryButton("Als Gast spielen", Modifier.fillMaxWidth(), enabled = !busy) { online.signInAsGuest(players.firstOrNull { !it.isBot }?.name ?: "Gast") }
     }
 }
 

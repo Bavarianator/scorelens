@@ -14,6 +14,9 @@ FREEZE, PATIENCE, NAME = int(os.environ.get("FREEZE", 0)), int(os.environ.get("P
 # Feintuning-Regler: kleinere Lernrate + Cosinus-Abklingen bei freiem Backbone; D2 (schräg) doppelt im Training
 LR0, COS_LR, D2_WEIGHT = float(os.environ.get("LR0", 0.0015)), os.environ.get("COS_LR", "0") == "1", int(os.environ.get("D2_WEIGHT", 1))
 subprocess.run([sys.executable, "-m", "pip", "install", "-q", "ultralytics>=8.3,<9"], check=True)
+import torch  # noqa: E402
+assert torch.cuda.is_available(), "Keine CUDA-GPU – Kernel mit machine_shape NvidiaTeslaT4 pushen (tools/finetune/kaggle/push.sh)"
+print("GPU:", torch.cuda.get_device_name(0), flush=True)
 from ultralytics import YOLO  # noqa: E402
 
 work = Path("/kaggle/working"); out = work / NAME; out.mkdir(parents=True, exist_ok=True)

@@ -11,6 +11,8 @@ from pathlib import Path
 
 EPOCHS, BATCH, IMGSZ = int(os.environ.get("EPOCHS", 30)), int(os.environ.get("BATCH", 16)), int(os.environ.get("IMGSZ", 800))
 FREEZE, PATIENCE, NAME = int(os.environ.get("FREEZE", 0)), int(os.environ.get("PATIENCE", 8)), os.environ.get("NAME", "kg1")
+# Feintuning-Regler: kleinere Lernrate + Cosinus-Abklingen bei freiem Backbone; D2 (schräg) doppelt im Training
+LR0, COS_LR, D2_WEIGHT = float(os.environ.get("LR0", 0.0015)), os.environ.get("COS_LR", "0") == "1", int(os.environ.get("D2_WEIGHT", 1))
 subprocess.run([sys.executable, "-m", "pip", "install", "-q", "ultralytics>=8.3,<9"], check=True)
 from ultralytics import YOLO  # noqa: E402
 
@@ -26,6 +28,12 @@ data_dir = Path("/kaggle/tmp") / DATA
 base = hf_hub_download(REPO, "base.pt", repo_type="dataset", local_dir="/kaggle/tmp")
 yaml_path = work / "data.yaml"
 yaml_path.write_text((data_dir / "data.yaml").read_text().replace("path: .", f"path: {data_dir}"))
+if D2_WEIGHT > 1:  # seltene, relevante Bilder öfter zeigen: D2-Originale und ihre Schrägsichten (D2_WEIGHT-1)-mal kopieren
+    for img in list((data_dir / "images/train").glob("dd_d2*")):
+        lab = data_dir / "labels/train" / (img.stem + ".txt")
+        for k in range(1, D2_WEIGHT):
+            shutil.copy(img, img.with_name(f"{img.stem}_x{k}{img.suffix}"))
+            if lab.exists(): shutil.copy(lab, lab.with_name(f"{img.stem}_x{k}.txt"))
 n_train = len(list((data_dir / "images/train").glob("*"))); n_val = len(list((data_dir / "images/val").glob("*")))
 print(f"Datensatz: {n_train} train / {n_val} val", flush=True)
 
@@ -57,7 +65,7 @@ def evaluate(weights):
 
 
 baseline = evaluate(base); print("Baseline:", json.dumps(baseline), flush=True)
-hp = dict(lr0=0.0015, lrf=0.01, momentum=0.90098, weight_decay=0.00038, warmup_epochs=1.0, warmup_momentum=0.43,
+hp = dict(lr0=LR0, lrf=0.01, cos_lr=COS_LR, momentum=0.90098, weight_decay=0.00038, warmup_epochs=1.0, warmup_momentum=0.43,
           box=2.99452, cls=0.30763, dfl=1.53753, hsv_h=0.00695, hsv_s=0.45949, hsv_v=0.24372, degrees=15.58584,
           translate=0.10067, scale=0.2181, shear=0.0, perspective=0.0, flipud=0.0, fliplr=0.0, mosaic=0.6, mixup=0.0)
 t0 = time.time()
@@ -68,7 +76,7 @@ print(f"Training fertig nach {(time.time() - t0) / 60:.1f} min", flush=True)
 run = Path(model.trainer.save_dir)
 best = run / "weights/best.pt" if (run / "weights/best.pt").exists() else run / "weights/last.pt"
 result = evaluate(str(best))
-metrics = dict(name=NAME, data=DATA, epochs=EPOCHS, imgsz=IMGSZ, freeze=FREEZE, train_images=n_train, val_images=n_val, baseline=baseline, result=result,
+metrics = dict(name=NAME, data=DATA, epochs=EPOCHS, imgsz=IMGSZ, freeze=FREEZE, lr0=LR0, cos_lr=COS_LR, d2_weight=D2_WEIGHT, train_images=n_train, val_images=n_val, baseline=baseline, result=result,
                better=result["tip_recall_10px"] >= baseline["tip_recall_10px"] and result["tip_precision_10px"] >= baseline["tip_precision_10px"])
 print(json.dumps(metrics, indent=1), flush=True)
 shutil.copy(best, out / "best.pt")

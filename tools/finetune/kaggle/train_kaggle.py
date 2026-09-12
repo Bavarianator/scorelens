@@ -27,13 +27,21 @@ from huggingface_hub import hf_hub_download  # noqa: E402
 import zipfile  # noqa: E402
 import glob  # noqa: E402
 found = glob.glob(f"/kaggle/input/**/{DATA}/data.yaml", recursive=True)  # Datensatz aus einem Build-Kernel (kernel_sources)
+zips = glob.glob(f"/kaggle/input/**/{DATA}.zip", recursive=True)
+print("Eingänge:", sorted(str(p) for p in Path("/kaggle/input").glob("*/*"))[:20], flush=True)
 if found:
     data_dir = Path(found[0]).parent; print("Datensatz aus Kernel-Output:", data_dir, flush=True)
+elif zips:
+    with zipfile.ZipFile(zips[0]) as zf: zf.extractall("/kaggle/tmp")
+    data_dir = Path("/kaggle/tmp") / DATA; print("Datensatz aus Kernel-Zip:", zips[0], flush=True)
+    for hz in glob.glob("/kaggle/input/**/val_hard.zip", recursive=True):
+        with zipfile.ZipFile(hz) as zf: zf.extractall("/kaggle/tmp")
 else:
     z = hf_hub_download(REPO, DATA + ".zip", repo_type="dataset", local_dir="/kaggle/tmp")
     with zipfile.ZipFile(z) as zf: zf.extractall("/kaggle/tmp")
     data_dir = Path("/kaggle/tmp") / DATA
-hard_dir = next((Path(p).parent for p in glob.glob("/kaggle/input/**/val_hard/data.yaml", recursive=True)), None)
+hard_dir = next((Path(p).parent for p in glob.glob("/kaggle/input/**/val_hard/data.yaml", recursive=True) + glob.glob("/kaggle/tmp/val_hard/data.yaml")), None)
+print("val_hard:", hard_dir, flush=True)
 BASE_RUN = os.environ.get("BASE_RUN", "")  # z. B. kg_dd4: Warmstart aus dem Output des Kernels in kernel_sources; Baseline = dieses Modell
 base = glob.glob(f"/kaggle/input/**/{BASE_RUN}/best.pt", recursive=True)[0] if BASE_RUN else hf_hub_download(REPO, "base.pt", repo_type="dataset", local_dir="/kaggle/tmp")
 print("Startgewichte:", base, flush=True)

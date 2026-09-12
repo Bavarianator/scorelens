@@ -49,23 +49,29 @@ class Caller(context: Context) {
     /** Laufende und wartende Ansagen abbrechen (Match beendet oder verlassen). */
     fun stop() { tts?.stop(); pending.clear(); clip?.release(); clip = null }
 
-    /** 180-Ruf („One hundred and eighty“, Russ Bray) von myinstants.com/media/sounds/180-russ-bray.mp3 – keine freie Lizenz, nur privat nutzen. */
-    private fun playOneEighty() {
+    /**
+     * Clip abspielen; TTS-Ansagen warten in [pending], bis er fertig ist (keine Überschneidung). Quellen myinstants.com,
+     * keine freie Lizenz, nur privat: one_eighty = 180-russ-bray.mp3; zero_1..6 = Drachenlord (was-zitterstn-so, so-idiet,
+     * halt-dein-mauuul, das-ist-geil, warum-liegd-da-ne-wurst, etzella).
+     */
+    private fun playClip(res: Int, fallback: String) {
         clip?.release()
         val attrs = AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_GAME).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build()
-        clip = MediaPlayer.create(ctx, R.raw.one_eighty, attrs, 0)?.apply {
+        clip = MediaPlayer.create(ctx, res, attrs, 0)?.apply {
             setOnCompletionListener {
                 it.release(); clip = null
                 while (pending.isNotEmpty()) pending.removeFirst().let { (t, f) -> say(t, f) }
             }
             start()
-        } ?: run { say("Einhundertachtzig!"); null }
+        } ?: run { say(fallback); null }
     }
+
+    private val zeroClips = listOf(R.raw.zero_1, R.raw.zero_2, R.raw.zero_3, R.raw.zero_4, R.raw.zero_5, R.raw.zero_6)
 
     fun callScore(score: Int) {
         when (score) {
-            180 -> if (soundEffects) playOneEighty() else say("Einhundertachtzig!")
-            0 -> say("Keine Punkte")
+            180 -> if (soundEffects) playClip(R.raw.one_eighty, "Einhundertachtzig!") else say("Einhundertachtzig!")
+            0 -> if (soundEffects) playClip(zeroClips.random(), "Keine Punkte") else say("Keine Punkte")
             else -> say(score.toString())
         }
     }

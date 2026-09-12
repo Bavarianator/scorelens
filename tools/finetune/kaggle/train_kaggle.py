@@ -22,11 +22,16 @@ DATA, REPO = os.environ.get("DATA", "data2"), os.environ.get("DATASET_REPO", "Ba
 subprocess.run([sys.executable, "-m", "pip", "install", "-q", "huggingface_hub"], check=True)
 from huggingface_hub import hf_hub_download  # noqa: E402
 import zipfile  # noqa: E402
-z = hf_hub_download(REPO, DATA + ".zip", repo_type="dataset", local_dir="/kaggle/tmp")
-with zipfile.ZipFile(z) as zf: zf.extractall("/kaggle/tmp")
-data_dir = Path("/kaggle/tmp") / DATA
-BASE_RUN = os.environ.get("BASE_RUN", "")  # z. B. kg_dd4: Warmstart aus dem Output des Kernels in kernel_sources; Baseline = dieses Modell
 import glob  # noqa: E402
+found = glob.glob(f"/kaggle/input/**/{DATA}/data.yaml", recursive=True)  # Datensatz aus einem Build-Kernel (kernel_sources)
+if found:
+    data_dir = Path(found[0]).parent; print("Datensatz aus Kernel-Output:", data_dir, flush=True)
+else:
+    z = hf_hub_download(REPO, DATA + ".zip", repo_type="dataset", local_dir="/kaggle/tmp")
+    with zipfile.ZipFile(z) as zf: zf.extractall("/kaggle/tmp")
+    data_dir = Path("/kaggle/tmp") / DATA
+hard_dir = next((Path(p).parent for p in glob.glob("/kaggle/input/**/val_hard/data.yaml", recursive=True)), None)
+BASE_RUN = os.environ.get("BASE_RUN", "")  # z. B. kg_dd4: Warmstart aus dem Output des Kernels in kernel_sources; Baseline = dieses Modell
 base = glob.glob(f"/kaggle/input/**/{BASE_RUN}/best.pt", recursive=True)[0] if BASE_RUN else hf_hub_download(REPO, "base.pt", repo_type="dataset", local_dir="/kaggle/tmp")
 print("Startgewichte:", base, flush=True)
 yaml_path = work / "data.yaml"
@@ -41,10 +46,11 @@ n_train = len(list((data_dir / "images/train").glob("*"))); n_val = len(list((da
 print(f"Datensatz: {n_train} train / {n_val} val", flush=True)
 
 
-def tip_metrics(m, prefix="", tol_px=10.0):
+def tip_metrics(m, prefix="", tol_px=10.0, d=None):
+    d = d or data_dir
     tol = tol_px / 800; tp = fp = fn = 0
-    for img in sorted((data_dir / "images/val").glob(prefix + "*")):
-        lab = data_dir / "labels/val" / (img.stem + ".txt")
+    for img in sorted((d / "images/val").glob(prefix + "*")):
+        lab = d / "labels/val" / (img.stem + ".txt")
         gt = [tuple(map(float, l.split()[1:3])) for l in lab.read_text().splitlines() if l.startswith("4 ")] if lab.exists() else []
         r = m.predict(str(img), imgsz=IMGSZ, conf=0.3, device=0, verbose=False)[0]
         pred = [(float(x), float(y)) for c, (x, y, _, _) in zip(r.boxes.cls, r.boxes.xywhn) if int(c) == 4]
@@ -64,12 +70,16 @@ def evaluate(weights):
     o = dict(mAP50=float(v.box.map50), mAP50_95=float(v.box.map), precision=float(v.box.mp), recall=float(v.box.mr))
     o.update(tip_metrics(m))
     if any((data_dir / "images/val").glob("dd_d2*")): o.update({k + "_d2": v for k, v in tip_metrics(m, "dd_d2").items()})
+    if hard_dir is not None:  # hartes Benchmark-Set: starke Schräge + Verderbung, zusätzlich mit 5 px Toleranz
+        o.update({k + "_hard": v for k, v in tip_metrics(m, d=hard_dir).items()})
+        o.update({k + "_hard5px": v for k, v in tip_metrics(m, tol_px=5.0, d=hard_dir).items()})
     return o
 
 
 baseline = evaluate(base); print("Baseline:", json.dumps(baseline), flush=True)
+HSV_H, HSV_S = float(os.environ.get("HSV_H", 0.00695)), float(os.environ.get("HSV_S", 0.45949))  # Farbrobustheit: 0,05 / 0,6 gegen Auswendiglernen der Ringfarben
 hp = dict(lr0=LR0, lrf=0.01, cos_lr=COS_LR, momentum=0.90098, weight_decay=0.00038, warmup_epochs=1.0, warmup_momentum=0.43,
-          box=2.99452, cls=0.30763, dfl=1.53753, hsv_h=0.00695, hsv_s=0.45949, hsv_v=0.24372, degrees=15.58584,
+          box=2.99452, cls=0.30763, dfl=1.53753, hsv_h=HSV_H, hsv_s=HSV_S, hsv_v=0.24372, degrees=15.58584,
           translate=0.10067, scale=0.2181, shear=0.0, perspective=0.0, flipud=0.0, fliplr=0.0, mosaic=0.6, mixup=0.0)
 t0 = time.time()
 model = YOLO(base)

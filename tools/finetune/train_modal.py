@@ -143,14 +143,26 @@ def warp_image(src, pts, rng):
     return out_img, [(c, float(q[0] / w), float(q[1] / h)) for (c, _, _), q in zip(pts, Q)]
 
 
-def augment_dataset(src_dir, out, warps_d1, warps_d2):
-    """Datensatz kopieren und je Bild Schrägsicht-Varianten anhängen (D2-Bilder warps_d2-mal, sonst warps_d1-mal)."""
+def is_hard(pts):
+    """Schwachstellen aus der Fehleranalyse (dd3): drei Darts, eng stehende Spitzen (< 0,06 normiert) oder Darts weit
+    außen (> 0,35 vom Board-Zentrum, geschätzt aus den Kalibrierpunkten)."""
+    darts = [(x, y) for c, x, y in pts if c == 4]
+    cal = [(x, y) for c, x, y in pts if c < 4]
+    if len(darts) >= 3: return True
+    if any(((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2) ** 0.5 < 0.06 for i, a in enumerate(darts) for b in darts[i + 1:]): return True
+    cx = sum(x for x, _ in cal) / len(cal) if cal else 0.5; cy = sum(y for _, y in cal) / len(cal) if cal else 0.5
+    return any(((x - cx) ** 2 + (y - cy) ** 2) ** 0.5 > 0.35 for x, y in darts)
+
+
+def augment_dataset(src_dir, out, warps_d1, warps_d2, hard_warps=0, hard_dup=0):
+    """Datensatz kopieren und je Bild Schrägsicht-Varianten anhängen (D2-Bilder warps_d2-mal, sonst warps_d1-mal).
+    Harte Trainingsbilder (is_hard) bekommen zusätzlich hard_warps Varianten und hard_dup Kopien; Val bleibt unverändert."""
     import cv2, json, random, shutil
     from pathlib import Path
     from PIL import Image, ImageDraw
     rng = random.Random(1)
     if out.exists(): shutil.rmtree(out)
-    counts = {"train": 0, "val": 0, "warped": 0, "d2": 0}
+    counts = {"train": 0, "val": 0, "warped": 0, "d2": 0, "hard": 0}
     (out / "review").mkdir(parents=True)
     for sp in ("train", "val"):
         (out / "images" / sp).mkdir(parents=True); (out / "labels" / sp).mkdir(parents=True)
@@ -160,7 +172,13 @@ def augment_dataset(src_dir, out, warps_d1, warps_d2):
             if lab.exists(): shutil.copy(lab, out / "labels" / sp / lab.name)
             counts[sp] += 1; counts["d2"] += img.name.startswith("dd_d2")
             pts = [(int(l.split()[0]), float(l.split()[1]), float(l.split()[2])) for l in lab.read_text().splitlines() if l.strip()] if lab.exists() else []
-            for k in range(warps_d2 if img.name.startswith("dd_d2") else warps_d1):
+            hard = sp == "train" and is_hard(pts)
+            if hard:
+                counts["hard"] += 1
+                for k in range(hard_dup):
+                    shutil.copy(img, out / "images" / sp / f"{img.stem}_h{k}{img.suffix}")
+                    if lab.exists(): shutil.copy(lab, out / "labels" / sp / f"{img.stem}_h{k}.txt")
+            for k in range((warps_d2 if img.name.startswith("dd_d2") else warps_d1) + (hard_warps if hard else 0)):
                 wimg, wpts = warp_image(img, pts, rng)
                 if wimg is None: continue
                 wname = f"{img.stem}_w{k}"
@@ -183,7 +201,7 @@ build_image = image.pip_install("huggingface_hub", "pandas", "pillow", "numpy")
 
 
 @app.function(image=build_image, gpu="T4", volumes={"/vol": vol}, timeout=90 * 60)
-def build_dataset(out_name: str = "data2", d1_limit: int = 5000, val_frac: float = 0.1, warps_d1: int = 0, warps_d2: int = 0, source: str = "hf"):
+def build_dataset(out_name: str = "data2", d1_limit: int = 5000, val_frac: float = 0.1, warps_d1: int = 0, warps_d2: int = 0, source: str = "hf", hard_warps: int = 0, hard_dup: int = 0):
     """DeepDarts (McNally 2021) aus labels.pkl (GitHub) + Bildern (HF bhabha-kapil/Dartboard-Detection-Dataset, 800 px):
     alle D2-Bilder (seitliche Kamera) plus ganze D1-Ordner bis d1_limit. Klassen wie dart-sense (20,3,11,6,dart,9,15),
     9/15 ergänzt das Basismodell. Split deterministisch per Hash wie in prelabel.py."""
@@ -195,7 +213,7 @@ def build_dataset(out_name: str = "data2", d1_limit: int = 5000, val_frac: float
     from ultralytics import YOLO
 
     if source != "hf":  # vorhandenen YOLO-Datensatz (z. B. data2) kopieren und um Schrägsichten ergänzen – kein Download, kein Vorlabel
-        return augment_dataset(VOL / source, VOL / out_name, warps_d1, warps_d2)
+        return augment_dataset(VOL / source, VOL / out_name, warps_d1, warps_d2, hard_warps, hard_dup)
     pkl = VOL / "labels.pkl"
     if not pkl.exists(): urllib.request.urlretrieve("https://raw.githubusercontent.com/wmcnally/deep-darts/master/dataset/labels.pkl", pkl)
     df = pd.read_pickle(pkl)

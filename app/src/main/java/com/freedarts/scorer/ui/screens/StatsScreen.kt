@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -31,6 +30,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -452,11 +453,14 @@ private fun MatchRow(m: MatchRecord, selectedId: String?, df: SimpleDateFormat) 
 
 @Composable
 private fun TabLabel(text: String, selected: Boolean, onClick: () -> Unit) {
-    // Breite = Textbreite, sonst nimmt der fillMaxWidth-Unterstrich des ersten Tabs die ganze Zeile
-    Column(Modifier.width(IntrinsicSize.Max).clickable(onClick = onClick)) {
-        Text(text, fontSize = androidx.compose.ui.unit.TextUnit(16f, androidx.compose.ui.unit.TextUnitType.Sp), fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal, color = if (selected) Color.White else DartColors.TextMuted)
-        Box(Modifier.padding(top = 8.dp).fillMaxWidth().height(2.dp).background(if (selected) Color.White else Color.Transparent))
-    }
+    // Unterstrich per drawBehind statt eigener Box: Breite = Textbreite, keine Intrinsic-/fillMaxWidth-Fallen in der Row
+    Text(
+        text,
+        Modifier.clickable(onClick = onClick).drawBehind { if (selected) drawRect(Color.White, Offset(0f, size.height - 2.dp.toPx()), Size(size.width, 2.dp.toPx())) }.padding(bottom = 10.dp),
+        fontSize = androidx.compose.ui.unit.TextUnit(16f, androidx.compose.ui.unit.TextUnitType.Sp),
+        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+        color = if (selected) Color.White else DartColors.TextMuted,
+    )
 }
 
 @Composable

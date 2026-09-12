@@ -119,9 +119,21 @@ fun DevicesScreen(vm: AppViewModel) {
                     icon = Icons.Default.Language, title = "Als Zweitgerät koppeln", subtitle = "Spiel eines anderen Board-Handys hier anzeigen und bedienen",
                     status = if (settings.remotePairedUrl.isNotBlank()) "Gekoppelt" to DartColors.Green else "Nicht gekoppelt" to DartColors.TextMuted,
                 ) {
-                    if (settings.remotePairedUrl.isNotBlank()) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        PrimaryButton(settings.remotePairedUrl.removePrefix("http://"), Modifier.weight(1f), height = 48) { vm.navigate(Screen.RemoteView) }
-                        SecondaryButton("Trennen", Modifier.width(88.dp)) { vm.updateSettings { it.copy(remotePairedUrl = "") } }
+                    if (settings.remotePairedUrl.isNotBlank()) {
+                        val u = android.net.Uri.parse(settings.remotePairedUrl)
+                        val asBoard = settings.boardManagerEnabled && settings.boardManagerHost == u.host && connection == BoardManagerClient.Connection.CONNECTED
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            PrimaryButton(settings.remotePairedUrl.removePrefix("http://"), Modifier.weight(1f), height = 48) { vm.navigate(Screen.RemoteView) }
+                            SecondaryButton("Trennen", Modifier.width(88.dp)) { vm.updateSettings { it.copy(remotePairedUrl = "") }; if (asBoard) vm.disconnectBoard() }
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        Text("Volle App: Das ganze Spiel läuft hier (alle Modi, Statistik, Online), das Board-Handy ist nur noch Kamera und liefert die Würfe wie ein Board Manager.",
+                            color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
+                        Spacer(Modifier.height(6.dp))
+                        if (asBoard) SecondaryButton("Volle App aktiv – Würfe kommen vom Board-Handy", Modifier.fillMaxWidth()) { vm.disconnectBoard() }
+                        else PrimaryButton("Volle App: Würfe vom Board-Handy übernehmen", Modifier.fillMaxWidth(), height = 48) {
+                            vm.connectBoard(u.host ?: "", if (u.port > 0) u.port else com.freedarts.scorer.remote.RemoteServer.PORT)
+                        }
                     } else Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         PrimaryButton("QR-Code scannen", Modifier.weight(1f), height = 48) { scan = true }
                         SecondaryButton("Adresse", Modifier.width(100.dp)) { manual = true }

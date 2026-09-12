@@ -18,10 +18,11 @@ import java.util.concurrent.atomic.AtomicBoolean
  * Remote Scoring wie bei Autodarts Lens: Das Handy bleibt als Kamera am Board, die Spielansicht läuft im
  * Browser eines zweiten Geräts im selben WLAN (http://<ip>:8765). Minimaler HTTP-Server ohne Abhängigkeiten.
  */
-class RemoteServer(private val stateProvider: () -> RemoteState, private val onCommand: (String) -> Unit) {
+class RemoteServer(private val stateProvider: () -> RemoteState, private val frameProvider: () -> ByteArray?, private val onCommand: (String) -> Unit) {
 
     @Serializable
-    data class RemotePlayer(val name: String, val score: String, val detail: String, val legs: Int, val sets: Int, val active: Boolean, val isOut: Boolean, val history: List<String>)
+    data class RemotePlayer(val name: String, val score: String, val detail: String, val legs: Int, val sets: Int, val active: Boolean, val isOut: Boolean, val history: List<String>,
+        val color: String = "#3F51B5", val avatar: String? = null, val isBot: Boolean = false)
 
     @Serializable
     data class RemoteState(
@@ -34,8 +35,17 @@ class RemoteServer(private val stateProvider: () -> RemoteState, private val onC
         val visitSum: Int = 0,
         val players: List<RemotePlayer> = emptyList(),
         val finished: Boolean = false,
+        val winner: String? = null,
         val lens: String = "",
+        val lensReady: Boolean = false,
+        /** Board-Manager-Sicht der Lens (GET /api/state): Throw / Takeout / Stopped und die Segmente der Aufnahme. */
+        val boardStatus: String = "Stopped",
+        val boardThrows: List<BoardThrow> = emptyList(),
     )
+
+    /** Ein Wurf für /api/state: Segmentname plus Auftreffpunkt in Board-Millimetern (null = unbekannt). */
+    @Serializable
+    data class BoardThrow(val name: String, val x: Float? = null, val y: Float? = null)
 
     companion object { const val PORT = 8765 }
 
@@ -91,6 +101,20 @@ class RemoteServer(private val stateProvider: () -> RemoteState, private val onC
             val out = c.getOutputStream()
             when {
                 path.startsWith("/state") -> respond(out, "application/json; charset=utf-8", json.encodeToString(stateProvider()))
+                path.startsWith("/board.jpg") -> frameProvider()?.let { respond(out, "image/jpeg", it) } ?: respond(out, "text/plain", ByteArray(0), status = "404 Not Found")
+                // Autodarts-Board-Manager-Format: ein zweites Handy verbindet sich unter Devices → Board Manager mit diesem Gerät
+                path.startsWith("/api/state") -> {
+                    val s = stateProvider()
+                    // coords mit unit=mm: Scorelens-Erweiterung, der Client übernimmt sie nur mit dieser Angabe (Autodarts-Koordinaten sind anders skaliert)
+                    val throwsJson = s.boardThrows.joinToString(",") { t ->
+                        "{\"segment\":{\"name\":\"${t.name}\"}" + (if (t.x != null && t.y != null) ",\"coords\":{\"x\":${t.x},\"y\":${t.y},\"unit\":\"mm\"}" else "") + "}"
+                    }
+                    respond(out, "application/json; charset=utf-8", "{\"status\":\"${s.boardStatus}\",\"numThrows\":${s.boardThrows.size},\"throws\":[$throwsJson]}")
+                }
+                path.startsWith("/api/") -> {
+                    onCommand("board:" + path.removePrefix("/api/").substringBefore("?").substringBefore("/"))
+                    respond(out, "application/json; charset=utf-8", "{\"ok\":true}")
+                }
                 path.startsWith("/cmd") -> {
                     val cmd = path.substringAfter("do=", "").substringBefore("&")
                     if (cmd.isNotEmpty()) onCommand(cmd)
@@ -101,53 +125,125 @@ class RemoteServer(private val stateProvider: () -> RemoteState, private val onC
         }
     }
 
-    private fun respond(out: OutputStream, type: String, body: String) {
-        val bytes = body.toByteArray(Charsets.UTF_8)
-        val head = "HTTP/1.1 200 OK\r\nContent-Type: $type\r\nContent-Length: ${bytes.size}\r\nCache-Control: no-store\r\nAccess-Control-Allow-Origin: *\r\nConnection: close\r\n\r\n"
+    private fun respond(out: OutputStream, type: String, body: String) = respond(out, type, body.toByteArray(Charsets.UTF_8))
+
+    private fun respond(out: OutputStream, type: String, bytes: ByteArray, status: String = "200 OK") {
+        val head = "HTTP/1.1 $status\r\nContent-Type: $type\r\nContent-Length: ${bytes.size}\r\nCache-Control: no-store\r\nAccess-Control-Allow-Origin: *\r\nConnection: close\r\n\r\n"
         out.write(head.toByteArray()); out.write(bytes); out.flush()
     }
 
+    /** Spielansicht: Karten wie in der App, Live-Board aus der Lens, Tastenkürzel U/Leertaste/F. */
     private val PAGE = """<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Scorelens Remote</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=DM+Sans:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
-body{margin:0;background:#0A0E17;color:#EEF1F6;font-family:system-ui,sans-serif}
-.top{display:flex;justify-content:space-between;align-items:center;padding:12px 18px;color:#8B95A7}
-.players{display:flex;gap:12px;padding:0 12px;flex-wrap:wrap}
-.p{flex:1 1 260px;background:#141A26;border:1px solid #263042;border-radius:14px;overflow:hidden}
-.p.active{border-color:#2F6BFF;box-shadow:0 0 0 2px #2F6BFF inset}
-.p .h{background:#1C2331;padding:8px 14px;font-weight:700;letter-spacing:1px}
-.p.active .h{background:#2F6BFF}
-.p .s{font-size:96px;font-weight:900;padding:6px 14px;line-height:1}
-.p .d{padding:0 14px 10px;color:#8B95A7}
-.p .legs{float:right;color:#FFC107}
-.visit{display:flex;gap:10px;margin:14px 12px;background:#141A26;border:1px solid #263042;border-radius:12px;padding:12px 16px;font-size:24px;font-weight:700}
-.visit .sum{margin-left:auto;color:#7CF06B}
-.banner{margin:0 12px;padding:10px;border-radius:12px;background:#0F5A34;text-align:center;font-size:26px;font-weight:800}
-.chk{color:#7CF06B;text-align:center;font-weight:600;margin:6px}
-.hist{padding:0 14px 12px;color:#8B95A7;font-size:14px}
-.btns{display:flex;gap:10px;padding:12px}
-button{flex:1;background:#1C2331;color:#fff;border:1px solid #263042;border-radius:10px;padding:14px;font-size:18px}
-button.p{background:#2F6BFF;border-color:#2F6BFF}
+:root{--bg:#0B1220;--sur:#171C27;--hi:#2A3040;--line:#3A4152;--pri:#2B6BFF;--lime:#7CF06B;--gold:#FFC107;--mut:#9AA3B5;--txt:#F3F5F9;--green:#22C55E;--red:#E5484D}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--txt);font-family:"DM Sans",system-ui,sans-serif;display:flex;flex-direction:column;
+ background-image:linear-gradient(115deg,transparent 42%,rgba(22,38,80,.55) 42%,rgba(22,38,80,.55) 62%,transparent 62%);background-attachment:fixed}
+.cond{font-family:"Barlow Condensed","Arial Narrow",sans-serif;text-transform:uppercase;letter-spacing:.5px}
+header{display:flex;align-items:center;gap:14px;padding:10px 18px;border-bottom:1px solid var(--line);background:rgba(11,18,32,.7);backdrop-filter:blur(6px)}
+header .brand{font-weight:800;font-size:22px}
+header .brand b{color:var(--pri)}
+header .head{color:var(--mut);font-size:15px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pill{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:12px;font-weight:600;color:var(--mut)}
+.pill i{width:8px;height:8px;border-radius:50%;background:var(--mut)}
+.pill.on{border-color:var(--green);color:var(--green)}.pill.on i{background:var(--green)}
+.pill.bad{border-color:var(--red);color:var(--red)}.pill.bad i{background:var(--red)}
+#fs{background:none;border:1px solid var(--line);color:var(--mut);border-radius:8px;padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer}
+main{flex:1;display:grid;grid-template-columns:1fr;gap:14px;padding:14px;align-content:start}
+body.cam main{grid-template-columns:1fr minmax(240px,32vw)}
+@media(max-width:820px){body.cam main{grid-template-columns:1fr}}
+.players{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+.p{position:relative;background:var(--sur);border:1px solid var(--line);border-radius:16px;padding:14px 16px;transition:border-color .2s,box-shadow .2s}
+.p.active{border-color:var(--pri);box-shadow:0 0 0 2px var(--pri),0 12px 40px -12px rgba(43,107,255,.7)}
+.p.out{opacity:.45}
+.p.win{border-color:var(--gold);box-shadow:0 0 0 2px var(--gold)}
+.p .row{display:flex;align-items:center;gap:10px}
+.av{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;color:#fff;flex:none;border:2px solid rgba(255,255,255,.55);overflow:hidden;background-size:cover;background-position:center}
+.p .name{font-weight:700;font-size:17px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.p .ls{display:flex;gap:6px}
+.p .ls span{background:var(--hi);border-radius:8px;padding:2px 8px;font-size:12px;font-weight:700;color:var(--gold)}
+.p .s{font-size:clamp(64px,9vw,128px);font-weight:800;line-height:.95;margin:8px 0 2px;font-variant-numeric:tabular-nums}
+.p.active .s{color:#fff}
+.p .d{color:var(--mut);font-size:14px;min-height:18px}
+.p .hist{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.p .hist span{background:var(--hi);border-radius:6px;padding:2px 7px;font-size:12px;color:#C7CDD8;font-variant-numeric:tabular-nums}
+.p .hist span:last-child{background:var(--pri);color:#fff}
+.p .tag{position:absolute;top:-10px;right:14px;background:var(--pri);color:#fff;border-radius:999px;padding:2px 10px;font-size:11px;font-weight:700}
+.p.win .tag{background:var(--gold);color:#14161B}
+.visit{display:flex;align-items:center;gap:10px;margin-top:14px;background:var(--sur);border:1px solid var(--line);border-radius:16px;padding:12px 14px}
+.visit .slot{flex:1;text-align:center;background:var(--hi);border-radius:12px;padding:10px 4px;font-size:clamp(22px,3.5vw,34px);font-weight:700;color:var(--mut);font-variant-numeric:tabular-nums}
+.visit .slot.f{color:#fff;background:#1E4FD6}
+.visit .sum{min-width:84px;text-align:right;font-size:clamp(30px,4.5vw,44px);font-weight:800;color:var(--lime);font-variant-numeric:tabular-nums}
+.chk{margin-top:10px;text-align:center;color:var(--lime);font-weight:600;font-size:16px;min-height:20px}
+aside{background:var(--sur);border:1px solid var(--line);border-radius:16px;padding:10px;display:none;flex-direction:column;gap:8px}
+body.cam aside{display:flex}
+aside .cap{font-size:12px;color:var(--mut);font-weight:600}
+aside img{width:100%;border-radius:10px;background:#000;aspect-ratio:3/4;object-fit:cover}
+#banner{position:fixed;inset:0;display:none;align-items:center;justify-content:center;pointer-events:none;background:rgba(11,18,32,.55)}
+#banner span{font-size:clamp(48px,12vw,140px);font-weight:800;color:#fff;text-shadow:0 8px 40px rgba(43,107,255,.8);animation:pop .35s cubic-bezier(.2,1.4,.4,1)}
+@keyframes pop{from{transform:scale(.6);opacity:0}to{transform:scale(1);opacity:1}}
+#empty{display:none;text-align:center;color:var(--mut);padding:60px 20px}
+#empty b{display:block;color:#fff;font-size:36px;margin-bottom:8px}
+footer{display:flex;gap:10px;padding:12px 14px;border-top:1px solid var(--line);background:rgba(11,18,32,.7)}
+footer button{flex:1;background:var(--sur);color:#fff;border:1px solid var(--line);border-radius:14px;padding:16px;font-size:18px;font-weight:600;font-family:inherit;cursor:pointer;min-height:56px}
+footer button:active{transform:scale(.98)}
+footer button.pri{background:var(--pri);border-color:var(--pri)}
+.pad{display:none;margin-top:14px;grid-template-columns:repeat(5,1fr);gap:6px}.pad.on{display:grid}
+.pad button{background:var(--sur);color:#fff;border:1px solid var(--line);border-radius:10px;padding:12px 0;font-size:18px;font-weight:700;font-family:inherit;cursor:pointer;min-height:48px}
+.pad button.m{background:var(--hi)}.pad button.m.sel{background:var(--pri);border-color:var(--pri)}.pad button.x{color:var(--red)}
+footer kbd{margin-left:8px;font-family:inherit;font-size:11px;color:rgba(255,255,255,.6);border:1px solid rgba(255,255,255,.3);border-radius:4px;padding:1px 5px}
+@media(max-width:600px){footer kbd{display:none}header .head{display:none}}
 </style></head><body>
-<div class="top"><div id="title">Scorelens</div><div id="lens"></div></div>
-<div id="banner" class="banner" style="display:none"></div>
-<div class="players" id="players"></div>
-<div class="visit" id="visit"></div>
-<div class="chk" id="chk"></div>
-<div class="btns"><button onclick="cmd('undo')">Undo</button><button class="p" onclick="cmd('next')">Next</button></div>
+<header><div class="brand cond">Score<b>lens</b> <span id="title"></span></div><div class="head" id="head"></div>
+<span class="pill" id="lens" style="display:none"><i></i><span></span></span><span class="pill bad" id="conn" style="display:none"><i></i>Keine Verbindung</span>
+<button id="fs" onclick="fs()">Vollbild</button></header>
+<main>
+<section><div id="empty"><b class="cond">Kein laufendes Spiel</b>Starte ein Match auf dem Handy – die Anzeige folgt automatisch.</div>
+<div class="players" id="players"></div><div class="visit" id="visit"></div><div class="chk" id="chk"></div><div class="pad" id="pad"></div></section>
+<aside><span class="cap">LENS · BOARD</span><img id="board" alt="Board"></aside>
+</main>
+<footer><button onclick="cmd('undo')">Undo<kbd>U</kbd></button><button class="pri" onclick="cmd('next')">Next<kbd>Leertaste</kbd></button></footer>
+<div id="banner"><span class="cond"></span></div>
 <script>
+var q=function(id){return document.getElementById(id)},last='',camOn=false;
 function cmd(c){fetch('/cmd?do='+c).then(tick)}
-function esc(s){return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
-function tick(){fetch('/state').then(r=>r.json()).then(s=>{
- document.getElementById('title').textContent=s.hasGame?(s.title+' · '+s.headline):'Kein laufendes Spiel';
- document.getElementById('lens').textContent=s.lens;
- var b=document.getElementById('banner');b.style.display=s.banner?'block':'none';b.textContent=s.banner||'';
- document.getElementById('players').innerHTML=s.players.map(p=>'<div class="p'+(p.active?' active':'')+'"><div class="h">'+esc(p.name).toUpperCase()+
-  '<span class="legs">'+(p.sets?('S '+p.sets+' '):'')+(p.legs?('L '+p.legs):'')+'</span></div><div class="s">'+esc(p.score)+'</div><div class="d">'+esc(p.detail)+'</div><div class="hist">'+p.history.slice(-5).map(esc).join(' · ')+'</div></div>').join('');
- var v=[0,1,2].map(i=>'<span>'+(s.visit[i]||'—')+'</span>').join('')+'<span class="sum">'+s.visitSum+'</span>';
- document.getElementById('visit').innerHTML=v;
- document.getElementById('chk').textContent=s.checkout?('Checkout: '+s.checkout):'';
-}).catch(()=>{})}
-setInterval(tick,500);tick();
-</script></body></html>"""
+var mult='S';
+function pad(){var h='';['S','D','T'].forEach(function(m){h+='<button class="m'+(mult===m?' sel':'')+'" onclick="setM(\''+m+'\')">'+{S:'Single',D:'Double',T:'Triple'}[m]+'</button>'});
+ h+='<button onclick="hit(\'25\')">25</button><button onclick="hit(\'50\')">Bull</button>';
+ for(var n=1;n<=20;n++)h+='<button onclick="hit(\''+n+'\')">'+n+'</button>';
+ h+='<button class="x" onclick="hit(\'MISS\')">Miss</button>';q('pad').innerHTML=h}
+function setM(m){mult=m;pad()}
+function hit(s){cmd(s==='25'||s==='50'||s==='MISS'?s:mult+s);mult='S';pad()}
+function fs(){document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen()}
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function ini(n){return n.split(/\s+/).map(function(w){return w[0]||''}).join('').slice(0,2).toUpperCase()}
+function av(p){var st='background-color:'+esc(p.color)+(p.avatar?';background-image:url(data:image/jpeg;base64,'+p.avatar+')':'');
+ return '<div class="av" style="'+st+'">'+(p.avatar?'':esc(p.isBot?'B':ini(p.name)))+'</div>'}
+function card(p,s){var cls='p'+(p.active?' active':'')+(p.isOut?' out':'')+(s.finished&&s.winner===p.name?' win':'');
+ var tag=s.finished&&s.winner===p.name?'<span class="tag cond">Winner</span>':(p.active?'<span class="tag cond">Am Zug</span>':'');
+ var ls=(p.sets?'<span>S '+p.sets+'</span>':'')+(p.legs?'<span>L '+p.legs+'</span>':'');
+ return '<div class="'+cls+'">'+tag+'<div class="row">'+av(p)+'<div class="name">'+esc(p.name)+'</div><div class="ls">'+ls+'</div></div>'+
+  '<div class="s cond">'+esc(p.score)+'</div><div class="d">'+esc(p.detail)+'</div><div class="hist">'+p.history.slice(-6).map(function(h){return '<span>'+esc(h)+'</span>'}).join('')+'</div></div>'}
+function render(s){
+ q('title').textContent=s.hasGame?'· '+s.title:'';q('head').textContent=s.hasGame?s.headline:'';
+ var l=q('lens');l.style.display=s.lens?'':'none';l.className='pill'+(s.lensReady?' on':'');l.lastChild.textContent=s.lens;
+ camOn=!!s.lens;document.body.classList.toggle('cam',camOn);
+ q('empty').style.display=s.hasGame?'none':'block';q('visit').style.display=s.hasGame?'':'none';
+ q('players').innerHTML=s.players.map(function(p){return card(p,s)}).join('');
+ q('visit').innerHTML=[0,1,2].map(function(i){return '<div class="slot cond'+(s.visit[i]?' f':'')+'">'+esc(s.visit[i]||'–')+'</div>'}).join('')+'<div class="sum cond">'+s.visitSum+'</div>';
+ q('chk').textContent=s.checkout?'Checkout: '+s.checkout:'';
+ q('pad').className='pad'+(s.hasGame&&!s.finished?' on':'');
+ var b=q('banner');b.style.display=s.banner?'flex':'none';if(b.firstChild.textContent!==(s.banner||'')){b.firstChild.textContent=s.banner||''}
+}
+function tick(){fetch('/state').then(function(r){return r.text()}).then(function(t){q('conn').style.display='none';if(t===last)return;last=t;render(JSON.parse(t))}).catch(function(){q('conn').style.display=''})}
+setInterval(tick,500);tick();pad();
+var img=q('board');setInterval(function(){if(camOn&&img.complete)img.src='/board.jpg?t='+Date.now()},700);
+document.addEventListener('keydown',function(e){if(e.target.tagName==='INPUT')return;var k=e.key.toLowerCase();
+ if(k==='u')cmd('undo');else if(k===' '||k==='n'){e.preventDefault();cmd('next')}else if(k==='f')fs()});
+</script></body></html>
+"""
 }

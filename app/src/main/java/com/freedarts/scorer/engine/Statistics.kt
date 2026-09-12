@@ -19,6 +19,13 @@ object Statistics {
         /** 3-Dart-Averages über die gemeinsamen X01-Spiele (0 = keine). */
         val myAverage: Double,
         val theirAverage: Double,
+        /** Checkout-Quote in Prozent, 180er und höchstes Finish über die gemeinsamen X01-Spiele. */
+        val myCheckout: Double = 0.0,
+        val theirCheckout: Double = 0.0,
+        val my180: Int = 0,
+        val their180: Int = 0,
+        val myHighFinish: Int = 0,
+        val theirHighFinish: Int = 0,
     )
 
     /** Bilanz gegen jeden Gegner aus Zwei-Spieler-Matches, häufigste Gegner zuerst. */
@@ -34,6 +41,9 @@ object Statistics {
                     wins = me.count { it.won }, losses = them.count { it.won },
                     legsWon = me.sumOf { it.legsWon }, legsLost = them.sumOf { it.legsWon },
                     myAverage = average(x01.map { me[it] }), theirAverage = average(x01.map { them[it] }),
+                    myCheckout = checkoutPct(x01.map { me[it] }), theirCheckout = checkoutPct(x01.map { them[it] }),
+                    my180 = me.sumOf { it.count180 }, their180 = them.sumOf { it.count180 },
+                    myHighFinish = me.maxOfOrNull { it.highestCheckout } ?: 0, theirHighFinish = them.maxOfOrNull { it.highestCheckout } ?: 0,
                 )
             }
             .sortedWith(compareByDescending<HeadToHead> { it.played }.thenBy { it.opponentName })
@@ -41,6 +51,11 @@ object Statistics {
     private fun average(l: List<PlayerMatchStats>): Double {
         val d = l.sumOf { it.dartsThrown }
         return if (d == 0) 0.0 else l.sumOf { it.pointsScored }.toDouble() / d * 3
+    }
+
+    private fun checkoutPct(l: List<PlayerMatchStats>): Double {
+        val d = l.sumOf { it.dartsAtDouble }
+        return if (d == 0) 0.0 else 100.0 * l.sumOf { it.checkouts } / d
     }
 
     /** Trefferbild: Treffer je Segment und, wo bekannt (Lens/Board Manager), die Auftreffpunkte in Board-mm. */

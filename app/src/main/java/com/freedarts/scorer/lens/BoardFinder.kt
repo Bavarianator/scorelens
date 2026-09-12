@@ -23,7 +23,7 @@ import kotlin.math.sqrt
  */
 class BoardFinder(val width: Int, val height: Int) {
 
-    enum class Quality { NOT_FOUND, PARTIAL, TOO_SMALL, TOO_SKEWED, TOO_FRONTAL, INACCURATE, GOOD }
+    enum class Quality { NOT_FOUND, PARTIAL, TOO_SMALL, INACCURATE, GOOD }
 
     data class Ellipse(val cx: Double, val cy: Double, val a: Double, val b: Double, val psi: Double) {
         fun point(phi: Double): Pair<Double, Double> {
@@ -70,23 +70,12 @@ class BoardFinder(val width: Int, val height: Int) {
         private const val R_TRIPLE_MID = (Board.TRIPLE_INNER + Board.TRIPLE_OUTER) / 2
 
         /**
-         * Zulässiges Achsenverhältnis der Board-Ellipse. Autodarts verlangt für die Kameras 35–55° zur Boardfläche
-         * (Verhältnis ≈ 0,57–0,82) und meldet bei der Lens „View more from the front“ bzw. „View from the side“.
-         * Unter [SKEW_MIN] (≈ 30°) ist die Sicht zu flach, über [SKEW_MAX] (≈ 64°) zu frontal – dann verdeckt der
-         * Dart seine eigene Spitze. Dazwischen liegt das Ideal [IDEAL_MIN]..[IDEAL_MAX]; außerhalb davon ist die
-         * Kalibrierung gültig, aber ein Hinweis sinnvoll.
+         * Empfohlenes Achsenverhältnis der Board-Ellipse (≈ 35–55° zur Boardfläche, wie Autodarts es für Kameras
+         * vorgibt). Nur ein Hinweis, nie blockierend: zu flach leidet die Genauigkeit (fängt das Residuum ab),
+         * zu frontal verdeckt der Dart öfter seine eigene Spitze.
          */
-        const val SKEW_MIN = 0.5
-        const val SKEW_MAX = 0.9
         const val IDEAL_MIN = 0.57
         const val IDEAL_MAX = 0.82
-
-        /** Qualität allein aus dem Achsenverhältnis (null = in Ordnung). */
-        fun skewQuality(ratio: Double): Quality? = when {
-            ratio < SKEW_MIN -> Quality.TOO_SKEWED
-            ratio > SKEW_MAX -> Quality.TOO_FRONTAL
-            else -> null
-        }
     }
 
     private class RayHit(val x: Double, val y: Double, val radiusMm: Double)
@@ -151,7 +140,6 @@ class BoardFinder(val width: Int, val height: Int) {
             pts.any { it.first < 1 || it.second < 1 || it.first > width - 2 || it.second > height - 2 } ||
                 ell.cx - ell.a < 1 || ell.cx + ell.a > width - 2 || ell.cy - ell.b < 1 || ell.cy + ell.b > height - 2 -> Quality.PARTIAL
             maxOf(ell.a, ell.b) < 0.2 * minOf(width, height) -> Quality.TOO_SMALL
-            skewQuality(ell.axisRatio) != null -> skewQuality(ell.axisRatio)!!
             residual > 4.5 -> Quality.INACCURATE
             else -> Quality.GOOD
         }
@@ -187,7 +175,6 @@ class BoardFinder(val width: Int, val height: Int) {
             score < 0.45 -> Quality.NOT_FOUND
             pts.any { it.first < 1 || it.second < 1 || it.first > width - 2 || it.second > height - 2 } -> Quality.PARTIAL
             maxOf(ellH.a, ellH.b) < 0.2 * minOf(width, height) -> Quality.TOO_SMALL
-            skewQuality(ellH.axisRatio) != null -> skewQuality(ellH.axisRatio)!!
             residual > 4.5 -> Quality.INACCURATE
             else -> Quality.GOOD
         }

@@ -24,6 +24,8 @@ data class AppSettings(
 
     // Lens (Handykamera-Autoscoring)
     val lensEnabled: Boolean = false,
+    /** Lens beim Match-Start automatisch einschalten, sobald sie einmal kalibriert wurde. */
+    val lensAutoStart: Boolean = true,
     /** 4 Kalibrierpunkte als normierte Bildkoordinaten (x0,y0,…,x3,y3), 0..1 des aufrechten Kamerabilds. */
     val lensCalibration: List<Float> = emptyList(),
     /** Empfindlichkeit 0..100 (höher = kleinere Änderungen erkennen). */

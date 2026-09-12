@@ -23,11 +23,7 @@ object Checkout {
         bestRoute(score, darts, outMode) != null
 
     /** Ist ein "Wurf aufs Double" möglich (für Checkout-Statistik)? */
-    fun isOnFinish(score: Int, outMode: OutMode): Boolean = when (outMode) {
-        OutMode.DOUBLE -> score == 50 || (score in 2..40 && score % 2 == 0)
-        OutMode.MASTER -> score == 50 || score == 25 || (score in 2..40 && score % 2 == 0) || (score in 3..60 && score % 3 == 0)
-        OutMode.STRAIGHT -> score in 1..60 || score == 25 || score == 50
-    }
+    fun isOnFinish(score: Int, outMode: OutMode): Boolean = Segment.ALL.any { it.score == score && isValidLast(it, outMode) }
 
     private fun isValidLast(seg: Segment, outMode: OutMode): Boolean = when (outMode) {
         OutMode.STRAIGHT -> true

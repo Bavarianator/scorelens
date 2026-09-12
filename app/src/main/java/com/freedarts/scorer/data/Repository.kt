@@ -1,11 +1,12 @@
 package com.freedarts.scorer.data
 
 import android.content.Context
+import android.util.Log
 import com.freedarts.scorer.model.AppSettings
 import com.freedarts.scorer.model.MatchRecord
 import com.freedarts.scorer.model.Player
-import com.freedarts.scorer.online.OnlineSession
 import com.freedarts.scorer.model.Tournament
+import com.freedarts.scorer.online.OnlineSession
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -15,6 +16,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
 import java.io.File
 
 /**
@@ -25,20 +27,18 @@ class Repository private constructor(context: Context) {
 
     private val dir: File = context.filesDir
     private val json = Json { ignoreUnknownKeys = true; prettyPrint = false; encodeDefaults = true }
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    // Ein Schreiber: zwei gleichzeitige save() derselben Datei würden sich sonst in der .tmp überschreiben
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO.limitedParallelism(1))
 
-    private val _players = MutableStateFlow(load("players.json", ListSerializer(Player.serializer())) ?: defaultPlayers())
+    private val _players = MutableStateFlow(loadList("players.json", Player.serializer()) ?: defaultPlayers())
     val players: StateFlow<List<Player>> = _players
 
     private val _settings = MutableStateFlow(load("settings.json", AppSettings.serializer()) ?: AppSettings())
     val settings: StateFlow<AppSettings> = _settings
 
-    private val _matches = MutableStateFlow(load("matches.json", ListSerializer(MatchRecord.serializer())) ?: emptyList())
+    private val _matches = MutableStateFlow(loadList("matches.json", MatchRecord.serializer()) ?: emptyList())
     val matches: StateFlow<List<MatchRecord>> = _matches
 
-    /** Sitzung des Online-Modus (Supabase); null = abgemeldet. */
-    private val _onlineSession = MutableStateFlow(load("online_session.json", OnlineSession.serializer()))
-    val onlineSession: StateFlow<OnlineSession?> = _onlineSession
     /** Laufendes lokales Turnier; null = keins. */
     private val _tournament = MutableStateFlow(load("tournament.json", Tournament.serializer()))
     val tournament: StateFlow<Tournament?> = _tournament
@@ -53,6 +53,9 @@ class Repository private constructor(context: Context) {
         if (t == null) scope.launch { File(dir, "tournament.json").delete() } else save("tournament.json", Tournament.serializer(), t)
     }
 
+    /** Sitzung des Online-Modus (Supabase); null = abgemeldet. */
+    private val _onlineSession = MutableStateFlow(load("online_session.json", OnlineSession.serializer()))
+    val onlineSession: StateFlow<OnlineSession?> = _onlineSession
 
     fun setOnlineSession(session: OnlineSession?) {
         _onlineSession.value = session
@@ -95,7 +98,15 @@ class Repository private constructor(context: Context) {
     private fun <T> load(name: String, serializer: kotlinx.serialization.KSerializer<T>): T? = try {
         val f = File(dir, name)
         if (f.exists()) json.decodeFromString(serializer, f.readText()) else null
-    } catch (e: Exception) { null }
+    } catch (e: Exception) { Log.w(TAG, "$name unlesbar", e); null }
+
+    /** Liste laden; ein einzelner unlesbarer Eintrag (z. B. altes Format) verwirft nicht die ganze Datei. */
+    private fun <T> loadList(name: String, serializer: kotlinx.serialization.KSerializer<T>): List<T>? = try {
+        val f = File(dir, name)
+        if (!f.exists()) null else json.parseToJsonElement(f.readText()).jsonArray.mapNotNull { el ->
+            runCatching { json.decodeFromJsonElement(serializer, el) }.onFailure { Log.w(TAG, "$name: Eintrag übersprungen", it) }.getOrNull()
+        }
+    } catch (e: Exception) { Log.w(TAG, "$name unlesbar", e); null }
 
     private fun <T> save(name: String, serializer: kotlinx.serialization.KSerializer<T>, value: T) {
         val text = json.encodeToString(serializer, value)
@@ -108,6 +119,7 @@ class Repository private constructor(context: Context) {
     }
 
     companion object {
+        private const val TAG = "Repository"
         @Volatile private var instance: Repository? = null
         fun get(context: Context): Repository = instance ?: synchronized(this) {
             instance ?: Repository(context.applicationContext).also { instance = it }

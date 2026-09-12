@@ -3,6 +3,7 @@
 package com.freedarts.scorer.online
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -146,11 +147,16 @@ class SupabaseApi(baseUrl: String, val anonKey: String) {
                 "DELETE" -> if (rb != null) b.delete(rb) else b.delete()
                 else -> b.method(method, rb ?: "".toRequestBody(JSON_TYPE))
             }
-            http.newCall(b.build()).execute().use { r ->
-                val text = r.body?.string() ?: ""
-                if (!r.isSuccessful) throw OnlineException(r.code, errorMessage(text, r.code))
-                text
+            fun once() = http.newCall(b.build()).execute().use { r -> r.code to (r.body?.string() ?: "") }
+            var (code, text) = once()
+            // Uhrversatz zwischen Auth-Server und PostgREST: ein frisch ausgestelltes Token liegt für PostgREST kurz
+            // "in der Zukunft" ("JWT issued at future") → einmal kurz warten und wiederholen
+            if (code == 401 && errorMessage(text, code).contains("issued at future", ignoreCase = true)) {
+                delay(1500)
+                once().let { code = it.first; text = it.second }
             }
+            if (code !in 200..299) throw OnlineException(code, errorMessage(text, code))
+            text
         }
 
     private fun errorMessage(text: String, code: Int): String {

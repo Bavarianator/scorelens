@@ -1,5 +1,7 @@
 package com.freedarts.scorer.ui.screens
 
+import android.Manifest
+import android.content.pm.PackageManager
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -55,6 +57,9 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.core.content.ContextCompat
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -132,6 +137,13 @@ fun MatchScreen(vm: AppViewModel) {
         else -> gs.mode.title
     }
     val lensOn = lensStatus.running
+    // Lens automatisch starten: einmal kalibriert + Kamera erlaubt → kein Umweg über den Lens-Tab
+    val context = LocalContext.current
+    val owner = LocalLifecycleOwner.current
+    LaunchedEffect(Unit) {
+        if (!lensOn && settings.lensAutoStart && settings.lensCalibration.size == 8 && !online &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) vm.startLens(owner)
+    }
 
     // Caller-Einblendung: letzte Aufnahme groß anzeigen (2,5 s)
     val lastEntry = s.players.getOrNull((s.currentPlayer - 1 + s.players.size) % s.players.size)?.history?.lastOrNull()
@@ -497,9 +509,9 @@ private fun BarButton(icon: ImageVector, label: String, active: Boolean, enabled
 }
 
 @Composable
-fun SettingSwitch(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+fun SettingSwitch(label: String, checked: Boolean, enabled: Boolean = true, onChange: (Boolean) -> Unit) {
     Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, Modifier.weight(1f)); Switch(checked = checked, onCheckedChange = onChange)
+        Text(label, Modifier.weight(1f), color = if (enabled) Color.Unspecified else DartColors.TextMuted); Switch(checked = checked, onCheckedChange = onChange, enabled = enabled)
     }
 }
 

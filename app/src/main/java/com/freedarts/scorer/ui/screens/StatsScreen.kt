@@ -51,7 +51,7 @@ import com.freedarts.scorer.ui.components.Badge
 import com.freedarts.scorer.ui.components.BarChart
 import com.freedarts.scorer.ui.components.BrandTitle
 import com.freedarts.scorer.ui.components.Chip
-import com.freedarts.scorer.ui.components.HeadToHeadRow
+import com.freedarts.scorer.ui.components.HeadToHeadCompare
 import com.freedarts.scorer.ui.components.HeaderSwoosh
 import com.freedarts.scorer.ui.components.HeatmapBoard
 import com.freedarts.scorer.ui.components.ScreenBackground
@@ -148,7 +148,7 @@ fun StatsScreen(vm: AppViewModel, startTab: Int = 0) {
                         val h2h = remember(ms, id) { Statistics.headToHead(ms, id) }
                         if (h2h.isNotEmpty()) {
                             SectionLabel("Head-to-Head")
-                            AdCard { h2h.forEach { HeadToHeadRow(it) } }
+                            h2h.forEach { AdCard(Modifier.padding(bottom = 8.dp)) { HeadToHeadCompare(it) } }
                         }
 
                         SectionLabel("Matches", trailing = { Chip("${ms.size}") })

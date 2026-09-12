@@ -80,8 +80,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val caller = Caller(app)
     val board = BoardManagerClient(viewModelScope)
     val lens = LensController(app)
-    val remote = RemoteServer({ remoteState() }) { cmd -> viewModelScope.launch { when (cmd) { "undo" -> undo(); "next" -> nextPlayer(); else -> Segment.parse(cmd)?.let { s -> game?.let { g -> if (!g.finished && !g.players[g.current].isBot) throwDart(s) } } } } }
+    val remote = RemoteServer({ remoteState() }, { lens.frameJpeg() }) { cmd -> viewModelScope.launch { when (cmd) { "undo" -> undo(); "next" -> nextPlayer(); "board:reset" -> lens.requestReference(); "board:calibrate" -> lens.startSearch(); else -> Segment.parse(cmd)?.let { s -> game?.let { g -> if (!g.finished && !g.players[g.current].isBot) throwDart(s) } } } } }
     private val _remoteUrl = MutableStateFlow<String?>(null)
+    /** Letzter Lens-Takeout; /api/state meldet danach ~1 s lang „Takeout“, damit ein pollendes Zweithandy ihn sicher sieht. */
+    @Volatile private var lensTakeoutAt = 0L
     val remoteUrl: StateFlow<String?> = _remoteUrl
 
     /** Online-Modus (Supabase): Konto, Lobbys, synchronisierte Matches. */
@@ -136,7 +138,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch { board.throws.collect { t -> onBoardThrow(t.segment, t.x, t.y) } }
         viewModelScope.launch { board.takeout.collect { onBoardTakeout() } }
         viewModelScope.launch { lens.throws.collect { t -> onBoardThrow(t.segment, t.boardX, t.boardY) } }
-        viewModelScope.launch { lens.takeout.collect { onBoardTakeout() } }
+        viewModelScope.launch { lens.takeout.collect { lensTakeoutAt = System.currentTimeMillis(); onBoardTakeout() } }
         lens.setSensitivity(settings.value.lensSensitivity)
         val s = settings.value
         if (s.boardManagerEnabled) board.connect(s.boardManagerHost, s.boardManagerPort)
@@ -278,13 +280,21 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** Erster Start: Profil anlegen (oder ersten Spieler umbenennen) und als Dashboard-Profil setzen. */
     fun finishOnboarding(name: String, color: Long) {
         val trimmed = name.trim().ifEmpty { "Spieler 1" }
-        val existing = players.value.firstOrNull()
-        val profile = if (existing != null && existing.name == "Spieler 1") existing.copy(name = trimmed, color = color).also { repo.updatePlayer(it) }
+        // Einziger Spieler (Standard "Spieler 1" oder bestehende Ein-Personen-Installation) wird das Profil – sonst
+        // entsteht ein Duplikat ohne Verlauf und die Statistik des Profils bleibt leer.
+        val existing = players.value.filter { !it.isBot }.singleOrNull() ?: players.value.firstOrNull { it.name == "Spieler 1" }
+        val profile = if (existing != null) existing.copy(name = trimmed, color = color).also { repo.updatePlayer(it) }
         else Player(name = trimmed, color = color).also { repo.addPlayer(it) }
         _lobbyPlayers.value = listOf(profile)
         repo.updateSettings { it.copy(onboardingDone = true, profilePlayerId = profile.id) }
         backStack.clear()
         _screen.value = Screen.Home
+    }
+
+    /** Trainingsmodus direkt mit dem Profilspieler starten (Home: „Training des Tages“). */
+    fun startTraining(mode: GameMode) {
+        _lobbyPlayers.value = listOfNotNull(players.value.firstOrNull { it.id == settings.value.profilePlayerId } ?: players.value.firstOrNull { !it.isBot })
+        setMode(mode); startGame()
     }
 
     /** "Gegner finden" ohne Online-Matchmaking: Bot auf dem Niveau des Profils. */
@@ -317,17 +327,25 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private fun remoteState(): RemoteServer.RemoteState {
         val g = game; val st = _gameState.value
         val lensStatus = lens.status.value
-        if (g == null || st == null) return RemoteServer.RemoteState(false, lens = if (lensStatus.running) "Lens: ${lensStatus.message}" else "")
+        val boardStatus = when {
+            !lensStatus.running -> "Stopped"
+            System.currentTimeMillis() - lensTakeoutAt < 1200 || lensStatus.phase == com.freedarts.scorer.lens.DartDetector.Phase.TAKEOUT -> "Takeout"
+            else -> "Throw"
+        }
+        val boardThrows = lens.detections.value.map { RemoteServer.BoardThrow(it.segment.name, it.boardX, it.boardY) }
+        if (g == null || st == null) return RemoteServer.RemoteState(false, lens = if (lensStatus.running) "Lens: ${lensStatus.message}" else "", boardStatus = boardStatus, boardThrows = boardThrows)
         val title = g.settings.mode.title + (if (g.settings.mode == GameMode.X01) " ${g.settings.baseScore}" else "")
         val headline = st.headline + (if (st.visitLocked) " · Darts entnehmen" else "")
         return RemoteServer.RemoteState(
             hasGame = true, title = title, headline = headline, banner = st.banner, checkout = st.checkoutHint,
             visit = st.currentVisit.map { it.name }, visitSum = st.currentVisit.sumOf { it.score },
             players = st.players.mapIndexed { i, p ->
-                RemoteServer.RemotePlayer(p.player.name, p.score, p.detail, p.legs, p.sets, i == st.currentPlayer && !st.finished, p.isOut, p.history.map { it.label })
+                RemoteServer.RemotePlayer(p.player.name, p.score, p.detail, p.legs, p.sets, i == st.currentPlayer && !st.finished, p.isOut, p.history.map { it.label },
+                    color = "#%06X".format(p.player.color and 0xFFFFFF), avatar = p.player.avatar, isBot = p.player.isBot)
             },
-            finished = st.finished,
-            lens = if (lensStatus.running) "Lens: ${lensStatus.message}" else "",
+            finished = st.finished, winner = st.winnerIndex?.let { st.players.getOrNull(it)?.player?.name },
+            lens = if (lensStatus.running) "Lens: ${lensStatus.message}" else "", lensReady = lensStatus.setup == LensController.Setup.READY,
+            boardStatus = boardStatus, boardThrows = boardThrows,
         )
     }
 
@@ -435,8 +453,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         startGame()
     }
 
-    fun rematch() {
-        val g = game ?: return
     // ---------- Turnier ----------
 
     fun startTournament(mode: TournamentMode) {
@@ -481,10 +497,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         backStack.clear(); _screen.value = Screen.Tournament
     }
 
+    fun rematch() {
+        val g = game ?: return
         caller.stop()
+        if (tournamentMatch != null) return backToTournament()
         if (onlineMatch != null) {
             // Online: zurück in die Lobby, der Host startet das nächste Match
-        if (tournamentMatch != null) return backToTournament()
             onlineMatch = null; game = null; _gameState.value = null
             backStack.clear(); _screen.value = Screen.OnlineLobby
             return
@@ -497,9 +515,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private fun launchGame(ps: List<Player>, gs: GameSettings) {
         botJob?.cancel()
         recorded = false
+        tournamentMatch = null
         _lastRecord.value = null
         game = GameFactory.create(ps, gs)
-        tournamentMatch = null
         refresh()
         caller.callPlayer(ps.first().name)
         if (ps.first().isBot) scheduleBot()
@@ -509,16 +527,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         botJob?.cancel(); autoNextJob?.cancel(); caller.stop()
         game = null
         _gameState.value = null
+        if (isSpectator) return stopSpectating()
         if (onlineMatch != null) {
             onlineMatch = null
-        if (isSpectator) return stopSpectating()
             online.abortMatch()
             backStack.clear(); _screen.value = Screen.OnlineLobby
             return
         }
+        if (tournamentMatch != null) return backToTournament()
         goHome()
     }
-        if (tournamentMatch != null) return backToTournament()
 
     // ---------- Match ----------
 
@@ -541,8 +559,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         afterEvent(before)
     }
 
-    /** Gesamtscore einer Aufnahme (Total-Score-Eingabe). Zerlegt in bis zu 3 Darts. */
-    fun enterVisitTotal(total: Int) {
     /** Referee-Bild verkleinern (max. 160 px, JPEG) und als Ticker-Bild lokal zeigen und an die Mitspieler senden. */
     private fun shareSnapshot(at: Long, bmp: android.graphics.Bitmap) {
         _snapshots.update { it + (at to bmp.asImageBitmap()) }
@@ -555,6 +571,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** Gesamtscore einer Aufnahme (Total-Score-Eingabe). Zerlegt in bis zu 3 Darts. */
+    fun enterVisitTotal(total: Int) {
         val g = game ?: return
         if (g.finished || g.visit.isNotEmpty() || g.visitComplete || g.bullOffActive || !isMyTurn) return
         val darts = decompose(total, g)
@@ -578,14 +596,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             if (total == remaining) Checkout.bestRoute(total, 3, outMode)?.let { return it }
             if (total > remaining) return listOf(Segment.triple(20), Segment.triple(20), Segment.triple(20))
         }
-        val result = ArrayList<Segment>()
-        var rest = total.coerceIn(0, 180)
-        while (rest > 0 && result.size < 3) {
-            val seg = Segment.ALL.filter { it.score <= rest && !it.isBull }.maxByOrNull { it.score } ?: break
-            result.add(seg); rest -= seg.score
-        }
-        while (result.size < 3) result.add(Segment.MISS)
-        return result
+        // Beliebige 3-Dart-Zerlegung (Straight Out = jede Kombination); nicht werfbare Summen (z. B. 179) → nichts eintragen
+        if (total <= 0) return listOf(Segment.MISS, Segment.MISS, Segment.MISS)
+        val route = Checkout.bestRoute(total, 3, OutMode.STRAIGHT) ?: return emptyList()
+        return route + List(3 - route.size) { Segment.MISS }
     }
 
     fun undo() {
@@ -724,6 +738,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             throws = g.throwLog,
         )
         repo.addMatch(record)
+        if (online.session.value != null && online.configured) online.saveMatch(record)
+        _lastRecord.value = record
         // Turnier: Sieger eintragen (Unentschieden lässt das Spiel offen, es wird wiederholt)
         val ti = tournamentMatch; val t = tournament.value; val w = g.winner
         if (ti != null && t != null && w != null) {
@@ -731,12 +747,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             val result = t.withResult(ti, if (w == 0) tm.a!! else tm.b!!, stats[0].legsWon, stats[1].legsWon)
             if (om != null) { online.setTournament(result); tournamentMatch = null } else repo.setTournament(result)
         }
-        if (online.session.value != null && online.configured) online.saveMatch(record)
-        _lastRecord.value = record
     }
-        if (isSpectator) return stopSpectating()
 
     fun finishToResult() {
+        if (isSpectator) return stopSpectating()
         if (_lastRecord.value == null) recordMatch()
         navigate(Screen.Result)
     }

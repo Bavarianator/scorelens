@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -20,22 +19,33 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.freedarts.scorer.engine.Statistics
 import com.freedarts.scorer.model.GameMode
+import com.freedarts.scorer.model.MatchRecord
 import com.freedarts.scorer.ui.AppViewModel
 import com.freedarts.scorer.ui.Screen
 import com.freedarts.scorer.ui.components.AdCard
@@ -44,12 +54,18 @@ import com.freedarts.scorer.ui.components.BrandTitle
 import com.freedarts.scorer.ui.components.Chip
 import com.freedarts.scorer.ui.components.DartboardPreview
 import com.freedarts.scorer.ui.components.HeaderSwoosh
-import com.freedarts.scorer.ui.components.NameRibbon
+import com.freedarts.scorer.ui.components.PrimaryButton
 import com.freedarts.scorer.ui.components.ScreenBackground
+import com.freedarts.scorer.ui.components.SecondaryButton
 import com.freedarts.scorer.ui.components.SectionLabel
+import com.freedarts.scorer.ui.components.Sparkline
+import com.freedarts.scorer.ui.components.StatTile
 import com.freedarts.scorer.ui.components.levelOf
 import com.freedarts.scorer.ui.theme.Condensed
 import com.freedarts.scorer.ui.theme.DartColors
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun HomeScreen(vm: AppViewModel) {
@@ -58,21 +74,30 @@ fun HomeScreen(vm: AppViewModel) {
     val matches by vm.matches.collectAsStateWithLifecycle()
     val lobbyPlayers by vm.lobbyPlayers.collectAsStateWithLifecycle()
     val lensStatus by vm.lens.status.collectAsStateWithLifecycle()
+    val gameState by vm.gameState.collectAsStateWithLifecycle()
+    /** Laufendes Match (per Tab verlassen): Hero führt zurück statt neu zu starten. */
+    val running = gameState?.finished == false
     val onlineSession by vm.online.session.collectAsStateWithLifecycle()
     val onlineProfile by vm.online.profile.collectAsStateWithLifecycle()
     val onlineLobby by vm.online.lobby.collectAsStateWithLifecycle()
     val tournament by vm.tournament.collectAsStateWithLifecycle()
     val loggedIn = onlineSession != null && vm.online.configured
 
+    val friends by vm.online.friends.collectAsStateWithLifecycle()
+    val invite by vm.online.invite.collectAsStateWithLifecycle()
+    var showInbox by remember { mutableStateOf(false) }
+    val requests = friends.filter { !it.accepted && it.incoming }
+    val unread = requests.size + (if (invite != null) 1 else 0)
     val profile = players.firstOrNull { it.id == settings.profilePlayerId } ?: players.firstOrNull()
     val myX01 = matches.filter { it.mode == GameMode.X01 }.mapNotNull { m -> m.players.firstOrNull { it.playerId == profile?.id } }
-    val allMine = matches.mapNotNull { m -> m.players.firstOrNull { it.playerId == profile?.id } }
-    val darts = myX01.sumOf { it.dartsThrown }
-    val avg = if (darts == 0) 0.0 else myX01.sumOf { it.pointsScored }.toDouble() / darts * 3
-    val winRate = if (allMine.isEmpty()) 0.0 else 100.0 * allMine.count { it.won } / allMine.size
-    val dad = myX01.sumOf { it.dartsAtDouble }
-    val co = if (dad == 0) 0.0 else 100.0 * myX01.sumOf { it.checkouts } / dad
-    val (lvl, lvlBg, lvlFg) = levelOf(avg)
+    val last10 = myX01.takeLast(10)
+    val avg = Statistics.metricTotal(GameMode.X01, last10)
+    val atDouble = last10.sumOf { it.dartsAtDouble }
+    val checkout = if (atDouble == 0) 0.0 else 100.0 * last10.sumOf { it.checkouts } / atDouble
+    val lvl = levelOf(avg).first
+    val onlineIds by vm.online.online.collectAsStateWithLifecycle()
+    val friendsOnline = friends.count { it.accepted && it.id in onlineIds }
+    val df = remember { SimpleDateFormat("dd.MM. HH:mm", Locale.GERMANY) }
 
     Box(Modifier.fillMaxSize()) {
         ScreenBackground()
@@ -81,55 +106,57 @@ fun HomeScreen(vm: AppViewModel) {
             Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (profile != null) Box(Modifier.clickable { vm.navigate(Screen.Players) }) { Avatar(profile, 40) }
                 Box(Modifier.weight(1f), contentAlignment = Alignment.Center) { BrandTitle("Scorelens", size = 22) }
+                IconButton(onClick = { showInbox = true }) {
+                    BadgedBox(badge = { if (unread > 0) Badge { Text("$unread") } }) { Icon(Icons.Default.Notifications, "Mitteilungen") }
+                }
                 IconButton(onClick = { vm.navigate(Screen.Players) }) { Icon(Icons.Default.Group, "Spieler") }
             }
             Spacer(Modifier.height(12.dp))
 
-            AdCard(onClick = { vm.navigate(Screen.Stats) }) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (profile != null) Avatar(profile, 40)
-                    Spacer(Modifier.width(10.dp))
-                    NameRibbon(profile?.name ?: "Spieler", lvl, lvlBg, lvlFg)
-                }
-                Spacer(Modifier.height(12.dp))
-                Row {
-                    ProfileStat("%.1f".format(avg), "3 Dart Avg", Modifier.weight(1f))
-                    ProfileStat("%.1f%%".format(winRate), "Win Rate", Modifier.weight(1f))
-                    ProfileStat("%.1f%%".format(co), "Checkout %", Modifier.weight(1f))
-                }
-            }
-            Spacer(Modifier.height(12.dp))
-
-            // Play Now
+            // Weiter spielen: letzte Einstellungen und Spieler, ein Tipp
             Box(
-                Modifier.fillMaxWidth().height(132.dp).clip(RoundedCornerShape(16.dp))
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
                     .background(Brush.linearGradient(listOf(Color(0xFF0E3A8C), Color(0xFF0F6E8F), Color(0xFF16B8B0))))
-                    .clickable { vm.navigate(Screen.Lobby) },
+                    .clickable { if (running) vm.navigate(Screen.Match) else vm.playNow() },
             ) {
-                DartboardPreview(Modifier.size(150.dp).align(Alignment.TopEnd).offset(x = 10.dp, y = (-9).dp))
-                Column(Modifier.padding(start = 16.dp, top = 20.dp)) {
-                    Text("PLAY NOW", fontFamily = Condensed, fontWeight = FontWeight.Bold, fontSize = 30.sp)
-                    Text("Solo, gegen Freunde oder gegen den Bot", fontSize = 13.sp, color = Color(0xFFDDE6F5))
+                // Karte wächst mit dem Inhalt, Board bleibt komplett innerhalb (kein Offset, kein Abschneiden)
+                DartboardPreview(Modifier.size(112.dp).align(Alignment.CenterEnd).padding(end = 12.dp))
+                Column(Modifier.padding(start = 16.dp, top = 18.dp, bottom = 16.dp, end = 136.dp)) {
+                    Text(if (running) "WEITER SPIELEN" else "NOCHMAL SPIELEN", fontFamily = Condensed, fontWeight = FontWeight.Bold, fontSize = 26.sp, lineHeight = 28.sp)
+                    val last = settings.lastGameSettings
+                    Text((if (running) "Match läuft · " else "") + last.mode.title + (if (last.mode == GameMode.X01) " ${last.baseScore}" else "") + " · " + lobbyPlayers.joinToString(", ") { it.name }.ifEmpty { profile?.name ?: "" },
+                        fontSize = 13.sp, color = Color(0xFFDDE6F5), maxLines = 2, overflow = TextOverflow.Ellipsis)
                     Spacer(Modifier.height(8.dp))
                     Row(Modifier.background(Color(0x73000000), RoundedCornerShape(999.dp)).padding(horizontal = 10.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
                         Box(Modifier.size(8.dp).background(if (lensStatus.running) DartColors.Green else DartColors.TextMuted, RoundedCornerShape(4.dp)))
                         Spacer(Modifier.width(6.dp))
-                        Text(if (lensStatus.running) "Lens bereit" else "Lens aus", fontSize = 12.sp)
+                        Text(if (lensStatus.running) "Lens bereit" else if (settings.lensCalibration.size == 8) "Lens startet im Match" else "Lens aus", fontSize = 12.sp)
                     }
                 }
             }
             Spacer(Modifier.height(10.dp))
 
-            // Gegner finden: online (Matchmaking über Supabase), sonst Bot auf eigenem Niveau
-            Box(
-                Modifier.fillMaxWidth().height(96.dp).clip(RoundedCornerShape(16.dp))
-                    .background(Brush.linearGradient(listOf(Color(0xFF15305F), Color(0xFF1D4ED8)))).clickable { vm.findOpponent() },
-            ) {
-                Column(Modifier.padding(start = 16.dp, top = 18.dp)) {
-                    Text("GEGNER FINDEN", fontFamily = Condensed, fontWeight = FontWeight.Bold, fontSize = 26.sp)
-                    Text(if (loggedIn) "Online-Gegner auf deinem Niveau · 501 · First to 3 Legs" else "Bot auf deinem Niveau · 501 · First to 3 Legs", fontSize = 13.sp, color = Color(0xFFDDE6F5))
+            Spacer(Modifier.height(10.dp))
+            // Neues Spiel und Gegner finden nebeneinander
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Box(
+                    Modifier.weight(1f).height(96.dp).clip(RoundedCornerShape(16.dp))
+                        .background(Brush.linearGradient(listOf(Color(0xFF1D2A4A), Color(0xFF22346A)))).clickable { vm.navigate(Screen.Lobby) },
+                ) {
+                    Column(Modifier.fillMaxSize().padding(14.dp), verticalArrangement = Arrangement.Center) {
+                        Text("NEUES SPIEL", fontFamily = Condensed, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+                        Text("Modus, Spieler, Bot", fontSize = 12.sp, color = Color(0xFFDDE6F5), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
                 }
-                Chip(if (loggedIn) "Online" else lvl, Modifier.align(Alignment.CenterEnd).padding(end = 14.dp))
+                Box(
+                    Modifier.weight(1f).height(96.dp).clip(RoundedCornerShape(16.dp))
+                        .background(Brush.linearGradient(listOf(Color(0xFF15305F), Color(0xFF1D4ED8)))).clickable { vm.findOpponent() },
+                ) {
+                    Column(Modifier.fillMaxSize().padding(14.dp), verticalArrangement = Arrangement.Center) {
+                        Text("GEGNER FINDEN", fontFamily = Condensed, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+                        Text(if (loggedIn) "Online · 501 · First to 3" else "Bot · $lvl", fontSize = 12.sp, color = Color(0xFFDDE6F5), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
             }
             Spacer(Modifier.height(10.dp))
 
@@ -138,34 +165,22 @@ fun HomeScreen(vm: AppViewModel) {
                 Modifier.fillMaxWidth().height(96.dp).clip(RoundedCornerShape(16.dp))
                     .background(Brush.linearGradient(listOf(Color(0xFF3B1D5E), Color(0xFF6D28D9)))).clickable { if (onlineLobby != null) vm.openOnlineLobby() else vm.navigate(Screen.Online) },
             ) {
-                Column(Modifier.padding(start = 16.dp, top = 18.dp)) {
-                    Text("ONLINE SPIELEN", fontFamily = Condensed, fontWeight = FontWeight.Bold, fontSize = 26.sp)
-                    Text(
-                        when {
-                            onlineLobby != null -> "Deine Lobby ${onlineLobby?.code} · ${onlineLobby?.players?.size}/${onlineLobby?.maxPlayers} Spieler"
-                            loggedIn -> "Angemeldet als ${onlineProfile?.name ?: "…"} · Lobbys, Code, Gegner finden"
-                            vm.online.configured -> "Anmelden mit E-Mail, Google, GitHub, Discord oder als Gast"
-                            else -> "Supabase-Server eintragen (supabase.com oder selbst gehostet)"
-                        },
-                        fontSize = 13.sp, color = Color(0xFFDDE6F5), maxLines = 1,
-                    )
+                Row(Modifier.fillMaxSize().padding(start = 16.dp, end = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f).padding(end = 8.dp)) {
+                        Text("ONLINE SPIELEN", fontFamily = Condensed, fontWeight = FontWeight.Bold, fontSize = 26.sp)
+                        Text(
+                            when {
+                                onlineLobby != null -> "Deine Lobby ${onlineLobby?.code} · ${onlineLobby?.players?.size}/${onlineLobby?.maxPlayers} Spieler"
+                                friendsOnline > 0 -> "$friendsOnline ${if (friendsOnline == 1) "Freund" else "Freunde"} online · Lobbys, Turniere"
+                                loggedIn -> "Lobbys, Freunde, Turniere · ${onlineProfile?.name ?: "…"}"
+                                vm.online.configured -> "Mit Google, GitHub oder als Gast"
+                                else -> "Server eintragen"
+                            },
+                            fontSize = 13.sp, color = Color(0xFFDDE6F5), maxLines = 2, overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    Chip(if (onlineLobby != null) "Lobby" else if (loggedIn) "Online" else "Login")
                 }
-                Chip(if (onlineLobby != null) "Lobby" else if (loggedIn) "Online" else "Login", Modifier.align(Alignment.CenterEnd).padding(end = 14.dp))
-            }
-            Spacer(Modifier.height(10.dp))
-
-            // Sofort spielen
-            Box(
-                Modifier.fillMaxWidth().height(96.dp).clip(RoundedCornerShape(16.dp))
-                    .background(Brush.linearGradient(listOf(Color(0xFF1D2A4A), Color(0xFF22346A)))).clickable { vm.playNow() },
-            ) {
-                Column(Modifier.padding(start = 16.dp, top = 18.dp)) {
-                    Text("SOFORT SPIELEN", fontFamily = Condensed, fontWeight = FontWeight.Bold, fontSize = 26.sp)
-                    val last = settings.lastGameSettings
-                    Text(last.mode.title + (if (last.mode == GameMode.X01) " ${last.baseScore}" else "") + " · " + lobbyPlayers.joinToString(", ") { it.name }.ifEmpty { profile?.name ?: "" },
-                        fontSize = 13.sp, color = Color(0xFFDDE6F5), maxLines = 1)
-                }
-                Chip("Last settings", Modifier.align(Alignment.CenterEnd).padding(end = 14.dp))
             }
 
             tournament?.let { t ->
@@ -177,50 +192,89 @@ fun HomeScreen(vm: AppViewModel) {
                 }
             }
 
-            SectionLabel("Geräte")
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                AdCard(Modifier.weight(1f), onClick = { vm.navigate(Screen.Board) }, padding = 12) {
-                    Text("Board Manager", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                    Text(if (settings.boardManagerEnabled) settings.boardManagerHost else "Autodarts-Hardware", fontSize = 12.sp, color = DartColors.TextMuted, maxLines = 1)
-                }
-                AdCard(Modifier.weight(1f), onClick = { vm.navigate(Screen.Devices) }, padding = 12) {
-                    Text("Devices", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                    Text("Zweiter Bildschirm, Remote", fontSize = 12.sp, color = DartColors.TextMuted, maxLines = 1)
+            // Deine Form: Ø, Checkout, Serie der letzten 10 X01-Spiele
+            SectionLabel("Deine Form", trailing = { Chip(lvl) })
+            AdCard(onClick = { vm.navigate(Screen.Stats) }) {
+                if (myX01.isEmpty()) Text("Spiel dein erstes Match, dann steht hier deine Form.", color = DartColors.TextMuted)
+                else {
+                    val streak = Statistics.streaks(matches, profile?.id ?: "")
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        StatTile("%.1f".format(avg), "Ø letzte ${last10.size}", Modifier.weight(1f))
+                        StatTile("%.0f %%".format(checkout), "Checkout", Modifier.weight(1f), barColor = DartColors.Green)
+                        StatTile("${kotlin.math.abs(streak.current)}", if (streak.current >= 0) "Siege in Folge" else "Niederlagen", Modifier.weight(1f), barColor = if (streak.current >= 0) DartColors.Lime else DartColors.Red)
+                    }
+                    if (last10.size >= 2) { Spacer(Modifier.height(6.dp)); Sparkline(last10.map { it.average3 }) }
                 }
             }
 
-            SectionLabel("Letzte Matches", trailing = {
-                Text("Alle anzeigen", color = DartColors.PrimaryLight, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.clickable { vm.navigate(Screen.History) })
-            })
-            if (matches.isEmpty()) {
-                AdCard { Text("Noch keine Matches – starte mit Play Now.", color = DartColors.TextMuted) }
-            } else matches.takeLast(3).reversed().forEach { m ->
-                val me = m.players.firstOrNull { it.playerId == profile?.id }
-                AdCard {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        val won = me?.won == true
-                        val label = if (me == null) "Match" else if (won) "Sieg" else if (m.winnerId == null) "Remis" else "Niederlage"
-                        val col = if (won) DartColors.Green else DartColors.TextMuted
-                        Box(Modifier.border(1.dp, col, RoundedCornerShape(999.dp)).padding(horizontal = 10.dp, vertical = 3.dp)) { Text(label, color = col, fontSize = 12.sp, fontWeight = FontWeight.SemiBold) }
-                        Spacer(Modifier.weight(1f))
-                        Chip("${m.players.size} Spieler")
+            // Training des Tages: eine feste Regel aus Checkout und Average – ponytail: drei Schwellen, Trainingspläne erst bei Bedarf
+            val (training, why) = when {
+                myX01.isEmpty() -> GameMode.SEGMENT_TRAINING to "Zum Einwerfen: 10 Runden auf die 20"
+                checkout < 30 -> GameMode.RANDOM_CHECKOUT to "Checkout-Quote %.0f %% – Finishes üben".format(checkout)
+                avg < 50 -> GameMode.SEGMENT_TRAINING to "Ø %.1f – die T20 festigen".format(avg)
+                else -> GameMode.BOBS_27 to "Doppel unter Druck"
+            }
+            SectionLabel("Training des Tages")
+            AdCard(onClick = { vm.startTraining(training) }) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(training.title.uppercase(), fontFamily = Condensed, fontWeight = FontWeight.Bold, fontSize = 24.sp)
+                        Text(why, color = DartColors.TextMuted, fontSize = 13.sp)
                     }
-                    Spacer(Modifier.height(6.dp))
-                    Text(m.players.joinToString(" vs ") { it.playerName }, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                    Text(m.mode.title + (if (m.mode == GameMode.X01) " ${m.settings.baseScore}" else "") + " • " + formatDuration(m.durationMillis) +
-                        (me?.takeIf { m.mode == GameMode.X01 }?.let { " • Ø %.1f".format(it.average3) } ?: ""), color = DartColors.TextMuted, fontSize = 14.sp)
+                    Chip("Start", selected = true)
                 }
-                Spacer(Modifier.height(8.dp))
+            }
+
+            if (matches.isNotEmpty()) {
+                SectionLabel("Letzte Matches", trailing = {
+                    Text("Alle", color = DartColors.PrimaryLight, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.clickable { vm.navigate(Screen.History) })
+                })
+                AdCard { matches.takeLast(3).reversed().forEach { RecentMatchRow(it, profile?.id, df) { vm.navigate(Screen.History) } } }
             }
             Spacer(Modifier.height(24.dp))
         }
     }
+
+    // Mitteilungen: Einladungen, Freundschaftsanfragen und letzte Ergebnisse an einem Ort (alles aus vorhandenem Zustand, keine eigene Ablage)
+    if (showInbox) {
+        AlertDialog(
+            onDismissRequest = { showInbox = false },
+            title = { Text("Mitteilungen") },
+            text = {
+                Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    invite?.let { i -> InviteCard(i, friends, onAccept = { showInbox = false; vm.acceptInvite(i) }, onDismiss = { vm.online.dismissInvite(i) }) }
+                    if (requests.isNotEmpty()) {
+                        Text("Freundschaftsanfragen", fontWeight = FontWeight.Bold)
+                        requests.forEach { f ->
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Avatar(f.player(), 32, online = false)
+                                Text(f.name, Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
+                                PrimaryButton("Annehmen", height = 36) { vm.online.acceptFriend(f.id) }
+                                SecondaryButton("Nein") { vm.online.removeFriend(f.id) }
+                            }
+                        }
+                    }
+                    Text("Letzte Ergebnisse", fontWeight = FontWeight.Bold)
+                    if (matches.isEmpty()) Text("Noch keine Matches.", color = DartColors.TextMuted)
+                    matches.takeLast(5).reversed().forEach { RecentMatchRow(it, profile?.id, df) { showInbox = false; vm.navigate(Screen.History) } }
+                    if (unread == 0 && matches.isEmpty()) Text("Nichts Neues.", color = DartColors.TextMuted)
+                }
+            },
+            confirmButton = { TextButton(onClick = { showInbox = false }) { Text("Schließen") } },
+        )
+    }
 }
 
+/** Eine Zeile Match-Ergebnis: Sieg/Niederlage, Paarung, Modus und Zeit. */
 @Composable
-private fun ProfileStat(value: String, label: String, modifier: Modifier) {
-    Column(modifier) {
-        Text(value, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-        Text(label, style = MaterialTheme.typography.bodySmall, color = DartColors.TextMuted)
+private fun RecentMatchRow(m: MatchRecord, profileId: String?, df: SimpleDateFormat, onClick: () -> Unit) {
+    val me = m.players.firstOrNull { it.playerId == profileId }
+    val label = if (me == null) "Match" else if (me.won) "Sieg" else if (m.winnerId == null) "Remis" else "Niederlage"
+    Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(label, color = if (me?.won == true) DartColors.Green else DartColors.TextMuted, fontWeight = FontWeight.SemiBold, modifier = Modifier.width(84.dp))
+        Column(Modifier.weight(1f)) {
+            Text(m.players.joinToString(" vs ") { it.playerName }, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(m.mode.title + " · " + df.format(Date(m.finishedAt)), color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
+        }
     }
 }

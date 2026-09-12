@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.freedarts.scorer.engine.Board
 import com.freedarts.scorer.engine.Statistics
@@ -112,6 +113,34 @@ fun HeadToHeadRow(h: Statistics.HeadToHead) {
         }
         Text("${h.wins}:${h.losses}", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium,
             color = if (h.wins > h.losses) DartColors.Green else if (h.wins < h.losses) DartColors.Red else Color.White)
+    }
+}
+
+/** Meine Kennzahlen direkt neben denen des Gegners (wie „Compare Stats“ bei Autodarts), Balken = Anteil am Summenwert. */
+@Composable
+fun HeadToHeadCompare(h: Statistics.HeadToHead) {
+    HeadToHeadRow(h)
+    if (h.myAverage <= 0 && h.theirAverage <= 0) return
+    CompareRow("3-Dart Average", h.myAverage, h.theirAverage) { "%.1f".format(it) }
+    CompareRow("Checkout %", h.myCheckout, h.theirCheckout) { "%.0f %%".format(it) }
+    CompareRow("180er", h.my180.toDouble(), h.their180.toDouble()) { "%.0f".format(it) }
+    CompareRow("Höchstes Finish", h.myHighFinish.toDouble(), h.theirHighFinish.toDouble()) { "%.0f".format(it) }
+}
+
+@Composable
+private fun CompareRow(label: String, mine: Double, theirs: Double, format: (Double) -> String) {
+    val total = mine + theirs
+    val share = if (total <= 0) 0.5f else (mine / total).toFloat()
+    Column(Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
+        Row(Modifier.fillMaxWidth()) {
+            Text(format(mine), fontWeight = FontWeight.Bold, color = if (mine >= theirs) DartColors.Lime else Color.White, modifier = Modifier.weight(1f))
+            Text(label, color = DartColors.TextMuted, style = MaterialTheme.typography.labelSmall)
+            Text(format(theirs), fontWeight = FontWeight.Bold, color = if (theirs > mine) DartColors.Red else Color.White, modifier = Modifier.weight(1f), textAlign = TextAlign.End)
+        }
+        Canvas(Modifier.fillMaxWidth().height(4.dp).padding(top = 1.dp)) {
+            drawRect(DartColors.Primary, size = Size(size.width * share, size.height))
+            drawRect(DartColors.Outline, topLeft = Offset(size.width * share, 0f), size = Size(size.width * (1 - share), size.height))
+        }
     }
 }
 

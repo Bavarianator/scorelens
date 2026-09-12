@@ -24,6 +24,8 @@ class X01Game(players: List<Player>, settings: GameSettings, seed: Long = System
     private var legStarter = 0
     private var visitStart = 0
     private var visitPoints = 0
+    /** Anteil von [visitPoints], der in die First-9-Wertung floss (Bust nimmt genau den zurück). */
+    private var visitFirst9 = 0
     private var legDarts = IntArray(players.size)
     private val legPoints = IntArray(players.size)
     private var legNumber = 1
@@ -83,7 +85,7 @@ class X01Game(players: List<Player>, settings: GameSettings, seed: Long = System
 
     override fun onDart(segment: Segment): Boolean {
         val p = current
-        if (visit.size == 1) { visitStart = scores[p]; visitPoints = 0; visitClosed = false }
+        if (visit.size == 1) { visitStart = scores[p]; visitPoints = 0; visitFirst9 = 0; visitClosed = false }
         val seg = effective(segment)
         legDarts[p]++
         if (legDarts[p] <= 9) first9Darts[p]++
@@ -99,8 +101,8 @@ class X01Game(players: List<Player>, settings: GameSettings, seed: Long = System
             // Bust: Aufnahme zählt 0
             pointsScored[p] -= visitPoints
             legPoints[p] -= visitPoints
-            if (legDarts[p] <= 9) first9Points[p] -= visitPoints
-            visitPoints = 0
+            first9Points[p] -= visitFirst9
+            visitPoints = 0; visitFirst9 = 0
             scores[p] = visitStart
             busts[p]++
             flagBust()
@@ -113,7 +115,7 @@ class X01Game(players: List<Player>, settings: GameSettings, seed: Long = System
         pointsScored[p] += seg.score
         legPoints[p] += seg.score
         visitPoints += seg.score
-        if (legDarts[p] <= 9) first9Points[p] += seg.score
+        if (legDarts[p] <= 9) { first9Points[p] += seg.score; visitFirst9 += seg.score }
 
         if (after == 0) {
             checkouts[p]++

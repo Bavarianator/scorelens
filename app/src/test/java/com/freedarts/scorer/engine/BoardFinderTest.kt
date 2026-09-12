@@ -95,8 +95,8 @@ class BoardFinderTest {
         }
     }
 
-    /** Frontal: Geometrie stimmt, aber wie bei Autodarts („View from the side“) noch nicht spielbereit. */
-    @Test fun frontalView() = check(truth(0.8, 180.0, 240.0, 0.0, 0.0, 0.0), 0, 2.0, BoardFinder.Quality.TOO_FRONTAL)
+    /** Frontal: Geometrie stimmt → spielbereit; der Blickwinkel ist nur eine Empfehlung. */
+    @Test fun frontalView() = check(truth(0.8, 180.0, 240.0, 0.0, 0.0, 0.0), 0, 2.0)
 
     /** Die Perspektivterme entsprechen ≈ 45° Blickwinkel (Achsenverhältnis ≈ 0,75) → spielbereit. */
     @Test fun perspectiveWithTilt() = check(truth(0.78, 178.0, 250.0, 6.0, 0.0006, 0.0004), 12, 3.0)
@@ -110,11 +110,11 @@ class BoardFinderTest {
 
     @Test fun sideView55FromLeft() = check(camera(-55.0, 1000.0, 760.0, 185.0, 235.0), 8, 3.0)
 
-    /** Unter ≈ 30° zur Boardfläche (Yaw > 60°) ist die Sicht zu flach („View more from the front“). */
-    @Test fun tooSkewedView() {
+    /** Sehr flache Sicht (≈ 25° zur Boardfläche) kalibriert trotzdem, solange die Geometrie stimmt. */
+    @Test fun verySkewedView() {
         val fit = BoardFinder(w, h).find(render(camera(65.0, 1000.0, 760.0, 180.0, 240.0), 0))
         assertNotNull(fit)
-        assertEquals(BoardFinder.Quality.TOO_SKEWED, fit!!.quality)
+        assertEquals(BoardFinder.Quality.GOOD, fit!!.quality)
     }
 
     /** Ellipse aus der Homographie: Achsenverhältnis ≈ sin(Blickwinkel), auch ohne Ringkanten. */
@@ -126,9 +126,6 @@ class BoardFinderTest {
             println("BF-ELL view=$deg° ratio=${e.axisRatio} angle=${e.viewAngleDeg}")
             assertEquals(deg, e.viewAngleDeg, 3.0)
         }
-        assertEquals(BoardFinder.Quality.TOO_FRONTAL, BoardFinder.skewQuality(0.95))
-        assertEquals(null, BoardFinder.skewQuality(0.7))
-        assertEquals(BoardFinder.Quality.TOO_SKEWED, BoardFinder.skewQuality(0.45))
     }
 
     /** Verfeinerung in Schrägsicht (KI-Startpunkte) muss GOOD liefern und zur Wahrheit konvergieren. */

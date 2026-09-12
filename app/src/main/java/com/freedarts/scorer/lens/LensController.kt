@@ -120,6 +120,15 @@ class LensController(private val context: Context) {
     var onReady: (() -> Unit)? = null
 
     @Volatile var lastFrame: ByteArray = ByteArray(frameWidth * frameHeight); private set
+    /** Aktuelles Analysebild (aufrecht, Grau) als JPEG für Remote Scoring; null solange die Kamera aus ist. */
+    fun frameJpeg(): ByteArray? {
+        if (!status.value.running) return null
+        val gray = lastFrame
+        val argb = IntArray(gray.size) { val v = gray[it].toInt() and 0xFF; (0xFF shl 24) or (v shl 16) or (v shl 8) or v }
+        val out = java.io.ByteArrayOutputStream()
+        Bitmap.createBitmap(argb, frameWidth, frameHeight, Bitmap.Config.ARGB_8888).compress(Bitmap.CompressFormat.JPEG, 60, out)
+        return out.toByteArray()
+    }
     private val executor = Executors.newSingleThreadExecutor()
     /** KI-Inferenz läuft getrennt vom Analyse-Thread, damit die Bewegungslogik keine Frames verpasst. */
     private val aiExecutor = Executors.newSingleThreadExecutor()

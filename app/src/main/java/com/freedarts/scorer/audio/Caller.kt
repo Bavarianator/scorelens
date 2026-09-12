@@ -59,7 +59,7 @@ class Caller(context: Context) {
                 while (pending.isNotEmpty()) pending.removeFirst().let { (t, f) -> say(t, f) }
             }
             start()
-        } ?: run { say("Einhundertachtzig!") }
+        } ?: run { say("Einhundertachtzig!"); null }
     }
 
     fun callScore(score: Int) {

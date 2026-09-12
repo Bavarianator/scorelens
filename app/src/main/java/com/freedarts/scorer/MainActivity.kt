@@ -12,20 +12,20 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.systemBarsPadding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BarChart
-import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.freedarts.scorer.ui.AppViewModel
 import com.freedarts.scorer.ui.Screen
@@ -93,13 +93,17 @@ fun FreeDartsApp(vm: AppViewModel, onKeepScreenOn: (Boolean) -> Unit) {
         if (screen in tabs.values) NavigationBar(containerColor = DartColors.BottomBar) {
             tabs.forEach { (label, target) ->
                 NavigationBarItem(selected = screen == target, onClick = { vm.switchTab(target) }, label = { Text(label) },
-                    icon = { Icon(when (target) { Screen.Home -> Icons.Default.Home; Screen.Lens -> Icons.Default.CameraAlt; Screen.Stats -> Icons.Default.BarChart; else -> Icons.Default.Settings }, label) })
+                    icon = { Icon(painterResource(tabIcons.getValue(target)), label, Modifier.size(22.dp)) },
+                    colors = NavigationBarItemDefaults.colors(selectedIconColor = Color.White, selectedTextColor = Color.White, indicatorColor = DartColors.Primary,
+                        unselectedIconColor = DartColors.TextMuted, unselectedTextColor = DartColors.TextMuted))
             }
         }
     }
 }
 
 private val tabs = linkedMapOf("Home" to Screen.Home, "Lens" to Screen.Lens, "Statistik" to Screen.Stats, "Einstellungen" to Screen.Settings)
+/** Lucide-Strichicons (res/drawable/ic_nav_*): Haus, Blende, Balken, Schieberegler. */
+private val tabIcons = mapOf(Screen.Home to R.drawable.ic_nav_home, Screen.Lens to R.drawable.ic_nav_lens, Screen.Stats to R.drawable.ic_nav_stats, Screen.Settings to R.drawable.ic_nav_settings)
 
 @Composable
 private fun ScreenContent(screen: Screen, vm: AppViewModel) {

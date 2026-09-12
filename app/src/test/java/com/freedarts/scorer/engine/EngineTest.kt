@@ -236,4 +236,18 @@ class MatchFlowTest {
         assertNull(g.throwLog.last().x)
         assertEquals(5, g.throwLog.last().number)
     }
+
+    @Test fun onFinishAndVisitTotals() {
+        // "Wurf aufs Double" nur, wenn ein einzelner gültiger letzter Dart den Rest exakt trifft
+        assertTrue(Checkout.isOnFinish(40, OutMode.DOUBLE)); assertTrue(Checkout.isOnFinish(50, OutMode.DOUBLE))
+        assertFalse(Checkout.isOnFinish(41, OutMode.DOUBLE)); assertFalse(Checkout.isOnFinish(25, OutMode.MASTER))
+        assertTrue(Checkout.isOnFinish(57, OutMode.MASTER)); assertFalse(Checkout.isOnFinish(43, OutMode.STRAIGHT))
+        // Gesamtscore-Eingabe: jede werfbare Summe wird exakt zerlegt, unmögliche nicht
+        for (t in 1..180) {
+            val route = Checkout.bestRoute(t, 3, OutMode.STRAIGHT)
+            if (route != null) assertEquals(t, route.sumOf { it.score })
+        }
+        assertEquals(170, Checkout.bestRoute(170, 3, OutMode.STRAIGHT)!!.sumOf { it.score })
+        assertEquals(null, Checkout.bestRoute(179, 3, OutMode.STRAIGHT))
+    }
 }

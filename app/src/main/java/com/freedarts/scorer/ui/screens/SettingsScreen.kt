@@ -1,94 +1,176 @@
-@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
-
 package com.freedarts.scorer.ui.screens
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Devices
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.SportsScore
+import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.freedarts.scorer.BuildConfig
 import com.freedarts.scorer.ui.AppViewModel
 import com.freedarts.scorer.ui.Screen
-import com.freedarts.scorer.ui.components.Chip
+import com.freedarts.scorer.ui.components.AdCard
+import com.freedarts.scorer.ui.components.AdTopBar
+import com.freedarts.scorer.ui.components.Avatar
 import com.freedarts.scorer.ui.components.ScreenBackground
 import com.freedarts.scorer.ui.components.SecondaryButton
-import com.freedarts.scorer.ui.components.SectionLabel
 import com.freedarts.scorer.ui.theme.DartColors
 
+/** Einstellungen als Karten im Stil der Devices-Seite: Icon, Titel, Untertitel, dann die Schalter. */
 @Composable
 fun SettingsScreen(vm: AppViewModel) {
     val s by vm.settings.collectAsStateWithLifecycle()
-    Box(Modifier.fillMaxSize()) { ScreenBackground() }
-    Column(Modifier.fillMaxSize()) {
-        TopBar("Einstellungen", onBack = { vm.back() })
-        val players by vm.players.collectAsStateWithLifecycle()
-        Column(Modifier.verticalScroll(rememberScrollState()).padding(16.dp)) {
-            SectionLabel("Profil (Dashboard)")
-            Text("Spieler, dessen Statistiken auf der Startseite erscheinen.", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
-            Spacer(Modifier.height(6.dp))
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                players.forEach { p -> Chip(p.name, selected = (s.profilePlayerId ?: players.firstOrNull()?.id) == p.id) { vm.updateSettings { it.copy(profilePlayerId = p.id) } } }
+    val players by vm.players.collectAsStateWithLifecycle()
+    val session by vm.online.session.collectAsStateWithLifecycle()
+
+    Box(Modifier.fillMaxSize()) {
+        ScreenBackground()
+        Column(Modifier.fillMaxSize()) {
+            AdTopBar("Einstellungen", onBack = { vm.back() })
+            Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Spacer(Modifier.height(2.dp))
+
+                SettingsCard(Icons.Default.Person, "Profil", "Wessen Statistiken auf der Startseite stehen") {
+                    val chosen = s.profilePlayerId ?: players.firstOrNull()?.id
+                    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        players.forEach { p ->
+                            Column(Modifier.clip(RoundedCornerShape(12.dp)).clickable { vm.updateSettings { it.copy(profilePlayerId = p.id) } }.padding(4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                Box(Modifier.border(2.dp, if (p.id == chosen) Color.White else Color.Transparent, CircleShape).padding(3.dp)) { Avatar(p, 44, online = false) }
+                                Text(p.name, fontSize = 11.sp, fontWeight = if (p.id == chosen) FontWeight.SemiBold else FontWeight.Normal,
+                                    color = if (p.id == chosen) Color.White else DartColors.TextMuted, maxLines = 1)
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    SecondaryButton("Spieler verwalten", Modifier.fillMaxWidth()) { vm.navigate(Screen.Players) }
+                    val export = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.CreateDocument("application/json")) { uri -> uri?.let { vm.exportTo(it) } }
+                    Spacer(Modifier.height(6.dp))
+                    SecondaryButton("Spieler und Verlauf exportieren (JSON)", Modifier.fillMaxWidth()) {
+                        export.launch("scorelens-" + java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.GERMANY).format(java.util.Date()) + ".json")
+                    }
+                }
+
+                val user = session?.user
+                SettingsCard(Icons.Default.AccountCircle, "Online-Konto", user?.email ?: user?.provider?.replaceFirstChar { it.uppercase() } ?: "Nicht angemeldet",
+                    status = if (user != null) "Angemeldet" to DartColors.Green else "Gast" to DartColors.TextMuted) {
+                    if (user != null) SecondaryButton("Abmelden", Modifier.fillMaxWidth()) { vm.online.signOut() }
+                    else SecondaryButton("Anmelden und online spielen", Modifier.fillMaxWidth()) { vm.navigate(Screen.Online) }
+                }
+
+                SettingsCard(Icons.Default.VolumeUp, "Caller & Sound", "Sprachansage und Effekte") {
+                    SettingSwitch("Caller (Sprachansage)", s.callerEnabled) { v -> vm.updateSettings { it.copy(callerEnabled = v) } }
+                    SettingSwitch("Jede Aufnahme ansagen", s.callerCallsEveryVisit, enabled = s.callerEnabled) { v -> vm.updateSettings { it.copy(callerCallsEveryVisit = v) } }
+                    SettingSwitch("Jeden Dart ansagen", s.countEachThrow, enabled = s.callerEnabled) { v -> vm.updateSettings { it.copy(countEachThrow = v) } }
+                    SettingSwitch("Soundeffekte", s.soundEffects) { v -> vm.updateSettings { it.copy(soundEffects = v) } }
+                }
+
+                SettingsCard(Icons.Default.SportsScore, "Match", "Anzeige und Ablauf im Spiel") {
+                    SettingSwitch("Checkout-Guide", s.showCheckoutGuide) { v -> vm.updateSettings { it.copy(showCheckoutGuide = v) } }
+                    SettingSlider("Automatisch nächster Spieler", if (s.autoNextDelayMs == 0L) "Aus" else "nach ${s.autoNextDelayMs / 1000} s",
+                        s.autoNextDelayMs.toFloat(), 0f..20000f, steps = 19) { v -> vm.updateSettings { it.copy(autoNextDelayMs = (v / 1000).toInt() * 1000L) } }
+                    // Selten gebraucht: erst auf Tipp sichtbar
+                    var advanced by remember { mutableStateOf(false) }
+                    Text(if (advanced) "Weniger" else "Erweitert …", color = DartColors.PrimaryLight, fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
+                        modifier = Modifier.clickable { advanced = !advanced }.padding(vertical = 6.dp))
+                    if (advanced) {
+                        SettingSwitch("Chalkboard anzeigen", s.showChalkboard) { v -> vm.updateSettings { it.copy(showChalkboard = v) } }
+                        SettingSwitch("Bildschirm anlassen", s.keepScreenOn) { v -> vm.updateSettings { it.copy(keepScreenOn = v) } }
+                        SettingSwitch("Darts Zoom im Kamerabild", s.dartsZoom) { v -> vm.updateSettings { it.copy(dartsZoom = v) } }
+                        SettingSwitch("Animationen und Match-Intro", s.animations) { v -> vm.updateSettings { it.copy(animations = v) } }
+                        SettingSlider("Bot-Wurfpause", "%.1f s".format(s.botDelayMillis / 1000f), s.botDelayMillis.toFloat(), 200f..2000f, steps = 17) { v ->
+                            vm.updateSettings { it.copy(botDelayMillis = (v / 100).toInt() * 100L) }
+                        }
+                    }
+                }
+
+                SettingsCard(Icons.Default.Devices, "Geräte", "Lens-Kamera, Board Manager, Remote Scoring") {
+                    SettingSwitch("Lens beim Match automatisch starten", s.lensAutoStart, enabled = s.lensCalibration.size == 8) { v -> vm.updateSettings { it.copy(lensAutoStart = v) } }
+                    if (s.lensCalibration.size != 8) Text("Erst einmal unter Geräte › Lens kalibrieren.", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
+                    Spacer(Modifier.height(6.dp))
+                    SecondaryButton("Geräte verwalten", Modifier.fillMaxWidth()) { vm.navigate(Screen.Devices) }
+                }
+
+                SettingsCard(Icons.Default.Info, "Scorelens", "Version ${BuildConfig.VERSION_NAME}") {
+                    Text("Kostenloser Darts-Scorer ohne Abo. Lokal ohne Konto; der Online-Modus ist optional. " +
+                        "Eingabe über Lens (Handykamera), virtuelles Board, Gesamtscore oder Dart für Dart – optional über einen Autodarts Board Manager im lokalen Netzwerk.",
+                        style = MaterialTheme.typography.bodySmall, color = DartColors.TextMuted)
+                    Spacer(Modifier.height(6.dp))
+                    Text("KI-Modell: „dart-sense“ von Ben Willshaw (YOLOv8n), Lizenz CC BY-NC 4.0 – nur nicht-kommerzielle Nutzung. Icons: Lucide (ISC).",
+                        style = MaterialTheme.typography.bodySmall, color = DartColors.TextMuted)
+                    Spacer(Modifier.height(10.dp))
+                    SecondaryButton("Umstieg von Autodarts", Modifier.fillMaxWidth()) { vm.navigate(Screen.Help) }
+                }
+                Spacer(Modifier.height(16.dp))
             }
-            SectionLabel("Caller & Sound")
-            SettingSwitch("Caller (Sprachansage)", s.callerEnabled) { v -> vm.updateSettings { it.copy(callerEnabled = v) } }
-            SettingSwitch("Jede Aufnahme ansagen", s.callerCallsEveryVisit) { v -> vm.updateSettings { it.copy(callerCallsEveryVisit = v) } }
-            SettingSwitch("Jeden Dart ansagen", s.countEachThrow) { v -> vm.updateSettings { it.copy(countEachThrow = v) } }
-            SettingSwitch("Soundeffekte", s.soundEffects) { v -> vm.updateSettings { it.copy(soundEffects = v) } }
-
-            SectionLabel("Match-Anzeige")
-            SettingSwitch("Chalkboard anzeigen", s.showChalkboard) { v -> vm.updateSettings { it.copy(showChalkboard = v) } }
-            SettingSwitch("Checkout-Guide", s.showCheckoutGuide) { v -> vm.updateSettings { it.copy(showCheckoutGuide = v) } }
-            SettingSwitch("Bildschirm im Match anlassen", s.keepScreenOn) { v -> vm.updateSettings { it.copy(keepScreenOn = v) } }
-            SettingSwitch("Darts Zoom (Aufnahme groß im Kamerabild)", s.dartsZoom) { v -> vm.updateSettings { it.copy(dartsZoom = v) } }
-            SettingSwitch("Animationen und Match-Intro", s.animations) { v -> vm.updateSettings { it.copy(animations = v) } }
-            Text("Automatic Next Player: " + (if (s.autoNextDelayMs == 0L) "aus" else "nach ${s.autoNextDelayMs / 1000} s ohne Dart"), color = DartColors.TextMuted)
-            Slider(value = s.autoNextDelayMs.toFloat(), onValueChange = { v -> vm.updateSettings { it.copy(autoNextDelayMs = (v / 1000).toInt() * 1000L) } }, valueRange = 0f..20000f, steps = 19)
-
-            SectionLabel("Remote Scoring")
-            val remoteUrl by vm.remoteUrl.collectAsStateWithLifecycle()
-            SettingSwitch("Spielansicht im Browser (zweites Gerät)", remoteUrl != null) { on -> if (on) vm.startRemote() else vm.stopRemote() }
-            Text(remoteUrl?.let { "Im WLAN öffnen: $it" } ?: "Das Handy bleibt als Lens-Kamera am Board, Scores laufen auf Tablet, PC oder TV.",
-                color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
-
-            SectionLabel("Online-Konto")
-            val onlineSession by vm.online.session.collectAsStateWithLifecycle()
-            if (onlineSession != null) {
-                Text("Angemeldet (${onlineSession?.user?.email ?: onlineSession?.user?.provider ?: "Konto"})", color = DartColors.Green, style = MaterialTheme.typography.bodySmall)
-                Spacer(Modifier.height(6.dp))
-                SecondaryButton("Abmelden", Modifier.fillMaxWidth()) { vm.online.signOut() }
-            } else {
-                Text("Nicht angemeldet – Startseite › Online spielen.", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
-            }
-
-            SectionLabel("Bot")
-            Text("Wurfpause: ${s.botDelayMillis} ms", color = DartColors.TextMuted)
-            Slider(value = s.botDelayMillis.toFloat(), onValueChange = { v -> vm.updateSettings { it.copy(botDelayMillis = (v / 100).toInt() * 100L) } },
-                valueRange = 200f..2000f)
-
-            SectionLabel("Hilfe")
-            SecondaryButton("Umstieg von Autodarts", Modifier.fillMaxWidth()) { vm.navigate(Screen.Help) }
-
-            SectionLabel("Über")
-            Text("Scorelens ist ein kostenloser Darts-Scorer ohne Abo. Lokal ohne Konto; der Online-Modus ist optional. " +
-                "Eingabe über Lens (Handykamera), virtuelles Board, Gesamtscore oder Dart für Dart – optional über einen Autodarts Board Manager im lokalen Netzwerk.",
-                style = MaterialTheme.typography.bodyMedium, color = DartColors.TextMuted)
-            Spacer(Modifier.height(8.dp))
-            Text("KI-Modell: „dart-sense“ von Ben Willshaw (YOLOv8n), Lizenz CC BY-NC 4.0 – nur nicht-kommerzielle Nutzung. " +
-                "Board-Erkennung, Spielmodi und Oberfläche: Scorelens.", style = MaterialTheme.typography.bodySmall, color = DartColors.TextMuted)
         }
     }
+}
+
+@Composable
+private fun SettingsCard(icon: ImageVector, title: String, subtitle: String, status: Pair<String, Color>? = null, content: @Composable () -> Unit) {
+    AdCard {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(44.dp).background(DartColors.SurfaceHigh, RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) { Icon(icon, null, tint = Color.White) }
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(title, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text(subtitle, color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall, maxLines = 1)
+            }
+            if (status != null) Row(Modifier.border(1.dp, status.second, RoundedCornerShape(999.dp)).padding(horizontal = 10.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(8.dp).background(status.second, CircleShape))
+                Spacer(Modifier.width(6.dp))
+                Text(status.first, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = status.second)
+            }
+        }
+        Spacer(Modifier.height(10.dp))
+        content()
+    }
+}
+
+/** Beschriftung links, aktueller Wert rechts in Primary, darunter der Regler. */
+@Composable
+private fun SettingSlider(label: String, value: String, current: Float, range: ClosedFloatingPointRange<Float>, steps: Int, onChange: (Float) -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(label, Modifier.weight(1f))
+        Text(value, color = DartColors.PrimaryLight, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+    }
+    Slider(value = current, onValueChange = onChange, valueRange = range, steps = steps)
 }

@@ -23,6 +23,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
@@ -144,6 +146,23 @@ fun LensPreview(
                     val p = toView(ix, iy)
                     prev?.let { drawLine(col, it, p, strokeWidth = 4f) }
                     prev = p
+                }
+                // Richtungspfeil: Board liegt außerhalb des Zielkreises → Kamera dorthin schwenken
+                val center = Offset(w / 2, h / 2)
+                val bc = toView(ell.cx, ell.cy)
+                val off = bc - center
+                if (off.getDistance() > w * 0.12f) {
+                    val dir = off / off.getDistance()
+                    val tip = center + dir * (w * 0.36f)
+                    val tail = tip - dir * (w * 0.16f)
+                    drawLine(DartColors.Accent, tail, tip, strokeWidth = 10f, cap = StrokeCap.Round)
+                    val n = Offset(-dir.y, dir.x)
+                    drawPath(Path().apply {
+                        moveTo(tip.x + dir.x * 18f, tip.y + dir.y * 18f)
+                        lineTo(tip.x - dir.x * 14f + n.x * 20f, tip.y - dir.y * 14f + n.y * 20f)
+                        lineTo(tip.x - dir.x * 14f - n.x * 20f, tip.y - dir.y * 14f - n.y * 20f)
+                        close()
+                    }, DartColors.Accent)
                 }
             }
 

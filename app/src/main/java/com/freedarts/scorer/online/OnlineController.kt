@@ -151,6 +151,7 @@ class OnlineController(private val context: Context, private val repo: Repositor
     /** Supabase OAuth im Browser (PKCE). Der Anbieter leitet auf scorelens://auth/callback zurück ([handleRedirect]). */
     fun beginOAuth(provider: String): Boolean {
         val a = api ?: run { error.value = "Kein Server eingetragen."; return false }
+        error.value = null
         val verifier = randomString(64)
         repo.updateSettings { it.copy(onlinePkceVerifier = verifier) }
         val challenge = base64Url(MessageDigest.getInstance("SHA-256").digest(verifier.toByteArray()))

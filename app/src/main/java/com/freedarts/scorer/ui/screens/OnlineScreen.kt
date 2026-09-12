@@ -66,6 +66,7 @@ import com.freedarts.scorer.ui.components.Avatar
 import com.freedarts.scorer.ui.components.AvatarPicker
 import com.freedarts.scorer.ui.components.Chip
 import com.freedarts.scorer.ui.components.ModeBadge
+import com.freedarts.scorer.ui.components.OAuthButton
 import com.freedarts.scorer.ui.components.NameRibbon
 import com.freedarts.scorer.ui.components.PrimaryButton
 import com.freedarts.scorer.ui.components.ScreenBackground
@@ -293,7 +294,7 @@ private fun LoginCard(vm: AppViewModel) {
         Spacer(Modifier.height(10.dp))
         // Supabase OAuth im Browser; Anbieter müssen im Projekt bzw. in selfhost/.env aktiviert sein
         OnlineController.PROVIDERS.forEach { (id, label) ->
-            PrimaryButton("Mit $label anmelden", Modifier.fillMaxWidth(), enabled = !busy) { online.beginOAuth(id) }
+            OAuthButton(id, label, Modifier.fillMaxWidth(), enabled = !busy) { online.beginOAuth(id) }
             Spacer(Modifier.height(8.dp))
         }
         SecondaryButton("Als Gast spielen", Modifier.fillMaxWidth(), enabled = !busy) { online.signInAsGuest(players.firstOrNull { !it.isBot }?.name ?: "Gast") }

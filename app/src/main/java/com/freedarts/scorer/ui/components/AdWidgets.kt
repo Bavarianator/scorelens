@@ -122,6 +122,21 @@ fun PrimaryButton(text: String, modifier: Modifier = Modifier, enabled: Boolean 
     }
 }
 
+/** Anmelde-Button eines OAuth-Anbieters mit Logo; Google weiß (Markenvorgabe), GitHub dunkel, Unbekanntes in Primary. */
+@Composable
+fun OAuthButton(provider: String, label: String, modifier: Modifier = Modifier, enabled: Boolean = true, height: Int = 52, onClick: () -> Unit) {
+    val (bg, fg, logo) = when (provider) {
+        "google" -> Triple(Color.White, Color(0xFF1F1F1F), R.drawable.ic_google)
+        "github" -> Triple(Color(0xFF24292F), Color.White, R.drawable.ic_github)
+        else -> Triple(DartColors.Primary, Color.White, null)
+    }
+    Button(onClick = onClick, modifier = modifier.height(height.dp), enabled = enabled, shape = RoundedCornerShape(14.dp),
+        colors = ButtonDefaults.buttonColors(containerColor = bg, contentColor = fg, disabledContainerColor = DartColors.SurfaceHigh, disabledContentColor = DartColors.TextMuted)) {
+        if (logo != null) { Image(painterResource(logo), null, Modifier.size(20.dp), alpha = if (enabled) 1f else 0.4f); Spacer(Modifier.width(10.dp)) }
+        Text("Mit $label fortfahren", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+    }
+}
+
 @Composable
 fun SecondaryButton(text: String, modifier: Modifier = Modifier, enabled: Boolean = true, icon: ImageVector? = null, onClick: () -> Unit) {
     Row(

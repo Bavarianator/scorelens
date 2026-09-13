@@ -7,6 +7,7 @@ Datensatzbau für das Feintuning, ohne Modal-Abhängigkeit (läuft lokal, auf Mo
 - convert_deepdarts: labels.pkl + Bilder → YOLO-Labels (7 Klassen wie dart-sense), 9/15 per Modell
 - augment_dataset: kopieren + Schrägsichten + harte Fälle vermehren + Verderbung
 - build_hard_val:  hartes Benchmark-Set aus einem Val-Split (D2, starke Schräge, verdorben)
+- build_bench_hard: fester harter Benchmark, gleiche Bildzahl wie das Original-Val (Schräge + Verderbung kombiniert je Bild)
 """
 import hashlib, json, random, re, shutil
 from pathlib import Path
@@ -193,10 +194,42 @@ def build_hard_val(src_dir, out, seed=7, log=print):
     return n
 
 
+def build_bench_hard(src_dir, out, seed=13, log=print):
+    """Fester harter Benchmark in der gleichen Größe wie das Val (615 echte Bilder): jedes Bild bekommt EINE starke
+    Schrägsicht (45–60°, wie build_hard_val) UND wird zusätzlich verdorben – kein Original bleibt „leicht“ übrig,
+    anders als build_hard_val (dort bleiben D2-Originale als leichte Fälle drin). Gleiche Bildzahl wie die Quelle,
+    damit der Vergleich mit dem bisherigen Benchmark (Recall/Precision @10px) fair bleibt."""
+    import cv2
+    src_dir, out = Path(src_dir), Path(out)
+    rng = random.Random(seed)
+    if out.exists(): shutil.rmtree(out)
+    (out / "images/val").mkdir(parents=True); (out / "labels/val").mkdir(parents=True)
+    n = 0
+    for img in sorted((src_dir / "images/val").glob("*")):
+        pts = read_pts(src_dir / "labels/val" / (img.stem + ".txt")); base = cv2.imread(str(img))
+        wimg, wpts = warp_image(base, pts, rng, yaw=(45, 60))
+        if wimg is None: wimg, wpts = base, pts  # sehr seltener Fall: Punkte fallen aus dem Bild, dann Original hart verderben
+        dimg = degrade_image(wimg, rng)
+        cv2.imwrite(str(out / "images/val" / img.name), dimg, [cv2.IMWRITE_JPEG_QUALITY, 85]); write_pts(out / "labels/val" / (img.stem + ".txt"), wpts); n += 1
+    (out / "data.yaml").write_text("path: .\ntrain: images/val\nval: images/val\n" + NAMES)
+    log(f"bench_hard: {n} Bilder (aus {src_dir})")
+    return n
+
+
 if __name__ == "__main__":  # Selbsttest: Warp und Verderbung erhalten die Punktzahl, Bild bleibt 800×800
     import numpy as np
     img = np.full((800, 800, 3), 120, np.uint8); pts = [(0, .5, .1), (1, .5, .9), (2, .1, .5), (3, .9, .5), (4, .55, .5)]
     w, q = warp_image(img, pts, random.Random(0)); assert w.shape == (800, 800, 3) and len(q) == 5 and all(0 <= x <= 1 and 0 <= y <= 1 for _, x, y in q)
     d = degrade_image(img, random.Random(0)); assert d.shape == (800, 800, 3) and d.dtype == np.uint8
     assert is_hard([(4, .5, .5), (4, .52, .5)]) and not is_hard([(4, .5, .5)] + [(c, .5, .5) for c in range(4)])
+    import tempfile
+    with tempfile.TemporaryDirectory() as td:
+        td = Path(td)
+        (td / "src/images/val").mkdir(parents=True); (td / "src/labels/val").mkdir(parents=True)
+        import cv2
+        for i in range(3):
+            cv2.imwrite(str(td / f"src/images/val/{i}.jpg"), img)
+            write_pts(td / f"src/labels/val/{i}.txt", pts)
+        c = build_bench_hard(td / "src", td / "hard", log=lambda s: None)
+        assert c == 3 and len(list((td / "hard/images/val").glob("*"))) == 3 and len(list((td / "hard/labels/val").glob("*"))) == 3
     print("dataset.py ok")

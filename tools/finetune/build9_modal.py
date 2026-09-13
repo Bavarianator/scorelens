@@ -1,13 +1,13 @@
 """data9 + dd9 auf Modal (T4, Gratis-Guthaben 30 $/Monat, kein Kaggle-Kontingent nötig): riesiger Datensatz, aufbauend
-auf dd8 statt neu von vorn. Alles in einem Prozess (kein Zip-Hin-und-Her wie bei Kaggle, also auch keine der beiden
-"Ordner nach dem Zippen gelöscht"-Fallen von dd7/dd8).
+auf dd6 (dd8 ist auf Kaggle zweimal ausgefallen, deshalb direkt von dd6 aus). Alles in einem Prozess (kein Zip-Hin-und-
+Her wie bei Kaggle, also auch keine der beiden "Ordner nach dem Zippen gelöscht"-Fallen von dd7/dd8 möglich).
 
-data9 = KOMPLETTES data8 (75.969 Bilder, unverändert – dieselbe Lehre wie bei data8: nie verdünnen, nur ergänzen)
+data9 = KOMPLETTES data6 (77.884 Bilder, unverändert – nie verdünnen, nur ergänzen)
       + ALLE Roboflow train+valid (22.780 Bilder, Original UND je eine Schrägsicht+Verderbung – der Test-Split bleibt
         für bench_rf unberührt)
-      + 3.000 davon extra-hart (von dd8 selbst gemint: höchste Fehlerquote bzw. laut Ground Truth is_hard), mit
+      + 3.000 davon extra-hart (von dd6 selbst gemint: höchste Fehlerquote bzw. laut Ground Truth is_hard), mit
         stärkerer Schrägsicht (55–70°) + Verderbung
-Val: unverändert data8s Val (= data6s Val), damit alle bisherigen Zahlen vergleichbar bleiben.
+Val: unverändert data6s Val, damit alle bisherigen Zahlen vergleichbar bleiben.
 
   venv/bin/modal run tools/finetune/build9_modal.py
 
@@ -28,7 +28,7 @@ image = (
     .pip_install("ultralytics>=8.3,<9", "opencv-python-headless", "requests")
     .add_local_file(here / "dataset.py", "/root/finetune/dataset.py")
 )
-KAGGLE = {"dd8": ("scorelens-build-data8", "kg_dd8/best.pt")}
+KAGGLE = {"dd6": ("scorelens-build-data6", "kg_dd6/best.pt")}
 ROBOFLOW_KEY = "uZOBo8dtYnbzcaPPRsuG"
 
 
@@ -44,7 +44,7 @@ def kaggle_urls(wanted):
 
 
 @app.function(image=image, gpu="T4", volumes={"/vol": vol}, timeout=6 * 3600)
-def build_and_train(data8_url: str, dd8_url: str, time_h: float):
+def build_and_train(data6_url: str, dd6_url: str, time_h: float):
     import random, shutil, sys, urllib.request, zipfile
     import cv2, requests, torch
     sys.path.insert(0, "/root/finetune")
@@ -58,22 +58,34 @@ def build_and_train(data8_url: str, dd8_url: str, time_h: float):
     for sp in ("train", "val"):
         (out / "images" / sp).mkdir(parents=True, exist_ok=True); (out / "labels" / sp).mkdir(parents=True, exist_ok=True)
 
-    # 1) dd8-Gewichte ins Volume (einmalig)
-    dd8_path = Path("/vol/runs/dd8/best.pt")
-    if not dd8_path.exists():
-        dd8_path.parent.mkdir(parents=True, exist_ok=True)
-        urllib.request.urlretrieve(dd8_url, dd8_path); vol.commit()
-        print("dd8 ins Volume geladen", flush=True)
+    # 1) dd6-Gewichte ins Volume (liegen normalerweise schon dort aus früheren Läufen)
+    dd6_path = Path("/vol/runs/dd6/best.pt")
+    if not dd6_path.exists():
+        dd6_path.parent.mkdir(parents=True, exist_ok=True)
+        urllib.request.urlretrieve(dd6_url, dd6_path); vol.commit()
+        print("dd6 ins Volume geladen", flush=True)
 
-    # 2) komplettes data8 unverändert (aus dem Kaggle-Build-Kernel)
-    print("lade data8 (11+ GB) …", flush=True)
-    urllib.request.urlretrieve(data8_url, T / "data8.zip")
-    print("data8.zip:", (T / "data8.zip").stat().st_size // 2**20, "MB geladen", flush=True)
-    with zipfile.ZipFile(T / "data8.zip") as zf: zf.extractall(T)
-    (T / "data8.zip").unlink()
-    shutil.rmtree(out); shutil.move(str(T / "data8"), str(out))
+    # 2) komplettes data6 unverändert (aus dem Kaggle-Build-Kernel) – dd8 ist ausgefallen, wir bauen direkt auf dd6 auf
+    # Robust laden: urlretrieve bricht bei 11 GB gern ohne Wiederholung ab, deshalb gestreamt + mit Retries.
+    print("lade data6 (ca. 11 GB) …", flush=True)
+    for attempt in range(5):
+        try:
+            with requests.get(data6_url, stream=True, timeout=120) as resp:
+                resp.raise_for_status()
+                with open(T / "data6.zip", "wb") as f:
+                    for chunk in resp.iter_content(1 << 20):
+                        if chunk: f.write(chunk)
+            break
+        except Exception as e:
+            print(f"Download-Fehler (Versuch {attempt + 1}/5): {e}", flush=True); (T / "data6.zip").unlink(missing_ok=True)
+    else:
+        raise SystemExit("data6.zip-Download dauerhaft fehlgeschlagen")
+    print("data6.zip:", (T / "data6.zip").stat().st_size // 2**20, "MB geladen", flush=True)
+    with zipfile.ZipFile(T / "data6.zip") as zf: zf.extractall(T)
+    (T / "data6.zip").unlink()
+    shutil.rmtree(out); shutil.move(str(T / "data6"), str(out))
     n_old = sum(1 for _ in (out / "images/train").glob("*")); n_val = sum(1 for _ in (out / "images/val").glob("*"))
-    print(f"data8 übernommen: {n_old} train / {n_val} val", flush=True)
+    print(f"data6 übernommen: {n_old} train / {n_val} val", flush=True)
 
     # 3) Roboflow komplett train+valid laden (test bleibt für bench_rf unberührt)
     r = requests.get(f"https://api.roboflow.com/dartsync/darts-bjj98-minfw/1/yolov8?api_key={ROBOFLOW_KEY}", timeout=60).json()
@@ -114,14 +126,14 @@ def build_and_train(data8_url: str, dd8_url: str, time_h: float):
         write_pts(out / "labels/train" / f"{stem}_W.txt", wpts); n_rf_warp += 1
     print(f"Roboflow breit übernommen: {n_rf_orig} Original + {n_rf_warp} gehärtet", flush=True)
 
-    # 5) gezielt: dd8 über ALLE Roboflow-Bilder laufen lassen, die 3000 schwersten extra-hart machen
-    dd8 = YOLO(str(dd8_path))
+    # 5) gezielt: dd6 über ALLE Roboflow-Bilder laufen lassen, die 3000 schwersten extra-hart machen
+    dd6 = YOLO(str(dd6_path))
     scored = []
     for i, (img, lab) in enumerate(pool):
         if i % 3000 == 0: print(f"  Mining {i}/{len(pool)} …", flush=True)
         pts = read_pts(lab); gt = [(x, y) for c, x, y in pts if c == 4]
         if not gt: continue
-        res = dd8.predict(str(img), imgsz=800, conf=0.3, device=0, verbose=False)[0]
+        res = dd6.predict(str(img), imgsz=800, conf=0.3, device=0, verbose=False)[0]
         pred = [(float(x), float(y)) for c, (x, y, _, _) in zip(res.boxes.cls, res.boxes.xywhn) if int(c) == 4]
         used, fn = set(), 0
         for g in gt:
@@ -132,7 +144,7 @@ def build_and_train(data8_url: str, dd8_url: str, time_h: float):
         fp = len(pred) - len(used)
         score = fn + fp + (2 if is_hard(pts) else 0)
         if score: scored.append((score, img, lab, pts))
-    del dd8
+    del dd6
     scored.sort(key=lambda t: -t[0])
     mined = scored[:3000]
     print(f"gemint: {len(mined)} von {len(pool)} geprüft", flush=True)
@@ -151,9 +163,9 @@ def build_and_train(data8_url: str, dd8_url: str, time_h: float):
 
     (out / "data.yaml").write_text("path: .\ntrain: images/train\nval: images/val\n" + NAMES)
     n_train = sum(1 for _ in (out / "images/train").glob("*"))
-    print(f"data9 fertig: {n_train} train ({n_old} data8 + {n_rf_orig+n_rf_warp} Roboflow breit + {n_extra} extra-hart) / {n_val} val", flush=True)
+    print(f"data9 fertig: {n_train} train ({n_old} data6 + {n_rf_orig+n_rf_warp} Roboflow breit + {n_extra} extra-hart) / {n_val} val", flush=True)
 
-    # ---- Training: Warmstart aus dd8 ----
+    # ---- Training: Warmstart aus dd6 (dd8 auf Kaggle ausgefallen) ----
     work = Path("/vol/runs/dd9"); work.mkdir(parents=True, exist_ok=True)
     D2_WEIGHT = 2
     if D2_WEIGHT > 1:
@@ -187,8 +199,8 @@ def build_and_train(data8_url: str, dd8_url: str, time_h: float):
         o.update(tip_metrics(m)); o.update({k+"_d2": v for k, v in tip_metrics(m, "dd_d2").items()})
         return o
 
-    baseline = evaluate(str(dd8_path)); print("Baseline (dd8):", json.dumps(baseline), flush=True)
-    model = YOLO(str(dd8_path))
+    baseline = evaluate(str(dd6_path)); print("Baseline (dd6):", json.dumps(baseline), flush=True)
+    model = YOLO(str(dd6_path))
     hp = dict(lr0=0.0003, lrf=0.01, cos_lr=True, momentum=0.90098, weight_decay=0.00038, warmup_epochs=1.0, warmup_momentum=0.43,
               box=2.99452, cls=0.30763, dfl=1.53753, hsv_h=0.05, hsv_s=0.6, hsv_v=0.24372, degrees=15.58584,
               translate=0.10067, scale=0.2181, shear=0.0, perspective=0.0, flipud=0.0, fliplr=0.0, mosaic=0.6, mixup=0.0)
@@ -197,7 +209,7 @@ def build_and_train(data8_url: str, dd8_url: str, time_h: float):
     run = Path(model.trainer.save_dir)
     best = run / "weights/best.pt" if (run / "weights/best.pt").exists() else run / "weights/last.pt"
     result = evaluate(str(best))
-    metrics = dict(name="dd9", data="data9", base="dd8", train_images=n_train_final, val_images=n_val, baseline=baseline, result=result,
+    metrics = dict(name="dd9", data="data9", base="dd6", train_images=n_train_final, val_images=n_val, baseline=baseline, result=result,
                    better=result["tip_recall_10px"] >= baseline["tip_recall_10px"] and result["tip_precision_10px"] >= baseline["tip_precision_10px"])
     print(json.dumps(metrics, indent=1), flush=True)
     shutil.copy(best, work / "best.pt")
@@ -209,10 +221,10 @@ def build_and_train(data8_url: str, dd8_url: str, time_h: float):
 
 @app.local_entrypoint()
 def main(time_h: float = 5.0, out: str = str(tools / "finetune/dd9")):
-    urls = kaggle_urls({"scorelens-build-data8"})
-    data8_url = urls["scorelens-build-data8"]["data8.zip"]
-    dd8_url = urls["scorelens-build-data8"]["kg_dd8/best.pt"]
-    metrics = build_and_train.remote(data8_url, dd8_url, time_h)
+    urls = kaggle_urls({"scorelens-build-data6"})
+    data6_url = urls["scorelens-build-data6"]["data6.zip"]
+    dd6_url = urls["scorelens-build-data6"]["kg_dd6/best.pt"]
+    metrics = build_and_train.remote(data6_url, dd6_url, time_h)
     o = Path(out); o.mkdir(parents=True, exist_ok=True)
     (o / "metrics.json").write_text(json.dumps(metrics, indent=1))
     print(json.dumps(metrics, indent=1))

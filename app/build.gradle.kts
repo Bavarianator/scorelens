@@ -26,8 +26,8 @@ android {
         applicationId = "com.freedarts.scorer"
         minSdk = 26
         targetSdk = 36
-        versionCode = 9
-        versionName = "1.0.0-beta.9"
+        versionCode = 10
+        versionName = "1.0.0-beta.10"
         vectorDrawables { useSupportLibrary = true }
 
         // Voreinstellung für den Online-Modus (optional): in gradle.properties oder ~/.gradle/gradle.properties
@@ -112,6 +112,7 @@ dependencies {
     // Crashlytics meldet Abstürze der Beta-Tester; ohne google-services.json bleibt es inaktiv
     implementation(platform("com.google.firebase:firebase-bom:34.3.0"))
     implementation("com.google.firebase:firebase-crashlytics")
+    implementation("com.google.firebase:firebase-analytics")
     // Push bei geschlossener App (Einladungen, Freundschaftsanfragen); Versand durch push/ (Relay)
     implementation("com.google.firebase:firebase-messaging")
 

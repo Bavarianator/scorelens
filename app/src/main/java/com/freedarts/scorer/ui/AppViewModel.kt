@@ -78,6 +78,8 @@ sealed class Screen {
 }
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
+    // Firebase Analytics: Bildschirmaufrufe (navigate()) und Spielende (recordMatch()); Konsole → Analytics → Echtzeit
+    private val analytics = com.google.firebase.analytics.FirebaseAnalytics.getInstance(app)
 
     val repo = Repository.get(app)
     val caller = Caller(app)
@@ -441,6 +443,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun navigate(target: Screen) {
         if (_screen.value != target) backStack.addLast(_screen.value)
         _screen.value = target
+        analytics.logEvent(com.google.firebase.analytics.FirebaseAnalytics.Event.SCREEN_VIEW, android.os.Bundle().apply {
+            putString(com.google.firebase.analytics.FirebaseAnalytics.Param.SCREEN_NAME, target::class.simpleName ?: "?")
+        })
     }
 
     /** true = konsumiert, false = App darf beendet werden. */
@@ -805,6 +810,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         repo.addMatch(record)
         if (online.session.value != null && online.configured) online.saveMatch(record)
         _lastRecord.value = record
+        analytics.logEvent("match_finished", android.os.Bundle().apply {
+            putString("mode", record.mode.name); putInt("players", record.players.size); putBoolean("online", om != null)
+        })
         // Turnier: Sieger eintragen (Unentschieden lässt das Spiel offen, es wird wiederholt)
         val ti = tournamentMatch; val t = tournament.value; val w = g.winner
         if (ti != null && t != null && w != null) {

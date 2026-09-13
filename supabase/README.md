@@ -8,7 +8,8 @@ zwischen beiden – sie braucht nur URL und Anon-Key.
 1. Auf https://supabase.com ein Projekt anlegen (Free Tier reicht).
 2. Schema einspielen – eine der beiden Varianten:
    - **SQL-Editor:** Inhalt aller Dateien in `migrations/` der Reihe nach einfügen und ausführen
-     (`…_scorelens_online.sql` = Lobbys/Matches, `…_saved_matches.sql` = Cloud-Sicherung des Match-Verlaufs).
+     (`…_scorelens_online.sql` = Lobbys/Matches, `…_saved_matches.sql` = Cloud-Sicherung des Match-Verlaufs,
+     `…_shared_matches.sql` = lokale Matches auch im Verlauf des Mitspielers, der per QR-Code mit seinem Konto mitspielt).
    - **CLI:** `supabase login` (Personal Access Token `sbp_…`, nicht der Secret Key), dann `supabase link --project-ref <ref>`
      und `supabase db push` (Konfiguration in `config.toml`).
 3. **Authentication › URL Configuration:** `scorelens://auth/callback` unter *Redirect URLs* eintragen.

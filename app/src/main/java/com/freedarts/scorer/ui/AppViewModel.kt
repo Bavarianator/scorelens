@@ -182,9 +182,39 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     // ---------- Online-Modus ----------
 
-    /** Lokalen Verlauf hochladen und fehlende Matches vom Konto holen. */
+    /** Lokalen Verlauf hochladen und fehlende Matches vom Konto holen (auch von Freunden geteilte lokale Matches). */
     fun syncHistory() = viewModelScope.launch {
-        runCatching { repo.mergeMatches(online.syncMatches(matches.value)) }.onFailure { online.error.value = it.message }
+        runCatching { repo.mergeMatches(online.syncMatches(matches.value).map { toLocalProfile(it) }) }.onFailure { online.error.value = it.message }
+    }
+
+    /** Das eigene Online-Konto (Spieler-ID = Nutzer-ID) in der lokalen Statistik dem Profil-Spieler zuordnen. */
+    private fun toLocalProfile(r: MatchRecord): MatchRecord {
+        val me = online.myId ?: return r
+        val local = settings.value.profilePlayerId ?: players.value.firstOrNull()?.id ?: return r
+        return r.withPlayerId(me, local)
+    }
+
+    /**
+     * Mitspieler mit eigenem Konto in die lokale Lobby: QR-Code (Freundes-Link) gescannt → Profil laden, als Spieler
+     * mit der Nutzer-ID anlegen (oder Name/Bild auffrischen). Nach dem Match landet es per share_match in seinem Verlauf.
+     */
+    fun addAccountPlayer(qrText: String) = viewModelScope.launch {
+        val id = OnlineController.friendIdFrom(qrText) ?: run { online.error.value = "Das ist kein Scorelens-Freundescode"; return@launch }
+        if (id == online.myId) {
+            players.value.firstOrNull { it.id == settings.value.profilePlayerId }?.let { p -> _lobbyPlayers.update { l -> if (l.any { it.id == p.id }) l else l + p } }
+            return@launch
+        }
+        val profile = runCatching { online.fetchProfile(id) }.getOrElse { online.error.value = it.message; return@launch }
+            ?: run { online.error.value = "Spieler nicht gefunden"; return@launch }
+        addLinkedPlayer(Player(id = profile.id, name = profile.name, color = profile.color, avatar = profile.avatar))
+    }
+
+    /** Freund aus der Freundesliste als lokalen Spieler (mit seiner Nutzer-ID) übernehmen und in die Lobby setzen. */
+    fun addFriendPlayer(f: com.freedarts.scorer.online.Friend) = addLinkedPlayer(f.player())
+
+    private fun addLinkedPlayer(p: Player) {
+        if (players.value.any { it.id == p.id }) repo.updatePlayer(p) else repo.addPlayer(p)
+        _lobbyPlayers.update { l -> if (l.any { it.id == p.id }) l.map { if (it.id == p.id) p else it } else if (l.size >= 6) l else l + p }
     }
 
     private fun userData(s: AppSettings, p: List<Player>) = OnlineController.UserData(
@@ -760,20 +790,18 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val stats = g.players.indices.map { g.playerStats(it) }
         val om = onlineMatch
         if (om != null) online.finishMatch(g.winner?.let { g.players[it].id }, stats)
-        // Online: das eigene Konto in der lokalen Statistik dem Profil-Spieler zuordnen
-        val me = online.myId
-        val localProfile = settings.value.profilePlayerId ?: players.value.firstOrNull()?.id
-        val mapId: (String) -> String = { id -> if (om != null && id == me && localProfile != null) localProfile else id }
-        val record = MatchRecord(
+        var record = MatchRecord(
             id = UUID.randomUUID().toString(),
             mode = g.settings.mode,
             settings = g.settings,
             startedAt = g.startedAt,
             finishedAt = System.currentTimeMillis(),
-            winnerId = g.winner?.let { mapId(g.players[it].id) },
-            players = stats.map { it.copy(playerId = mapId(it.playerId)) },
+            winnerId = g.winner?.let { g.players[it].id },
+            players = stats,
             throws = g.throwLog,
         )
+        // Online: das eigene Konto in der lokalen Statistik dem Profil-Spieler zuordnen
+        if (om != null) record = toLocalProfile(record)
         repo.addMatch(record)
         if (online.session.value != null && online.configured) online.saveMatch(record)
         _lastRecord.value = record

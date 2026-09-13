@@ -729,8 +729,23 @@ class OnlineController(private val context: Context, private val repo: Repositor
     @kotlinx.serialization.Serializable
     private data class SavedMatch(val id: String, @kotlinx.serialization.SerialName("user_id") val userId: String, val mode: String, @kotlinx.serialization.SerialName("played_at") val playedAt: Long, val record: MatchRecord)
 
-    /** Einzelnes Match sichern (nach jedem Spiel); Fehler werden still ignoriert, der nächste [syncMatches] holt es nach. */
-    fun saveMatch(record: MatchRecord) = scope.launch { runCatching { ensureFresh(); upload(listOf(record)) } }
+    /**
+     * Einzelnes Match sichern (nach jedem Spiel); Fehler werden still ignoriert, der nächste [syncMatches] holt es nach.
+     * Mitspieler mit eigenem Konto (Spieler-ID = Nutzer-ID, per QR-Code in die Lobby geholt) bekommen es per
+     * share_match ebenfalls in ihren Verlauf; der Server überspringt lokale Spieler und Bots.
+     */
+    fun saveMatch(record: MatchRecord) = scope.launch {
+        runCatching { ensureFresh(); upload(listOf(record)) }
+        if (record.players.size > 1) runCatching {
+            requireApi().rpc("share_match", buildJsonObject { put("p_record", SupabaseApi.json.encodeToJsonElement(MatchRecord.serializer(), record)) })
+        }.onFailure { error.value = "Match konnte nicht mit den Mitspielern geteilt werden: ${it.message}" }
+    }
+
+    /** Öffentliches Profil eines Nutzers (QR-Code in der lokalen Lobby); null = unbekannt. */
+    suspend fun fetchProfile(id: String): Profile? {
+        ensureFresh()
+        return SupabaseApi.json.decodeFromString(ListSerializer(Profile.serializer()), requireApi().select("profiles", "id=eq.$id&select=*")).firstOrNull()
+    }
 
     private suspend fun upload(records: List<MatchRecord>) {
         val me = myId ?: return
@@ -755,7 +770,9 @@ class OnlineController(private val context: Context, private val repo: Repositor
         val missing = remoteIds.filter { it !in localIds }
         if (missing.isEmpty()) return emptyList()
         val q = "select=*&id=in.(${missing.joinToString(",") { SupabaseApi.enc("\"$it\"") }})"
-        return SupabaseApi.json.decodeFromString(ListSerializer(SavedMatch.serializer()), a.select("saved_matches", q)).map { it.record }
+        // Einzeln dekodieren: ein kaputter (z. B. von einem Mitspieler geteilter) Eintrag blockiert nicht den ganzen Abgleich
+        return (SupabaseApi.json.parseToJsonElement(a.select("saved_matches", q)) as kotlinx.serialization.json.JsonArray)
+            .mapNotNull { runCatching { SupabaseApi.json.decodeFromJsonElement(SavedMatch.serializer(), it).record }.getOrNull() }
     }
 
     @kotlinx.serialization.Serializable

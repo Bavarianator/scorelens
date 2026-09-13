@@ -82,6 +82,12 @@ data class MatchRecord(
 ) {
     val durationMillis: Long get() = finishedAt - startedAt
 
+    /** Spieler-ID umbenennen (Online-Konto ↔ lokaler Profilspieler); das Wurfprotokoll nutzt Indizes und bleibt. */
+    fun withPlayerId(from: String, to: String): MatchRecord = if (from == to) this else copy(
+        winnerId = if (winnerId == from) to else winnerId,
+        players = players.map { if (it.playerId == from) it.copy(playerId = to) else it },
+    )
+
     /** Anzahl Darts pro Spieler und Leg (Set, Leg) → Liste je Spieler; nur aus dem Wurfprotokoll. */
     fun legs(): List<LegSummary> = throws.filter { it.leg > 0 }
         .groupBy { it.set to it.leg }

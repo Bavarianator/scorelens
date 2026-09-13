@@ -78,6 +78,13 @@ class MatchRecordRoundTripTest {
         val back = json.decodeFromString(MatchRecord.serializer(), json.encodeToString(MatchRecord.serializer(), record))
         assertEquals(record, back)
 
+        // Konto-ID des Mitspielers ↔ lokaler Profilspieler (share_match / syncHistory)
+        val mapped = record.withPlayerId("a", "konto-a")
+        assertEquals("konto-a", mapped.winnerId)
+        assertEquals(listOf("konto-a", "b"), mapped.players.map { it.playerId })
+        assertEquals(record.throws, mapped.throws)
+        assertEquals(record, record.withPlayerId("x", "y"))
+
         val me = back.players[0]
         assertEquals(10, me.dartsThrown); assertEquals(501, me.pointsScored)
         assertEquals(150.3, me.average3, 0.01)

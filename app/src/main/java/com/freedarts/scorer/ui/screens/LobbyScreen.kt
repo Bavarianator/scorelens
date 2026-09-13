@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SmartToy
@@ -38,6 +39,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -75,6 +77,7 @@ import com.freedarts.scorer.ui.components.ScreenBackground
 import com.freedarts.scorer.ui.components.levelOf
 import com.freedarts.scorer.ui.components.ModeBadge
 import com.freedarts.scorer.ui.components.PrimaryButton
+import com.freedarts.scorer.ui.components.QrScannerDialog
 import com.freedarts.scorer.ui.components.SecondaryButton
 import com.freedarts.scorer.ui.components.description
 import com.freedarts.scorer.ui.theme.DartColors
@@ -88,6 +91,12 @@ fun LobbyScreen(vm: AppViewModel) {
     val settings by vm.settings.collectAsStateWithLifecycle()
     val lensStatus by vm.lens.status.collectAsStateWithLifecycle()
     var showAddPlayer by remember { mutableStateOf(false) }
+    var showScanner by remember { mutableStateOf(false) }
+    val session by vm.online.session.collectAsStateWithLifecycle()
+    val friends by vm.online.friends.collectAsStateWithLifecycle()
+    val signedIn = session != null && vm.online.configured
+    val onlineError by vm.online.error.collectAsStateWithLifecycle()
+    LaunchedEffect(showAddPlayer) { if (showAddPlayer && signedIn) vm.online.loadFriends() }
     var showBots by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
     var showHowTo by remember { mutableStateOf(false) }
@@ -130,6 +139,9 @@ fun LobbyScreen(vm: AppViewModel) {
                         Spacer(Modifier.weight(1f))
                         IconButton(onClick = { vm.toggleLobbyPlayer(p) }) { Icon(Icons.Default.Close, "Entfernen", tint = DartColors.TextMuted) }
                     }
+                }
+                onlineError?.let { msg ->
+                    Text(msg, color = DartColors.Red, style = MaterialTheme.typography.bodySmall, modifier = Modifier.fillMaxWidth().clickable { vm.online.error.value = null }.padding(vertical = 4.dp))
                 }
                 Spacer(Modifier.height(6.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -219,11 +231,25 @@ fun LobbyScreen(vm: AppViewModel) {
                         }
                     }
                     TextButton(onClick = { showAddPlayer = false; vm.navigate(Screen.Players) }) { Text("Neuen Spieler / Gast anlegen") }
+                    if (signedIn) {
+                        // Mitspieler mit eigenem Scorelens-Konto: das Match landet auch in seinem Verlauf
+                        Spacer(Modifier.height(6.dp))
+                        Text("MIT EIGENEM KONTO", style = MaterialTheme.typography.labelMedium, color = DartColors.TextMuted)
+                        Text("Der Mitspieler zeigt seinen QR-Code (Freunde › Mein QR-Code); das Spiel zählt dann auch in seiner Statistik.", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
+                        friends.filter { f -> f.accepted && allPlayers.none { it.id == f.id } }.forEach { f ->
+                            Row(Modifier.fillMaxWidth().clickable { vm.addFriendPlayer(f) }.padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Checkbox(checked = false, onCheckedChange = { vm.addFriendPlayer(f) })
+                                Avatar(f.player(), 28); Spacer(Modifier.width(10.dp)); Text(f.name)
+                            }
+                        }
+                        TextButton(onClick = { showScanner = true }) { Icon(Icons.Default.QrCodeScanner, null); Spacer(Modifier.width(6.dp)); Text("QR-Code des Mitspielers scannen") }
+                    }
                 }
             },
             confirmButton = { TextButton(onClick = { showAddPlayer = false }) { Text("Fertig") } },
         )
     }
+    if (showScanner) QrScannerDialog(onDismiss = { showScanner = false }) { text -> showScanner = false; vm.addAccountPlayer(text) }
     if (showBots) {
         AlertDialog(
             onDismissRequest = { showBots = false },

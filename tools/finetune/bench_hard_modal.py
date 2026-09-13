@@ -25,7 +25,7 @@ image = (
     .add_local_file(here / "bench_hard.py", "/root/finetune/bench_hard.py")
 )
 # Kaggle-Kernel und Pfad, aus dem die Gewichte kommen (nur beim ersten Mal nötig)
-KAGGLE = {"dd6": ("scorelens-build-data6", "kg_dd6/best.pt"), "dd7": ("scorelens-build-data7", "kg_dd7/best.pt")}
+KAGGLE = {"dd4": ("scorelens-finetune-dd4", "kg_dd4/best.pt"), "dd6": ("scorelens-build-data6", "kg_dd6/best.pt"), "dd7": ("scorelens-build-data7", "kg_dd7/best.pt")}
 
 
 @app.function(image=image, gpu="T4", volumes={"/vol": vol}, timeout=30 * 60)

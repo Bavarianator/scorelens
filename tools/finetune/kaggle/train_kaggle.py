@@ -26,7 +26,7 @@ subprocess.run([sys.executable, "-m", "pip", "install", "-q", "huggingface_hub"]
 from huggingface_hub import hf_hub_download  # noqa: E402
 import zipfile  # noqa: E402
 import glob  # noqa: E402
-found = glob.glob(f"/kaggle/input/**/{DATA}/data.yaml", recursive=True)  # Datensatz aus einem Build-Kernel (kernel_sources)
+found = glob.glob(f"/kaggle/input/**/{DATA}/data.yaml", recursive=True) + glob.glob(f"/kaggle/tmp/{DATA}/data.yaml")  # Build-Kernel (kernel_sources) oder im selben Kernel gebaut
 zips = glob.glob(f"/kaggle/input/**/{DATA}.zip", recursive=True)
 print("Eingänge:", sorted(str(p) for p in Path("/kaggle/input").glob("*/*"))[:20], flush=True)
 if found:
@@ -94,7 +94,8 @@ hp = dict(lr0=LR0, lrf=0.01, cos_lr=COS_LR, momentum=0.90098, weight_decay=0.000
           translate=0.10067, scale=0.2181, shear=0.0, perspective=0.0, flipud=0.0, fliplr=0.0, mosaic=0.6, mixup=0.0)
 t0 = time.time()
 model = YOLO(base)
-model.train(data=str(yaml_path), epochs=EPOCHS, imgsz=IMGSZ, batch=BATCH, device=0, workers=4, freeze=FREEZE if FREEZE > 0 else None,
+TIME_H = float(os.environ.get("TIME_H", 0))  # Stundenbudget (Kaggle-Limit 12 h); >0 überschreibt EPOCHS
+model.train(data=str(yaml_path), epochs=EPOCHS, time=TIME_H or None, imgsz=IMGSZ, batch=BATCH, device=0, workers=4, freeze=FREEZE if FREEZE > 0 else None,
             patience=PATIENCE, cache="ram", plots=False, project=str(work / "runs"), name="ft", exist_ok=True, pretrained=True, seed=0, **hp)
 print(f"Training fertig nach {(time.time() - t0) / 60:.1f} min", flush=True)
 run = Path(model.trainer.save_dir)

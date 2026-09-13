@@ -4,8 +4,9 @@ Bilder und Gewichte kommen beim ersten Mal direkt von Kaggle (signierte URLs üb
 
   venv/bin/modal run tools/finetune/bench_hard_modal.py --models dd6          # nur dd6
   venv/bin/modal run tools/finetune/bench_hard_modal.py --models dd6,dd7,base # base liegt schon im Volume
+  venv/bin/modal run tools/finetune/bench_hard_modal.py --data rf --models dd6  # 300 fremde Roboflow-Testbilder (bench_rf)
 
-Ergebnis: ~/freedarts-tools/finetune/bench_hard/<modell>.{json,md}
+Ergebnis: ~/freedarts-tools/finetune/bench_<data>/<modell>.{json,md}
 """
 import json
 from pathlib import Path
@@ -29,14 +30,26 @@ KAGGLE = {"dd3": ("scorelens-finetune-dd3", "kg_dd3/best.pt"), "dd5": ("scorelen
 
 
 @app.function(image=image, gpu="T4", volumes={"/vol": vol}, timeout=30 * 60)
-def bench(models: dict, zip_url: str):
-    import sys, urllib.request, zipfile
+def bench(models: dict, zip_url: str, data: str = "bench_hard"):
+    import random, shutil, sys, urllib.request, zipfile
     sys.path.insert(0, "/root/finetune")
     import benchmark, bench_hard
-    if not Path("/vol/bench_hard/data.yaml").exists():
+    root = Path("/vol") / data
+    if data == "bench_hard" and not (root / "data.yaml").exists():
         urllib.request.urlretrieve(zip_url, "/tmp/bench_hard.zip")
         with zipfile.ZipFile("/tmp/bench_hard.zip") as zf: zf.extractall("/vol")
         vol.commit(); print("bench_hard ins Volume geladen", flush=True)
+    if data == "bench_rf" and not (root / "data.yaml").exists():
+        # 300 Bilder aus dem Roboflow-Test-Split (DartSync), unverändert: fremde Boards, Kameras, Licht.
+        # Achtung: dd7 hat auf allen Roboflow-Splits trainiert, für dd7 sind das Trainingsbilder.
+        urllib.request.urlretrieve(zip_url, "/tmp/rf.zip")
+        with zipfile.ZipFile("/tmp/rf.zip") as zf: zf.extractall("/tmp/rf")
+        (root / "images/val").mkdir(parents=True); (root / "labels/val").mkdir(parents=True)
+        imgs = sorted(p for p in Path("/tmp/rf/test/images").iterdir() if (Path("/tmp/rf/test/labels") / (p.stem + ".txt")).exists())
+        for p in random.Random(5).sample(imgs, 300):
+            shutil.copy(p, root / "images/val" / f"rf_{p.name}"); shutil.copy(Path("/tmp/rf/test/labels") / (p.stem + ".txt"), root / "labels/val" / f"rf_{p.stem}.txt")
+        (root / "data.yaml").write_text("path: .\ntrain: images/val\nval: images/val\nnames:\n  0: '20'\n  1: '3'\n  2: '11'\n  3: '6'\n  4: 'dart'\n  5: '9'\n  6: '15'\n")
+        vol.commit(); print(f"bench_rf ins Volume geladen: {len(imgs)} Testbilder, 300 gezogen", flush=True)
     paths = {}
     for name, url in models.items():
         dst = Path("/vol/runs") / name / "best.pt" if name != "base" else Path("/vol/base.pt")
@@ -44,8 +57,8 @@ def bench(models: dict, zip_url: str):
             dst.parent.mkdir(parents=True, exist_ok=True); urllib.request.urlretrieve(url, dst); vol.commit(); print(f"{name} ins Volume geladen", flush=True)
         assert dst.exists(), f"{name}: keine Gewichte unter {dst} und keine URL"
         paths[name] = str(dst)
-    preds, gts, meta = benchmark.run("/vol/bench_hard", paths, ["original"], 0.1, 0)
-    return {n: bench_hard.criteria(preds, gts, "/vol/bench_hard", n) for n in paths}
+    preds, gts, meta = benchmark.run(str(root), paths, ["original"], 0.1, 0)
+    return {n: bench_hard.criteria(preds, gts, str(root), n) for n in paths}
 
 
 def kaggle_urls(wanted):
@@ -61,13 +74,18 @@ def kaggle_urls(wanted):
 
 
 @app.local_entrypoint()
-def main(models: str = "dd6", out: str = str(tools / "finetune/bench_hard")):
+def main(models: str = "dd6", data: str = "hard", out: str = ""):
     names = models.split(",")
     urls = kaggle_urls({"scorelens-bench-hard"} | {KAGGLE[n][0] for n in names if n in KAGGLE})
-    zip_url = urls["scorelens-bench-hard"]["bench_hard.zip"]
+    if data == "rf":  # Roboflow-Export-Link über die API (Key in ~/.config/roboflow/api_key)
+        import requests
+        key = (Path.home() / ".config/roboflow/api_key").read_text().strip()
+        zip_url = requests.get(f"https://api.roboflow.com/dartsync/darts-bjj98-minfw/1/yolov8?api_key={key}", timeout=60).json()["export"]["link"]
+    else:
+        zip_url = urls["scorelens-bench-hard"]["bench_hard.zip"]
     req = {n: urls[KAGGLE[n][0]][KAGGLE[n][1]] if n in KAGGLE else "" for n in names}
-    res = bench.remote(req, zip_url)
-    o = Path(out); o.mkdir(parents=True, exist_ok=True)
+    res = bench.remote(req, zip_url, f"bench_{data}")
+    o = Path(out or tools / f"finetune/bench_{data}"); o.mkdir(parents=True, exist_ok=True)
     for n, r in res.items():
         (o / f"{n}.json").write_text(json.dumps(r, indent=1, ensure_ascii=False))
         (o / f"{n}.md").write_text(bench_hard_report(r) + "\n")

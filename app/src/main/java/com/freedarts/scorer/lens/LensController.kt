@@ -209,6 +209,7 @@ class LensController(private val context: Context) {
         preferredTop = null
         lastFit = null; calibration.clear(); stillFrames = 0; aiCalibFails = 0
         tips.reset(); calibResidual = null
+        detector.uncalibrate()
         if (setup != Setup.OFF) setup = Setup.SEARCHING
         lockCamera(false)
         publish()

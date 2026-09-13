@@ -100,6 +100,9 @@ class DartDetector(val width: Int, val height: Int) {
 
     fun isCalibrated() = imageToBoard != null && roiCount > 100
 
+    /** Kalibrierung verwerfen: nächste Bilder gehen unverzerrt (ganzes Bild) in die Boardsuche statt durch die alte, ggf. falsche Entzerrung. */
+    fun uncalibrate() { imageToBoard = null; boardToImage = null; roiCount = 0 }
+
     /** Aktuelles Bild als Referenz (leeres Board) übernehmen. */
     fun setReference(gray: ByteArray) {
         System.arraycopy(gray, 0, reference, 0, reference.size)

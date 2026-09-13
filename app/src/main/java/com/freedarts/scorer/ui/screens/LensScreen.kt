@@ -151,20 +151,24 @@ fun LensScreen(vm: AppViewModel) {
                     SecondaryButton("Zurücksetzen", Modifier.weight(1f)) { calibration = defaultCalibration() }
                     PrimaryButton("Fertig", Modifier.weight(1f), height = 48) { manual = false; vm.setLensCalibration(calibration) }
                 }
-                ready -> {
-                    DartTiles(detections, gameState?.currentVisit?.size ?: detections.size)
-                    if (vm.game != null) PrimaryButton("Zum Match", Modifier.fillMaxWidth()) { vm.navigate(Screen.Match) }
-                    else {
-                        // Kalibriert → sofort losspielen mit den letzten Einstellungen; Lobby nur, wenn man etwas ändern will
-                        val last = settings.lastGameSettings
-                        PrimaryButton("Sofort spielen · ${last.mode.title}" + (if (last.mode == com.freedarts.scorer.model.GameMode.X01) " ${last.baseScore}" else ""), Modifier.fillMaxWidth()) { vm.playNow() }
-                        Spacer(Modifier.height(6.dp))
-                        SecondaryButton("Neues Spiel einrichten", Modifier.fillMaxWidth()) { vm.navigate(Screen.Lobby) }
+                else -> {
+                    // Kalibriert → sofort losspielen, noch bevor das Referenzbild steht (READY kommt im Match von selbst,
+                    // sobald das Bild ruhig ist); Lobby nur, wenn man etwas ändern will
+                    if (status.calibrated) {
+                        if (vm.game != null) PrimaryButton("Zum Match", Modifier.fillMaxWidth()) { vm.navigate(Screen.Match) }
+                        else {
+                            val last = settings.lastGameSettings
+                            PrimaryButton("Sofort spielen · ${last.mode.title}" + (if (last.mode == com.freedarts.scorer.model.GameMode.X01) " ${last.baseScore}" else ""), Modifier.fillMaxWidth()) { vm.playNow() }
+                            Spacer(Modifier.height(6.dp))
+                            SecondaryButton("Neues Spiel einrichten", Modifier.fillMaxWidth()) { vm.navigate(Screen.Lobby) }
+                        }
                     }
-                    Text("Verdeckt ein Dart einen anderen: vorderen ziehen oder Handy leicht drehen – der fehlende Dart wird nachgetragen.",
-                        color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
+                    if (ready) {
+                        DartTiles(detections, gameState?.currentVisit?.size ?: detections.size)
+                        Text("Verdeckt ein Dart einen anderen: vorderen ziehen oder Handy leicht drehen – der fehlende Dart wird nachgetragen.",
+                            color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
+                    } else Checklist(status)
                 }
-                else -> Checklist(status)
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

@@ -10,10 +10,6 @@ Aufruf über bench_hard_modal.py (Modal T4) oder direkt: criteria(preds, gts, da
 from collections import Counter, defaultdict
 from pathlib import Path
 
-import numpy as np
-from PIL import Image
-
-import benchmark
 
 TOLS = (5, 10, 15)
 CONFS = (0.15, 0.25, 0.3, 0.4, 0.5)
@@ -31,6 +27,9 @@ def match(gt, pred, tol_px):
 
 
 def criteria(preds, gts, data_dir, modell):
+    import numpy as np
+    from PIL import Image
+    import benchmark  # erst hier, damit report() auch ohne PIL/ultralytics läuft
     data_dir = Path(data_dir)
     P = [p for p in preds if p["modell"] == modell]
     agg = {c: {t: [0, 0, 0] for t in TOLS} for c in CONFS}  # tp, fn, fp

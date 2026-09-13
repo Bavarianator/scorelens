@@ -24,12 +24,14 @@ Die App kennt die gleichen Spielarten wie Autodarts:
 ### 📷 Automatisches Erkennen (Lens)
 Das Besondere: Dein Handy erkennt die Darts **automatisch mit der Kamera**. So funktioniert es:
 1. Handy auf ein Stativ etwa 1 Meter vom Board entfernt, schräg davor (wie bei Autodarts)
-2. App kalibrieren (4 Punkte am Double-Ring antippen)
-3. Während des Spiels: Die App erkennt erkannte Darts automatisch und zeigt sie sofort an
+2. Kamera starten – die App findet das Board per KI von selbst (1–2 Sekunden), kein Antippen nötig
+3. Während des Spiels: Die App erkennt geworfene Darts automatisch und zeigt sie sofort an
 
 Die Erkennung funktioniert mit zwei Methoden:
 - **Klassische Methode**: Unterschied zwischen zwei Bildern (ohne KI, immer offline)
-- **KI-Methode** (optional): Neuronales Netz erkennt Dartspitzen noch genauer, läuft auf dem Handy, keine Cloud
+- **KI-Methode**: Eigens trainiertes Neuronales Netz findet Board und Dartspitzen noch genauer, läuft komplett auf dem Handy, keine Cloud
+
+Falls die automatische Suche mal danebenliegt: mit dem Finger antippen, wo der obere Board-Rand ist, oder die 4 Punkte unter „Erweitert“ manuell ziehen.
 
 ### ⌨️ Manuelle Eingabe
 Falls die Kamera nicht optimal ist:
@@ -91,10 +93,10 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
    - Oben: "Play Now" (schnell)
    - Oder: "Create Game" (Spieler auswählen, Modus, Einstellungen)
 5. **Kalibrieren** (wenn Lens aktiviert):
-   - "Lens Detection Mode" öffnen
-   - 4 Punkte am äußeren Double-Ring antippen (20/1, 6/10, 3/19, 11/14)
-   - Grüner Rahmen = fertig, ready to play
-6. **Spielen**!
+   - Lens-Screen öffnen, Kamera starten
+   - App findet das Board automatisch per KI – kein Antippen nötig
+   - Status-Pill wird grün ("Kalibriert" → kurz danach "Ready to play")
+6. **Spielen**! Direkt nach der Kalibrierung bietet der Lens-Screen „Sofort spielen“ mit Deinen letzten Einstellungen an
 
 ## Online-Modus einrichten (optional)
 
@@ -146,18 +148,18 @@ Wie schnell der Computer zwischen den Würfen wartet (in Sekunden)
 
 1. **Positionierung**:
    - Handy auf Stativ, ca. 1 Meter vom Board entfernt
-   - **Schräg davor** – etwa 45° zur Boardfläche (nicht von vorn, nicht von der Seite!)
-   - Die App zeigt Tipps: "Näher", "Mehr von vorn", "Mehr von der Seite"
+   - **Schräg davor** – etwa 35–55° zur Boardfläche (nicht von vorn, nicht von der Seite!), die App zeigt den Winkel nur als Empfehlung an
+   - Ganzes Board mit Zahlenring im Bild, gleichmäßiges Licht
 
-2. **Vier Kalibrierungspunkte**:
-   - Der äußere Double-Ring hat 20 Felder
-   - Tippe nacheinander auf: 20, 6, 3, 11 (immer beim Double-Bereich)
-   - Die App zeichnet eine Karte: "Board-Foto" → "Echte Scheibe"
+2. **Automatische Suche**:
+   - Kamera starten – die App sucht das Board per KI im ganzen Bild (die vier Punkte 20/1, 6/10, 3/19, 11/14 am äußeren Double-Ring)
+   - Sobald ein stabiler Fund vorliegt: Status-Pill wird grün, kurz darauf "Ready to play"
+   - Fällt die Suche schwer (schlechtes Licht, ungewöhnlicher Winkel): kurz auf den oberen Board-Rand tippen als Hinweis, oder die 4 Punkte unter „Erweitert“ → „Punkte manuell ziehen“ selbst setzen
 
 3. **Danach**:
    - App erkennt jetzt automatisch Darts auf Deiner Scheibe
-   - Kalibrierung passt sich an, wenn Du das Handy leicht bewegst
-   - Bei großer Bewegung neu kalibrieren
+   - Kleine Kamerabewegungen gleicht die App selbst aus
+   - Nach einem Positionswechsel oder am nächsten Spieltag: Button „Neu kalibrieren“ sucht das Board frisch (passiert bei jedem Kamerastart ohnehin automatisch)
 
 ## Fehlersuche
 
@@ -234,7 +236,7 @@ tools/finetune/              KI-Modell feineinstellen
 **Lizenzen**:
 - App: Eigener Code
 - Schriften: SIL Open Font License 1.1
-- KI-Modell: CC BY-NC 4.0 (dart-sense) – nur privat nutzen, nicht kommerziell
+- KI-Modell: eigenes Feintuning auf Basis von dart-sense, CC BY-NC 4.0 – nur privat nutzen, nicht kommerziell
 - Flutter Icons: ISC License
 
 ---

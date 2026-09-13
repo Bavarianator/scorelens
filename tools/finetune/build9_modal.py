@@ -68,16 +68,23 @@ def build_and_train(data6_url: str, dd6_url: str, time_h: float):
     # 2) komplettes data6 unverändert (aus dem Kaggle-Build-Kernel) – dd8 ist ausgefallen, wir bauen direkt auf dd6 auf
     # Robust laden: urlretrieve bricht bei 11 GB gern ohne Wiederholung ab, deshalb gestreamt + mit Retries.
     print("lade data6 (ca. 11 GB) …", flush=True)
-    for attempt in range(5):
+    dst = T / "data6.zip"
+    for attempt in range(8):
+        have = dst.stat().st_size if dst.exists() else 0
+        headers = {"Range": f"bytes={have}-"} if have else {}
         try:
-            with requests.get(data6_url, stream=True, timeout=120) as resp:
+            with requests.get(data6_url, stream=True, timeout=120, headers=headers) as resp:
+                if have and resp.status_code == 200:  # Server ignoriert Range -> von vorn
+                    have = 0
                 resp.raise_for_status()
-                with open(T / "data6.zip", "wb") as f:
+                mode = "ab" if have and resp.status_code == 206 else "wb"
+                with open(dst, mode) as f:
                     for chunk in resp.iter_content(1 << 20):
                         if chunk: f.write(chunk)
             break
         except Exception as e:
-            print(f"Download-Fehler (Versuch {attempt + 1}/5): {e}", flush=True); (T / "data6.zip").unlink(missing_ok=True)
+            got = dst.stat().st_size if dst.exists() else 0
+            print(f"Download-Fehler (Versuch {attempt + 1}/8, {got // 2**20} MB da): {e}", flush=True)
     else:
         raise SystemExit("data6.zip-Download dauerhaft fehlgeschlagen")
     print("data6.zip:", (T / "data6.zip").stat().st_size // 2**20, "MB geladen", flush=True)

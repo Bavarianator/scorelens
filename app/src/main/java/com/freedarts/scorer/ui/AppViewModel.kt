@@ -471,6 +471,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private fun applyAudioSettings() {
         caller.enabled = settings.value.callerEnabled
         caller.soundEffects = settings.value.soundEffects
+        caller.minScore = settings.value.callerMinScore
+        caller.setVoice(settings.value.callerEnglish, settings.value.callerVoice)
     }
 
     fun setInputMethod(m: InputMethod) {
@@ -737,7 +739,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 val score = lastVisit?.label?.toIntOrNull()
                 if (score != null && s.callerCallsEveryVisit) caller.callScore(score)
                 val rem = after.players[before.currentPlayer].score.toIntOrNull()
-                if (rem != null && rem in 2..170 && s.callerEnabled) caller.callRemaining(playerName, rem)
+                if (rem != null && Checkout.isFinishable(rem, 3, g.settings.outMode) && s.callerEnabled) caller.callRemaining(playerName, rem)
             }
             !visitEnded && s.countEachThrow -> caller.say(after.currentVisit.lastOrNull()?.name ?: "")
             visitEnded && after.banner != null -> caller.say(after.banner)

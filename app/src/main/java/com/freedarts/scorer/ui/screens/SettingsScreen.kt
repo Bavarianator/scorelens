@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.SportsScore
 import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
@@ -97,7 +98,35 @@ fun SettingsScreen(vm: AppViewModel) {
 
                 SettingsCard(Icons.Default.VolumeUp, "Caller & Sound", "Sprachansage und Effekte") {
                     SettingSwitch("Caller (Sprachansage)", s.callerEnabled) { v -> vm.updateSettings { it.copy(callerEnabled = v) } }
-                    SettingSwitch("Jede Aufnahme ansagen", s.callerCallsEveryVisit, enabled = s.callerEnabled) { v -> vm.updateSettings { it.copy(callerCallsEveryVisit = v) } }
+                    if (s.callerEnabled) {
+                        Text("Aufnahmen ansagen", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
+                        // „Aus“ = callerCallsEveryVisit false; sonst Mindest-Score
+                        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            listOf("Aus" to -1, "Alle" to 0, "ab 100" to 100, "nur 180" to 180).forEach { (label, min) ->
+                                val on = if (min < 0) !s.callerCallsEveryVisit else s.callerCallsEveryVisit && s.callerMinScore == min
+                                FilterChip(selected = on, label = { Text(label) }, onClick = {
+                                    vm.updateSettings { it.copy(callerCallsEveryVisit = min >= 0, callerMinScore = min.coerceAtLeast(0)) }
+                                })
+                            }
+                        }
+                        Text("Sprache und Stimme", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
+                        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            listOf("Deutsch" to false, "English" to true).forEach { (label, en) ->
+                                FilterChip(selected = s.callerEnglish == en, label = { Text(label) }, onClick = {
+                                    vm.updateSettings { it.copy(callerEnglish = en, callerVoice = "") }; vm.caller.sample()
+                                })
+                            }
+                        }
+                        // Stimmen der installierten Sprachausgabe; Antippen wählt und spielt eine Hörprobe
+                        val voices = remember(s.callerEnglish) { vm.caller.voices().map { it.name } }
+                        if (voices.size > 1) Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            (listOf("") + voices).forEachIndexed { i, name ->
+                                FilterChip(selected = s.callerVoice == name, label = { Text(if (i == 0) "Standard" else "Stimme $i") }, onClick = {
+                                    vm.updateSettings { it.copy(callerVoice = name) }; vm.caller.sample()
+                                })
+                            }
+                        }
+                    }
                     SettingSwitch("Jeden Dart ansagen", s.countEachThrow, enabled = s.callerEnabled) { v -> vm.updateSettings { it.copy(countEachThrow = v) } }
                     SettingSwitch("Soundeffekte", s.soundEffects) { v -> vm.updateSettings { it.copy(soundEffects = v) } }
                 }

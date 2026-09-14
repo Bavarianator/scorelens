@@ -10,6 +10,11 @@ data class AppSettings(
     val callerEnabled: Boolean = true,
     val callerCallsEveryVisit: Boolean = true,
     val soundEffects: Boolean = true,
+    /** Aufnahmen erst ab diesem Score ansagen (0 = alle). */
+    val callerMinScore: Int = 0,
+    val callerEnglish: Boolean = false,
+    /** Name der Android-TTS-Stimme, leer = Standard der Sprache. */
+    val callerVoice: String = "",
     val showChalkboard: Boolean = true,
     val showCheckoutGuide: Boolean = true,
     val countEachThrow: Boolean = false,

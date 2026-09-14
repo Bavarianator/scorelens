@@ -30,10 +30,9 @@ workflows:
     max_build_duration: 90
     environment:
       java: 17
-      android_signing:
-        - scorelens_release
+      # Keine android_signing-Referenz: fehlt sie in Codemagic, blendet Codemagic den ganzen Workflow aus
       groups:
-        - firebase # GOOGLE_SERVICES_JSON, FIREBASE_SERVICE_ACCOUNT
+        - firebase # KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD, GOOGLE_SERVICES_JSON, FIREBASE_SERVICE_ACCOUNT
     cache:
       cache_paths:
         - $HOME/.gradle/caches
@@ -42,14 +41,14 @@ workflows:
         script: |
           # Ohne google-services.json baut Gradle ohne Firebase (siehe app/build.gradle.kts)
           if [ -n "$GOOGLE_SERVICES_JSON" ]; then printf '%s' "$GOOGLE_SERVICES_JSON" > app/google-services.json; fi
-          # Ohne keystore.properties signiert Gradle mit dem Debug-Key
-          [ -n "$CM_KEYSTORE_PATH" ] && cat > keystore.properties <<EOF
-          storeFile=$CM_KEYSTORE_PATH
-          storePassword=$CM_KEYSTORE_PASSWORD
-          keyAlias=$CM_KEY_ALIAS
-          keyPassword=$CM_KEY_PASSWORD
-          EOF
-          true
+          # Ohne keystore.properties signiert Gradle mit dem Debug-Key (nicht als Update über die Beta installierbar)
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$CM_BUILD_DIR/release.jks"
+            printf 'storeFile=%s\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' \
+              "$CM_BUILD_DIR/release.jks" "$KEYSTORE_PASSWORD" "$KEY_ALIAS" "$KEY_PASSWORD" > keystore.properties
+          else
+            echo "KEYSTORE_BASE64 fehlt – Release wird debug-signiert"
+          fi
       - name: Release-APK
         script: ./gradlew :app:assembleRelease
       # Als Skript statt publishing.firebase: Codemagic verweigert dort die ganze Konfiguration, solange die Variable fehlt

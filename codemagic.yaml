@@ -40,22 +40,25 @@ workflows:
     scripts:
       - name: Firebase- und Signier-Konfiguration
         script: |
-          printf '%s' "$GOOGLE_SERVICES_JSON" > app/google-services.json
-          cat > keystore.properties <<EOF
+          # Ohne google-services.json baut Gradle ohne Firebase (siehe app/build.gradle.kts)
+          if [ -n "$GOOGLE_SERVICES_JSON" ]; then printf '%s' "$GOOGLE_SERVICES_JSON" > app/google-services.json; fi
+          # Ohne keystore.properties signiert Gradle mit dem Debug-Key
+          [ -n "$CM_KEYSTORE_PATH" ] && cat > keystore.properties <<EOF
           storeFile=$CM_KEYSTORE_PATH
           storePassword=$CM_KEYSTORE_PASSWORD
           keyAlias=$CM_KEY_ALIAS
           keyPassword=$CM_KEY_PASSWORD
           EOF
+          true
       - name: Release-APK
         script: ./gradlew :app:assembleRelease
+      # Als Skript statt publishing.firebase: Codemagic verweigert dort die ganze Konfiguration, solange die Variable fehlt
+      - name: An Firebase-Gruppe beta verteilen
+        script: |
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then echo "FIREBASE_SERVICE_ACCOUNT fehlt – APK nur als Artefakt"; exit 0; fi
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$CM_BUILD_DIR/firebase-sa.json"
+          GOOGLE_APPLICATION_CREDENTIALS="$CM_BUILD_DIR/firebase-sa.json" npx -y firebase-tools appdistribution:distribute \
+            app/build/outputs/apk/release/app-release.apk --app 1:980894619589:android:c9567e92cc4e0672135dac --groups beta
     artifacts:
       - app/build/outputs/apk/release/*.apk
       - app/build/outputs/mapping/release/mapping.txt
-    publishing:
-      firebase:
-        firebase_service_account: $FIREBASE_SERVICE_ACCOUNT
-        android:
-          app_id: 1:980894619589:android:c9567e92cc4e0672135dac
-          groups:
-            - beta

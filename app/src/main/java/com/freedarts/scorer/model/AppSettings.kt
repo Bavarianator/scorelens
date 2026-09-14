@@ -58,6 +58,8 @@ data class AppSettings(
     val autoNextDelayMs: Long = 0,
     /** Animationen (Match-Intro, Gewinn, Bust, Caller). */
     val animations: Boolean = true,
+    /** Anonyme Nutzungsdaten (Firebase Analytics) und Absturzberichte (Crashlytics) senden. */
+    val analyticsEnabled: Boolean = true,
 
     /** Onboarding (Profil anlegen, Lens einrichten) abgeschlossen. */
     val onboardingDone: Boolean = false,

@@ -42,6 +42,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -78,8 +79,27 @@ sealed class Screen {
 }
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
-    // Firebase Analytics: Bildschirmaufrufe (navigate()) und Spielende (recordMatch()); Konsole → Analytics → Echtzeit
+    // Firebase Analytics über track(): Konsole → Analytics → Echtzeit. Nur Nutzung, keine Namen, IDs oder Scores; Opt-out in den Einstellungen.
     private val analytics = com.google.firebase.analytics.FirebaseAnalytics.getInstance(app)
+
+    private fun track(event: String, vararg params: Pair<String, Any>) = analytics.logEvent(event, android.os.Bundle().apply {
+        // Firebase wertet nur String, Long und Double aus
+        for ((k, v) in params) when (v) {
+            is String -> putString(k, v)
+            is Boolean -> putLong(k, if (v) 1 else 0)
+            is Double -> putDouble(k, v)
+            is Number -> putLong(k, v.toLong())
+        }
+    })
+
+    private fun inputSource(): String = settings.value.let { s ->
+        when { lens.status.value.running -> "lens"; s.boardManagerEnabled -> "board_manager"; else -> _inputMethod.value.name.lowercase() }
+    }
+
+    private fun gameParams(g: DartGame) = arrayOf<Pair<String, Any>>(
+        "mode" to g.settings.mode.name, "players" to g.players.size, "bots" to g.players.count { it.isBot },
+        "online" to (onlineMatch != null), "input" to inputSource(),
+    )
 
     val repo = Repository.get(app)
     val caller = Caller(app)
@@ -139,7 +159,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val inputMethod: StateFlow<InputMethod> = _inputMethod
 
     init {
-        applyAudioSettings()
+        applySettings()
+        // Ein Ort für alle Bildschirmwechsel (navigate, back, Tabs, direkte Sprünge)
+        viewModelScope.launch {
+            _screen.collect { track(com.google.firebase.analytics.FirebaseAnalytics.Event.SCREEN_VIEW, com.google.firebase.analytics.FirebaseAnalytics.Param.SCREEN_NAME to (it::class.simpleName ?: "?")) }
+        }
+        viewModelScope.launch {
+            online.session.map { it?.user?.provider }.distinctUntilChanged().drop(1).collect { provider ->
+                if (provider != null) track(com.google.firebase.analytics.FirebaseAnalytics.Event.LOGIN, com.google.firebase.analytics.FirebaseAnalytics.Param.METHOD to provider)
+            }
+        }
         viewModelScope.launch { board.throws.collect { t -> onBoardThrow(t.segment, t.x, t.y) } }
         viewModelScope.launch { board.takeout.collect { onBoardTakeout() } }
         viewModelScope.launch { lens.throws.collect { t -> onBoardThrow(t.segment, t.boardX, t.boardY) } }
@@ -263,6 +292,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if (online.session.value != null && online.configured) {
             val gs = GameSettings(mode = GameMode.X01, baseScore = 501, legs = 3)
             online.quickMatch(gs)
+            track("quick_match")
             navigate(Screen.OnlineLobby)
         } else playVsMatchedBot()
     }
@@ -276,13 +306,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val last = settings.value.lastGameSettings
         val gs = if (last.mode.category == GameMode.Category.COMPETITIVE) last else GameSettings(mode = GameMode.X01, baseScore = 501, legs = 3)
         online.inviteFriend(friendId, gs)
+        track("friend_invite")
         navigate(Screen.OnlineLobby)
     }
 
-    fun acceptInvite(i: Invite) { online.acceptInvite(i); navigate(Screen.OnlineLobby) }
+    fun acceptInvite(i: Invite) { online.acceptInvite(i); track("invite_accepted"); navigate(Screen.OnlineLobby) }
 
     /** Öffentliches Match eines anderen live mitverfolgen; der Match-Screen bleibt ohne Eingabe. */
-    fun spectate(l: Lobby) { l.currentMatchId?.let { online.spectate(it) } }
+    fun spectate(l: Lobby) { l.currentMatchId?.let { online.spectate(it); track("spectate") } }
 
     private fun stopSpectating() {
         caller.stop(); botJob?.cancel(); autoNextJob?.cancel()
@@ -317,6 +348,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         replay(g, events)
         game = g
         refresh()
+        if (events.isEmpty() && !isSpectator) track("match_start", *gameParams(g))
         if (g.finished) recordMatch() else caller.callPlayer(g.players[g.current].name)
         if (_screen.value != Screen.Match) { navigate(Screen.Match) }
     }
@@ -356,6 +388,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         else Player(name = trimmed, color = color).also { repo.addPlayer(it) }
         _lobbyPlayers.value = listOf(profile)
         repo.updateSettings { it.copy(onboardingDone = true, profilePlayerId = profile.id) }
+        track(com.google.firebase.analytics.FirebaseAnalytics.Event.TUTORIAL_COMPLETE)
         backStack.clear()
         _screen.value = Screen.Home
     }
@@ -375,6 +408,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val avg = if (darts == 0) 45.0 else x01.sumOf { it.pointsScored }.toDouble() / darts * 3
         val level = (1..11).minByOrNull { kotlin.math.abs(Player.botAverage(it) - avg) } ?: 4
         _lobbyPlayers.value = listOf(profile, Player.bot(level))
+        track("matched_bot", "level" to level)
         if (_lobbySettings.value.mode != GameMode.X01) _lobbySettings.value = GameSettings(mode = GameMode.X01, baseScore = 501, legs = 3)
         startGame()
     }
@@ -383,6 +417,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun startRemote() {
         if (remote.start()) {
+            track("remote_started")
             _remoteUrl.value = remote.localAddress()?.let { "http://$it:${RemoteServer.PORT}" } ?: "http://<IP>:${RemoteServer.PORT}"
             repo.updateSettings { it.copy(remoteEnabled = true) }
         }
@@ -432,7 +467,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val g = game ?: return
         if (onlineMatch != null) return // Online: Protokoll ist für alle verbindlich, nur Undo
         botJob?.cancel()
-        if (g.correctDart(index, segment)) { refresh(); caller.beep() }
+        if (g.correctDart(index, segment)) { refresh(); caller.beep(); track("dart_corrected", "input" to inputSource()) }
         if (g.players[g.current].isBot && !g.finished) scheduleBot()
     }
 
@@ -465,10 +500,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun updateSettings(transform: (AppSettings) -> AppSettings) {
         repo.updateSettings(transform)
-        applyAudioSettings()
+        applySettings()
     }
 
-    private fun applyAudioSettings() {
+    private fun applySettings() {
+        analytics.setAnalyticsCollectionEnabled(settings.value.analyticsEnabled)
+        runCatching { com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().isCrashlyticsCollectionEnabled = settings.value.analyticsEnabled }
         caller.enabled = settings.value.callerEnabled
         caller.soundEffects = settings.value.soundEffects
         caller.minScore = settings.value.callerMinScore
@@ -534,6 +571,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if (ps.size < 2) return
         repo.updateSettings { it.copy(lastGameSettings = _lobbySettings.value, lastPlayerIds = ps.map { p -> p.id }) }
         repo.setTournament(Tournament.create(mode, ps, _lobbySettings.value))
+        track("tournament_start", "format" to mode.name, "players" to ps.size, "online" to false)
         navigate(Screen.Tournament)
     }
 
@@ -543,6 +581,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val ps = l.sortedPlayers.map { Player(id = it.userId, name = it.name, color = it.color, avatar = it.avatar) }
         if (ps.size < 2 || !online.isHost) return
         online.setTournament(Tournament.create(mode, ps, l.settings))
+        track("tournament_start", "format" to mode.name, "players" to ps.size, "online" to true)
         navigate(Screen.Tournament)
     }
 
@@ -582,6 +621,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             return
         }
         launchGame(g.players, g.settings)
+        track("rematch")
         backStack.clear()
         _screen.value = Screen.Match
     }
@@ -593,12 +633,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         _lastRecord.value = null
         game = GameFactory.create(ps, gs)
         refresh()
+        game?.let { track("match_start", *gameParams(it)) }
         caller.callPlayer(ps.first().name)
         if (ps.first().isBot) scheduleBot()
     }
 
     fun abortGame() {
         botJob?.cancel(); autoNextJob?.cancel(); caller.stop()
+        game?.takeIf { !it.finished && !isSpectator }?.let { track("match_abort", *gameParams(it), "darts" to it.throwLog.size) }
         game = null
         _gameState.value = null
         if (isSpectator) return stopSpectating()
@@ -812,9 +854,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         repo.addMatch(record)
         if (online.session.value != null && online.configured) online.saveMatch(record)
         _lastRecord.value = record
-        analytics.logEvent("match_finished", android.os.Bundle().apply {
-            putString("mode", record.mode.name); putInt("players", record.players.size); putBoolean("online", om != null)
-        })
+        track("match_finished", *gameParams(g), "tournament" to (tournamentMatch != null), "darts" to record.throws.size,
+            "minutes" to (record.finishedAt - record.startedAt) / 60_000)
         // Turnier: Sieger eintragen (Unentschieden lässt das Spiel offen, es wird wiederholt)
         val ti = tournamentMatch; val t = tournament.value; val w = g.winner
         if (ti != null && t != null && w != null) {
@@ -833,6 +874,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** Spieler und Verlauf als JSON in eine vom Nutzer gewählte Datei (Storage Access Framework). */
     fun exportTo(uri: android.net.Uri) = viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
         runCatching { getApplication<Application>().contentResolver.openOutputStream(uri)?.use { it.write(repo.exportJson().toByteArray()) } }
+            .onSuccess { track("data_export") }
     }
 
     // ---------- Board Manager ----------
@@ -840,6 +882,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun connectBoard(host: String, port: Int) {
         updateSettings { it.copy(boardManagerEnabled = true, boardManagerHost = host, boardManagerPort = port) }
         board.connect(host, port)
+        track("board_manager_connect")
     }
 
     fun disconnectBoard() {
@@ -868,7 +911,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         lens.training.enabled = settings.value.lensCaptureTraining
         lens.useFrontCamera = settings.value.lensUseFrontCamera
         lens.exposure = settings.value.lensExposure
-        lens.onCalibrationChanged = { pts -> updateSettings { it.copy(lensCalibration = pts) } }
+        lens.onCalibrationChanged = { pts -> updateSettings { it.copy(lensCalibration = pts) }; track("lens_calibrated", "method" to "auto") }
         lens.start(owner, null)
         updateSettings { it.copy(lensEnabled = true) }
     }
@@ -881,9 +924,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun setLensCalibration(points: List<Float>) {
         lens.setCalibration(points)
         updateSettings { it.copy(lensCalibration = points) }
+        track("lens_calibrated", "method" to "manual")
     }
 
-    fun clearHistory() { repo.clearMatches(); online.deleteAllMatches() }
+    fun clearHistory() { repo.clearMatches(); online.deleteAllMatches(); track("history_cleared") }
 
     override fun onCleared() {
         caller.shutdown()

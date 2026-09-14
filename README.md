@@ -1,6 +1,6 @@
 # Scorelens – Der kostenlose Darts-Scorer für Dein Handy
 
-**Scorelens** ist eine kostenlose Android-App zum Zählen von Darts-Spielen – wie die teure Autodarts-App, aber ohne Kosten und ohne nerviges Abonnement. Alles funktioniert offline und komplett lokal auf Deinem Handy. Deine Daten bleiben privat und werden nirgendwohin hochgeladen.
+**Scorelens** ist eine kostenlose Android-App zum Zählen von Darts-Spielen – wie die teure Autodarts-App, aber ohne Kosten und ohne nerviges Abonnement. Alles funktioniert offline und komplett lokal auf Deinem Handy. Spiele und Statistiken bleiben auf dem Handy. Nur anonyme Nutzungsdaten und Absturzberichte gehen an Google Firebase – abschaltbar unter Einstellungen.
 
 Wenn Du möchtest, kannst Du optional online spielen, Gegner suchen und Dich mit Freunden messen – genau wie bei Autodarts. Du brauchst dafür nur einen kostenlosen Supabase-Account (oder wir stellen einen selbst gehosteten Server zur Verfügung).
 

@@ -164,6 +164,10 @@ fun SettingsScreen(vm: AppViewModel) {
                     Spacer(Modifier.height(6.dp))
                     Text("KI-Modell: „dart-sense“ von Ben Willshaw (YOLOv8n), Lizenz CC BY-NC 4.0 – nur nicht-kommerzielle Nutzung. Icons: Lucide (ISC).",
                         style = MaterialTheme.typography.bodySmall, color = DartColors.TextMuted)
+                    Spacer(Modifier.height(6.dp))
+                    SettingSwitch("Nutzungsdaten und Absturzberichte senden", s.analyticsEnabled) { v -> vm.updateSettings { it.copy(analyticsEnabled = v) } }
+                    Text("Anonym über Google Firebase: welche Bildschirme und Modi genutzt werden, Match-Ende und Abstürze. Keine Namen, Scores oder Kamerabilder.",
+                        style = MaterialTheme.typography.bodySmall, color = DartColors.TextMuted)
                     Spacer(Modifier.height(10.dp))
                     SecondaryButton("Umstieg von Autodarts", Modifier.fillMaxWidth()) { vm.navigate(Screen.Help) }
                 }

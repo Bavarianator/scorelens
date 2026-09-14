@@ -15,3 +15,4 @@ push/firebase-service-account.json
 selfhost/firebase-service-account.json
 push/node_modules/
 supabase/.temp/
+__pycache__/

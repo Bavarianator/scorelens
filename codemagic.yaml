@@ -1,0 +1,61 @@
+# Codemagic (Gratis-Tarif: nur mac_mini_m2, 500 min/Monat). Einrichtung: README → „Cloud-Build mit Codemagic“.
+workflows:
+  # Jeder Push auf main: kompilieren + Unit-Tests, Debug-APK als Download
+  check:
+    name: Check
+    instance_type: mac_mini_m2
+    max_build_duration: 45
+    environment:
+      java: 17
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+      cancel_previous_builds: true
+    cache:
+      cache_paths:
+        - $HOME/.gradle/caches
+    scripts:
+      - name: Tests
+        script: ./gradlew :app:testDebugUnitTest :app:assembleDebug
+    artifacts:
+      - app/build/outputs/apk/debug/*.apk
+      - app/build/reports/tests/**
+
+  # Nur manuell („Start new build“): signierte Release-APK an die Firebase-Gruppe beta
+  beta:
+    name: Beta-Release
+    instance_type: mac_mini_m2
+    max_build_duration: 90
+    environment:
+      java: 17
+      android_signing:
+        - scorelens_release
+      groups:
+        - firebase # GOOGLE_SERVICES_JSON, FIREBASE_SERVICE_ACCOUNT
+    cache:
+      cache_paths:
+        - $HOME/.gradle/caches
+    scripts:
+      - name: Firebase- und Signier-Konfiguration
+        script: |
+          printf '%s' "$GOOGLE_SERVICES_JSON" > app/google-services.json
+          cat > keystore.properties <<EOF
+          storeFile=$CM_KEYSTORE_PATH
+          storePassword=$CM_KEYSTORE_PASSWORD
+          keyAlias=$CM_KEY_ALIAS
+          keyPassword=$CM_KEY_PASSWORD
+          EOF
+      - name: Release-APK
+        script: ./gradlew :app:assembleRelease
+    artifacts:
+      - app/build/outputs/apk/release/*.apk
+      - app/build/outputs/mapping/release/mapping.txt
+    publishing:
+      firebase:
+        firebase_service_account: $FIREBASE_SERVICE_ACCOUNT
+        android:
+          app_id: 1:980894619589:android:c9567e92cc4e0672135dac
+          groups:
+            - beta

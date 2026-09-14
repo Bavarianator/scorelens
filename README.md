@@ -81,6 +81,18 @@ scripts/docker-build.sh
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
+### Cloud-Build mit Codemagic
+`codemagic.yaml` enthält zwei Workflows: **Check** (jeder Push auf `main`: Tests + Debug-APK) und **Beta-Release**
+(manuell: signierte APK an die Firebase-Gruppe `beta`). Einmalig in Codemagic einrichten:
+1. Mit GitHub anmelden, App hinzufügen → Repo `Bavarianator/scorelens`, Konfiguration „codemagic.yaml“.
+2. Team settings → Code signing identities → Android keystores: `release.jks` hochladen, Passwörter und Alias aus
+   `keystore.properties`, Referenzname **`scorelens_release`**.
+3. App → Environment variables, Gruppe **`firebase`**, beide als *Secret*:
+   - `GOOGLE_SERVICES_JSON`: Inhalt von `app/google-services.json`
+   - `FIREBASE_SERVICE_ACCOUNT`: JSON-Schlüssel eines Service-Kontos mit der Rolle „Firebase App Distribution Admin“
+     (Google Cloud Console → Projekt `autodart-5c115` → IAM → Service-Konten → Schlüssel erstellen)
+4. Vor jeder Beta `versionCode` in `app/build.gradle.kts` erhöhen, pushen, dann „Start new build“ → Beta-Release.
+
 ## Erste Schritte
 
 1. **App installieren** und öffnen

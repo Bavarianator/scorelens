@@ -81,14 +81,14 @@ fun PlayerCard(state: PlayerState, active: Boolean, compact: Boolean, showLegs: 
             Avatar(state.player, 24)
             Spacer(Modifier.width(6.dp))
             Text(state.player.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                color = if (state.isOut) DartColors.TextMuted else Color.White)
+                color = if (state.isOut) DartColors.TextMuted else DartColors.Text)
             if (state.isKiller) Text(" 🔪", fontSize = 14.sp)
         }
         Text(
             state.score,
             fontSize = if (compact) 34.sp else 46.sp,
             fontWeight = FontWeight.Bold,
-            color = if (state.isOut) DartColors.TextMuted else Color.White,
+            color = if (state.isOut) DartColors.TextMuted else DartColors.Text,
             textAlign = TextAlign.Center,
         )
         Text(state.detail, style = MaterialTheme.typography.bodyMedium, color = DartColors.TextMuted, maxLines = 1)
@@ -136,7 +136,7 @@ fun Banner(text: String?, modifier: Modifier = Modifier, holdMs: Long = 4000) {
         exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.shrinkVertically()) {
         val gold = last == "180" || last.startsWith("Game Shot") || last.contains("gewonnen")
         val bg = when { last == "Bust" -> DartColors.RedDark; gold -> DartColors.OrangeDark; else -> DartColors.GreenDark }
-        val fg = if (gold) DartColors.Accent else Color.White
+        val fg = if (gold) DartColors.Accent else DartColors.OnTint
         Box(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp).background(bg, RoundedCornerShape(12.dp)).padding(10.dp),
             contentAlignment = Alignment.Center,
@@ -154,7 +154,7 @@ fun Chalkboard(players: List<PlayerState>, modifier: Modifier = Modifier, rows: 
             Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                 p.history.takeLast(rows).forEach { e ->
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(e.label, color = if (e.label == "Bust") DartColors.Red else Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                        Text(e.label, color = if (e.label == "Bust") DartColors.Red else DartColors.Text, fontSize = 13.sp, fontWeight = FontWeight.Medium)
                         if (e.remaining.isNotEmpty()) Text(e.remaining, color = DartColors.TextMuted, fontSize = 13.sp)
                     }
                 }
@@ -179,7 +179,7 @@ fun CricketTable(players: List<PlayerState>, targets: List<Int>, modifier: Modif
                     Text(
                         when (m) { 0 -> ""; 1 -> "/"; 2 -> "X"; else -> "⊗" },
                         modifier = Modifier.weight(1f), textAlign = TextAlign.Center, fontSize = 18.sp, fontWeight = FontWeight.Bold,
-                        color = if (m >= 3) DartColors.Green else Color.White,
+                        color = if (m >= 3) DartColors.Green else DartColors.Text,
                     )
                 }
             }

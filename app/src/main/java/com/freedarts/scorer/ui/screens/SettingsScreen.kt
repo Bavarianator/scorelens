@@ -32,6 +32,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.freedarts.scorer.ui.components.Chip
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -74,9 +75,9 @@ fun SettingsScreen(vm: AppViewModel) {
                     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         players.forEach { p ->
                             Column(Modifier.clip(RoundedCornerShape(12.dp)).clickable { vm.updateSettings { it.copy(profilePlayerId = p.id) } }.padding(4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                                Box(Modifier.border(2.dp, if (p.id == chosen) Color.White else Color.Transparent, CircleShape).padding(3.dp)) { Avatar(p, 44, online = false) }
+                                Box(Modifier.border(2.dp, if (p.id == chosen) DartColors.Text else Color.Transparent, CircleShape).padding(3.dp)) { Avatar(p, 44, online = false) }
                                 Text(p.name, fontSize = 11.sp, fontWeight = if (p.id == chosen) FontWeight.SemiBold else FontWeight.Normal,
-                                    color = if (p.id == chosen) Color.White else DartColors.TextMuted, maxLines = 1)
+                                    color = if (p.id == chosen) DartColors.Text else DartColors.TextMuted, maxLines = 1)
                             }
                         }
                     }
@@ -137,6 +138,12 @@ fun SettingsScreen(vm: AppViewModel) {
                     SettingSlider("Automatisch nächster Spieler", if (s.autoNextDelayMs == 0L) "Aus" else "nach ${s.autoNextDelayMs / 1000} s",
                         s.autoNextDelayMs.toFloat(), 0f..20000f, steps = 19) { v -> vm.updateSettings { it.copy(autoNextDelayMs = (v / 1000).toInt() * 1000L) } }
                     // Selten gebraucht: erst auf Tipp sichtbar
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 6.dp)) {
+                        Text("Design", modifier = Modifier.weight(1f))
+                        listOf("system" to "System", "light" to "Hell", "dark" to "Dunkel").forEach { (k, l) ->
+                            Chip(l, Modifier.padding(start = 6.dp), selected = s.theme == k) { vm.updateSettings { it.copy(theme = k) } }
+                        }
+                    }
                     var advanced by remember { mutableStateOf(false) }
                     Text(if (advanced) "Weniger" else "Erweitert …", color = DartColors.PrimaryLight, fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
                         modifier = Modifier.clickable { advanced = !advanced }.padding(vertical = 6.dp))
@@ -183,7 +190,7 @@ fun SettingsScreen(vm: AppViewModel) {
 private fun SettingsCard(icon: ImageVector, title: String, subtitle: String, status: Pair<String, Color>? = null, content: @Composable () -> Unit) {
     AdCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(44.dp).background(DartColors.SurfaceHigh, RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) { Icon(icon, null, tint = Color.White) }
+            Box(Modifier.size(44.dp).background(DartColors.SurfaceHigh, RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) { Icon(icon, null, tint = DartColors.Text) }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(title, fontWeight = FontWeight.Bold, fontSize = 16.sp)

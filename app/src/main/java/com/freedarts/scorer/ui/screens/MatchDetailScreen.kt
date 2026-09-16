@@ -67,7 +67,7 @@ fun MatchDetailScreen(vm: AppViewModel) {
             Text(r.mode.title + (if (r.mode == GameMode.X01) " ${r.settings.baseScore} · ${matchTitle(r.settings)}" else "") + " · " + df.format(Date(r.finishedAt)) + " · " + formatDuration(r.durationMillis),
                 color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
             Spacer(Modifier.height(8.dp))
-            Badge(winner?.let { "${it.playerName} gewinnt" } ?: "Unentschieden", androidx.compose.ui.graphics.Color.White, if (winner != null) DartColors.GreenDark else DartColors.SurfaceHigh)
+            Badge(winner?.let { "${it.playerName} gewinnt" } ?: "Unentschieden", DartColors.OnTint, if (winner != null) DartColors.GreenDark else DartColors.SurfaceHigh)
             Spacer(Modifier.height(12.dp))
             StatsTable(r)
 

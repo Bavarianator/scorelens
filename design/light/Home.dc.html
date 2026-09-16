@@ -1,0 +1,117 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&amp;family=DM+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+  <style>
+    html, body { height: 100%; }
+    body { margin: 0; background: #F7F5F0; color: #14161B; font-family: "DM Sans", system-ui, sans-serif; }
+    a { color: #E5484D; } a:hover { color: #B93A3E; }
+    .cond { font-family: "Barlow Condensed", "Arial Narrow", sans-serif; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; }
+    .card { background: #FFFFFF; border: 1px solid #E4E0D8; border-radius: 6px; }
+    .tap { cursor: pointer; }
+  </style>
+</helmet>
+<div style="width: 390px; height: 100%; min-height: 0; display: flex; flex-direction: column; background: #F7F5F0; box-sizing: border-box; overflow: hidden;">
+
+  <div style="display: flex; align-items: center; gap: 8px; height: 56px; padding: 0 14px; flex: none;">
+    <div style="width: 40px; height: 40px; border-radius: 999px; background: #14161B; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px;">CB</div>
+    <div style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px;">
+      <svg width="24" height="24" viewBox="0 0 48 48" fill="none" aria-hidden="true"><circle cx="24" cy="24" r="19" stroke="#14161B" stroke-width="4"></circle><path d="M24 5 L24 17 M43 24 L31 24 M24 43 L24 31 M5 24 L17 24" stroke="#E5484D" stroke-width="4" stroke-linecap="round"></path><circle cx="24" cy="24" r="6" fill="#1FB58F"></circle></svg>
+      <span class="cond" style="font-size: 20px; line-height: 20px;">Scorelens</span>
+    </div>
+    <div style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; position: relative;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#14161B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10 21a2 2 0 0 0 4 0"></path></svg>
+      <span style="position: absolute; top: 8px; right: 8px; width: 8px; height: 8px; border-radius: 999px; background: #E5484D;"></span>
+    </div>
+    <div style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#14161B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+    </div>
+  </div>
+
+  <div style="flex: 1; overflow: auto; padding: 4px 14px 24px 14px; display: flex; flex-direction: column; gap: 12px;">
+
+    <div class="card tap" onClick="{{ toMatch }}" style="display: flex; align-items: center; gap: 14px; padding: 16px; border-color: #14161B;">
+      <div style="flex: 1; display: flex; flex-direction: column; gap: 6px;">
+        <span class="cond" style="font-size: 12px; color: {{ accent }};">Weiter spielen</span>
+        <span class="cond" style="font-size: 26px; line-height: 26px;">501 · Best of 3</span>
+        <span style="font-size: 13px; color: #5C6370;">Du gegen Bot Stufe 6 · Leg 2</span>
+        <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: #1FB58F;"><span style="width: 8px; height: 8px; border-radius: 999px; background: #1FB58F;"></span>Lens bereit</span>
+      </div>
+      <svg width="96" height="96" viewBox="0 0 96 96" aria-hidden="true"><circle cx="48" cy="48" r="46" fill="#14161B"></circle><circle cx="48" cy="48" r="38" fill="none" stroke="#F7F5F0" stroke-width="1"></circle><circle cx="48" cy="48" r="23" fill="none" stroke="#F7F5F0" stroke-width="1"></circle><circle cx="48" cy="48" r="6" fill="#E5484D"></circle><circle cx="48" cy="48" r="2.5" fill="#F7F5F0"></circle><path d="M48 2 L48 94 M2 48 L94 48 M15.5 15.5 L80.5 80.5 M80.5 15.5 L15.5 80.5" stroke="#F7F5F0" stroke-width="0.6" opacity="0.6"></path></svg>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;">
+      <div class="card tap" onClick="{{ toLobby }}" style="height: 96px; padding: 14px; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box;">
+        <span class="cond" style="font-size: 22px; line-height: 22px;">Neues Spiel</span>
+        <span style="display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: #5C6370;">Alle Modi<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#14161B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"></path></svg></span>
+      </div>
+      <div class="card" style="height: 96px; padding: 14px; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box;">
+        <span class="cond" style="font-size: 22px; line-height: 22px;">Gegner finden</span>
+        <span style="display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: #5C6370;">Auf deinem Niveau<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#14161B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"></path></svg></span>
+      </div>
+    </div>
+
+    <div style="background: #14161B; color: #FFFFFF; border-radius: 6px; height: 72px; padding: 0 16px; display: flex; align-items: center; justify-content: space-between; box-sizing: border-box;">
+      <span class="cond" style="font-size: 26px; line-height: 26px;">Online spielen</span>
+      <span style="border: 1px solid #5C6370; border-radius: 999px; padding: 6px 12px; font-size: 12px; font-weight: 600;">3 Lobbys offen</span>
+    </div>
+
+    <div style="display: flex; align-items: center; justify-content: space-between; padding-top: 6px;">
+      <span class="cond" style="font-size: 22px; line-height: 22px;">Deine Form</span>
+      <span style="border-radius: 999px; padding: 4px 10px; font-size: 12px; font-weight: 700; background: #1FB58F; color: #14161B;">Level 70+</span>
+    </div>
+    <div class="card" style="padding: 14px; display: flex; flex-direction: column; gap: 12px;">
+      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;">
+        <div style="display: flex; gap: 10px;"><span style="width: 2px; height: 40px; background: {{ accent }};"></span><span style="display: flex; flex-direction: column;"><span style="font-size: 22px; font-weight: 700; line-height: 24px;">64,8</span><span style="font-size: 11px; color: #5C6370;">Ø letzte 10</span></span></div>
+        <div style="display: flex; gap: 10px;"><span style="width: 2px; height: 40px; background: #1FB58F;"></span><span style="display: flex; flex-direction: column;"><span style="font-size: 22px; font-weight: 700; line-height: 24px;">18 %</span><span style="font-size: 11px; color: #5C6370;">Checkout</span></span></div>
+        <div style="display: flex; gap: 10px;"><span style="width: 2px; height: 40px; background: #14161B;"></span><span style="display: flex; flex-direction: column;"><span style="font-size: 22px; font-weight: 700; line-height: 24px;">3</span><span style="font-size: 11px; color: #5C6370;">Siege in Folge</span></span></div>
+      </div>
+      <svg width="100%" height="88" viewBox="0 0 330 88" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M0 62 L33 58 L66 66 L99 50 L132 54 L165 40 L198 46 L231 30 L264 36 L297 22 L330 26" fill="none" stroke="#14161B" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"></path>
+        <path d="M0 44 L330 44" stroke="#C9C3B8" stroke-width="1" stroke-dasharray="4 4"></path>
+        <circle cx="297" cy="22" r="5" fill="#1FB58F"></circle>
+      </svg>
+    </div>
+
+    <span class="cond" style="font-size: 22px; line-height: 22px; padding-top: 6px;">Training des Tages</span>
+    <div class="card" style="padding: 14px; display: flex; align-items: center; gap: 12px;">
+      <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+        <span class="cond" style="font-size: 24px; line-height: 24px; color: #D97706;">121 Checkout</span>
+        <span style="font-size: 13px; color: #5C6370;">Dein Checkout liegt bei 18 % – 121 trainiert Doppel unter Druck.</span>
+      </div>
+      <span style="border-radius: 999px; padding: 10px 16px; font-size: 14px; font-weight: 700; background: {{ accent }}; color: #FFFFFF; min-height: 44px; display: flex; align-items: center; box-sizing: border-box;">Start</span>
+    </div>
+
+    <div style="display: flex; align-items: center; justify-content: space-between; padding-top: 6px;">
+      <span class="cond" style="font-size: 22px; line-height: 22px;">Letzte Matches</span>
+      <a href="#" onClick="{{ toStats }}" style="font-size: 13px; font-weight: 600; text-decoration: none;">Alle</a>
+    </div>
+    <div class="card" style="padding: 6px 14px; display: flex; flex-direction: column;">
+      <div style="display: flex; align-items: center; gap: 10px; min-height: 44px; border-bottom: 1px solid #EEEAE2;"><span style="width: 84px; font-size: 13px; color: #5C6370;">X01 501</span><span style="flex: 1; font-size: 14px; font-weight: 600; color: #1FB58F;">Sieg 2:1 gegen Ben</span><span style="font-size: 12px; color: #5C6370;">heute</span></div>
+      <div style="display: flex; align-items: center; gap: 10px; min-height: 44px; border-bottom: 1px solid #EEEAE2;"><span style="width: 84px; font-size: 13px; color: #5C6370;">Cricket</span><span style="flex: 1; font-size: 14px; font-weight: 600;">Niederlage gegen Bot 7</span><span style="font-size: 12px; color: #5C6370;">gestern</span></div>
+      <div style="display: flex; align-items: center; gap: 10px; min-height: 44px;"><span style="width: 84px; font-size: 13px; color: #5C6370;">121</span><span style="flex: 1; font-size: 14px; font-weight: 600;">Training · 14 Ziele</span><span style="font-size: 12px; color: #5C6370;">Mo.</span></div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script data-dc-script data-props='{"go":{"editor":null},"accent":{"editor":null},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const go = typeof this.props.go === 'function' ? this.props.go : () => {};
+    return {
+      accent: this.props.accent || '#E5484D',
+      toMatch: () => go('match'),
+      toLobby: () => go('lobby'),
+      toStats: () => go('stats'),
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -104,7 +104,7 @@ private fun PlayerDialog(player: Player?, onDismiss: () -> Unit, onSave: (String
                     Player.AVATAR_COLORS.forEach { c ->
                         Box(
                             Modifier.size(34.dp).background(Color(c), CircleShape)
-                                .border(3.dp, if (c == color) Color.White else Color.Transparent, CircleShape)
+                                .border(3.dp, if (c == color) DartColors.Text else Color.Transparent, CircleShape)
                                 .clickable { color = c },
                         )
                     }

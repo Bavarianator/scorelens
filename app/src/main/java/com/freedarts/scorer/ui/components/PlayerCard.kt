@@ -125,7 +125,7 @@ fun PlayerCardDialog(player: Player, matches: List<MatchRecord>, profileId: Stri
                             p.done -> "${p.icon} ${p.title} · ${p.description} · ${tierName(p.tier)}"
                             else -> "${p.title} · ${p.description} · ${p.progress} / ${p.goal}"
                         },
-                        fontSize = 12.sp, color = if (p == null) DartColors.TextMuted else Color.White, textAlign = TextAlign.Center,
+                        fontSize = 12.sp, color = if (p == null) DartColors.TextMuted else DartColors.Text, textAlign = TextAlign.Center,
                     )
                 }
                 Spacer(Modifier.height(16.dp))
@@ -179,7 +179,7 @@ private fun Medal(a: Achievements.Achievement, selected: Boolean, onClick: () ->
             }
             Text(a.icon, fontSize = 26.sp, modifier = Modifier.alpha(if (a.done) 1f else 0.35f))
         }
-        Text(a.title, fontSize = 11.sp, fontWeight = if (a.done) FontWeight.SemiBold else FontWeight.Normal, color = if (a.done) Color.White else DartColors.TextMuted,
+        Text(a.title, fontSize = 11.sp, fontWeight = if (a.done) FontWeight.SemiBold else FontWeight.Normal, color = if (a.done) DartColors.Text else DartColors.TextMuted,
             maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 4.dp))
     }
 }

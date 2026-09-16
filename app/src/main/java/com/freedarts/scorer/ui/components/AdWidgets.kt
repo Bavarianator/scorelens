@@ -68,7 +68,7 @@ fun HeaderSwoosh(modifier: Modifier = Modifier, height: Int = 150) {
     Canvas(modifier.fillMaxWidth().height(height.dp)) {
         val w = size.width; val h = size.height
         val path = Path().apply { moveTo(w * 0.42f, 0f); lineTo(w, 0f); lineTo(w, h * 0.4f); lineTo(w * 0.74f, h); lineTo(w * 0.55f, h); close() }
-        drawPath(path, Brush.linearGradient(listOf(Color(0xFF1E5BFF), Color(0xFF16B8B0), Color(0xFF7CF06B)), start = Offset(w * 0.45f, 0f), end = Offset(w, h)))
+        drawPath(path, Brush.linearGradient(DartColors.Swoosh, start = Offset(w * 0.45f, 0f), end = Offset(w, h)))
     }
 }
 
@@ -144,8 +144,8 @@ fun SecondaryButton(text: String, modifier: Modifier = Modifier, enabled: Boolea
             .clickable(enabled = enabled, onClick = onClick).padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
     ) {
-        if (icon != null) { Icon(icon, null, Modifier.size(18.dp), tint = if (enabled) Color.White else DartColors.TextMuted); Spacer(Modifier.width(6.dp)) }
-        Text(text, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = if (enabled) Color.White else DartColors.TextMuted, maxLines = 1)
+        if (icon != null) { Icon(icon, null, Modifier.size(18.dp), tint = if (enabled) DartColors.Text else DartColors.TextMuted); Spacer(Modifier.width(6.dp)) }
+        Text(text, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = if (enabled) DartColors.Text else DartColors.TextMuted, maxLines = 1)
     }
 }
 
@@ -169,17 +169,17 @@ fun Badge(text: String, fg: Color, bg: Color, modifier: Modifier = Modifier) {
 
 @Composable
 fun ModeBadge(mode: GameMode, modifier: Modifier = Modifier) {
-    if (mode == GameMode.CRICKET) Badge("Cricket", DartColors.PrimaryLight, Color(0xFF1B2C5E), modifier)
+    if (mode == GameMode.CRICKET) Badge("Cricket", DartColors.CricketFg, DartColors.CricketBg, modifier)
     else { val (fg, bg) = categoryColor(mode.category); Badge(categoryLabel(mode.category), fg, bg, modifier) }
 }
 
 /** Pill-Chip; ausgewählt = weiß mit dunkler Schrift (wie Statistik-Filter). */
 @Composable
 fun Chip(text: String, modifier: Modifier = Modifier, selected: Boolean = false, onClick: (() -> Unit)? = null) {
-    var m = modifier.background(if (selected) Color.White else DartColors.SurfaceHigh, RoundedCornerShape(999.dp))
+    var m = modifier.background(if (selected) DartColors.ChipSelected else DartColors.SurfaceHigh, RoundedCornerShape(999.dp))
     if (onClick != null) m = m.clip(RoundedCornerShape(999.dp)).clickable(onClick = onClick)
     Box(m.padding(horizontal = 12.dp, vertical = 6.dp)) {
-        Text(text, fontSize = 12.sp, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium, color = if (selected) DartColors.Background else Color(0xFFC7CDD8))
+        Text(text, fontSize = 12.sp, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium, color = if (selected) DartColors.OnChipSelected else DartColors.ChipText)
     }
 }
 
@@ -205,7 +205,7 @@ fun NameRibbon(name: String, level: String? = null, levelColor: Color = DartColo
 
 /** Level aus dem Average: Text und Farbe wie im Design. */
 fun levelOf(average: Double): Triple<String, Color, Color> = when {
-    average <= 0 -> Triple("NEU", DartColors.SurfaceHigh, Color.White)
+    average <= 0 -> Triple("NEU", DartColors.SurfaceHigh, DartColors.Text)
     average >= 100 -> Triple("100+", DartColors.Purple, Color.White)
     average >= 90 -> Triple("90+", DartColors.Pink, Color(0xFF4A1046))
     average >= 70 -> Triple("${(average / 10).toInt() * 10}+", DartColors.Teal, Color(0xFF04211C))

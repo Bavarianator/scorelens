@@ -308,8 +308,8 @@ private fun ModeDetails(mode: GameMode, ms: List<MatchRecord>, stats: List<Playe
 @Composable
 private fun PlayerPick(p: Player, selected: Boolean, onClick: () -> Unit) {
     Column(Modifier.clip(RoundedCornerShape(12.dp)).clickable(onClick = onClick).padding(4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(Modifier.border(2.dp, if (selected) Color.White else Color.Transparent, CircleShape).padding(3.dp)) { Avatar(p, 44, online = false) }
-        Text(p.name, fontSize = 11.sp, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal, color = if (selected) Color.White else DartColors.TextMuted, maxLines = 1)
+        Box(Modifier.border(2.dp, if (selected) DartColors.Text else Color.Transparent, CircleShape).padding(3.dp)) { Avatar(p, 44, online = false) }
+        Text(p.name, fontSize = 11.sp, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal, color = if (selected) DartColors.Text else DartColors.TextMuted, maxLines = 1)
     }
 }
 
@@ -318,8 +318,8 @@ private fun PlayerPick(p: Player, selected: Boolean, onClick: () -> Unit) {
 private fun Segmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit) {
     Row(Modifier.fillMaxWidth().background(DartColors.SurfaceHigh, RoundedCornerShape(12.dp)).padding(3.dp)) {
         options.forEachIndexed { i, o ->
-            Box(Modifier.weight(1f).clip(RoundedCornerShape(10.dp)).background(if (i == selected) Color.White else Color.Transparent).clickable { onSelect(i) }.padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
-                Text(o, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = if (i == selected) DartColors.Background else Color(0xFFC7CDD8))
+            Box(Modifier.weight(1f).clip(RoundedCornerShape(10.dp)).background(if (i == selected) DartColors.ChipSelected else Color.Transparent).clickable { onSelect(i) }.padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
+                Text(o, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = if (i == selected) DartColors.OnChipSelected else DartColors.ChipText)
             }
         }
     }
@@ -446,7 +446,7 @@ private fun MatchRow(m: MatchRecord, selectedId: String?, df: SimpleDateFormat, 
                 Text(m.mode.title + (if (m.mode == GameMode.X01) " ${m.settings.baseScore} · Ø %.1f".format(me.average3) else " · ${Statistics.metricLabel(m.mode)} ${Statistics.formatMetric(m.mode, Statistics.metric(m.mode, me))}") + " · " + df.format(Date(m.finishedAt)),
                     color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
             }
-            Badge(if (me.won) "Sieg" else if (m.winnerId == null) "Remis" else "Niederlage", Color.White, if (me.won) DartColors.GreenDark else if (m.winnerId == null) DartColors.SurfaceHigh else DartColors.RedDark)
+            Badge(if (me.won) "Sieg" else if (m.winnerId == null) "Remis" else "Niederlage", DartColors.OnTint, if (me.won) DartColors.GreenDark else if (m.winnerId == null) DartColors.SurfaceHigh else DartColors.RedDark)
         }
     }
 }

@@ -118,7 +118,7 @@ fun HomeScreen(vm: AppViewModel) {
             // Weiter spielen: letzte Einstellungen und Spieler, ein Tipp
             Box(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
-                    .background(Brush.linearGradient(listOf(Color(0xFF0E3A8C), Color(0xFF0F6E8F), Color(0xFF16B8B0))))
+                    .background(Brush.linearGradient(DartColors.Hero))
                     .clickable { if (running) vm.navigate(Screen.Match) else vm.playNow() },
             ) {
                 // Karte wächst mit dem Inhalt, Board bleibt komplett innerhalb (kein Offset, kein Abschneiden)
@@ -127,9 +127,9 @@ fun HomeScreen(vm: AppViewModel) {
                     Text(if (running) "WEITER SPIELEN" else "NOCHMAL SPIELEN", fontFamily = Condensed, fontWeight = FontWeight.Bold, fontSize = 26.sp, lineHeight = 28.sp)
                     val last = settings.lastGameSettings
                     Text((if (running) "Match läuft · " else "") + last.mode.title + (if (last.mode == GameMode.X01) " ${last.baseScore}" else "") + " · " + lobbyPlayers.joinToString(", ") { it.name }.ifEmpty { profile?.name ?: "" },
-                        fontSize = 13.sp, color = Color(0xFFDDE6F5), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        fontSize = 13.sp, color = DartColors.OnTileMuted, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     Spacer(Modifier.height(8.dp))
-                    Row(Modifier.background(Color(0x73000000), RoundedCornerShape(999.dp)).padding(horizontal = 10.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.background(DartColors.HeroPill, RoundedCornerShape(999.dp)).padding(horizontal = 10.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
                         Box(Modifier.size(8.dp).background(if (lensStatus.running) DartColors.Green else DartColors.TextMuted, RoundedCornerShape(4.dp)))
                         Spacer(Modifier.width(6.dp))
                         Text(if (lensStatus.running) "Lens bereit" else if (settings.lensCalibration.size == 8) "Lens startet im Match" else "Lens aus", fontSize = 12.sp)
@@ -143,20 +143,20 @@ fun HomeScreen(vm: AppViewModel) {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Box(
                     Modifier.weight(1f).height(96.dp).clip(RoundedCornerShape(16.dp))
-                        .background(Brush.linearGradient(listOf(Color(0xFF1D2A4A), Color(0xFF22346A)))).clickable { vm.navigate(Screen.Lobby) },
+                        .background(Brush.linearGradient(DartColors.TileNew)).clickable { vm.navigate(Screen.Lobby) },
                 ) {
                     Column(Modifier.fillMaxSize().padding(14.dp), verticalArrangement = Arrangement.Center) {
                         Text("NEUES SPIEL", fontFamily = Condensed, fontWeight = FontWeight.Bold, fontSize = 22.sp)
-                        Text("Modus, Spieler, Bot", fontSize = 12.sp, color = Color(0xFFDDE6F5), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text("Modus, Spieler, Bot", fontSize = 12.sp, color = DartColors.OnTileMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
                 Box(
                     Modifier.weight(1f).height(96.dp).clip(RoundedCornerShape(16.dp))
-                        .background(Brush.linearGradient(listOf(Color(0xFF15305F), Color(0xFF1D4ED8)))).clickable { vm.findOpponent() },
+                        .background(Brush.linearGradient(DartColors.TileFind)).clickable { vm.findOpponent() },
                 ) {
                     Column(Modifier.fillMaxSize().padding(14.dp), verticalArrangement = Arrangement.Center) {
                         Text("GEGNER FINDEN", fontFamily = Condensed, fontWeight = FontWeight.Bold, fontSize = 22.sp)
-                        Text(if (loggedIn) "Online · 501 · First to 3" else "Bot · $lvl", fontSize = 12.sp, color = Color(0xFFDDE6F5), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(if (loggedIn) "Online · 501 · First to 3" else "Bot · $lvl", fontSize = 12.sp, color = DartColors.OnTileMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
             }
@@ -165,11 +165,11 @@ fun HomeScreen(vm: AppViewModel) {
             // Online spielen (Lobbys wie bei Autodarts)
             Box(
                 Modifier.fillMaxWidth().height(96.dp).clip(RoundedCornerShape(16.dp))
-                    .background(Brush.linearGradient(listOf(Color(0xFF3B1D5E), Color(0xFF6D28D9)))).clickable { if (onlineLobby != null) vm.openOnlineLobby() else vm.navigate(Screen.Online) },
+                    .background(Brush.linearGradient(DartColors.TileOnline)).clickable { if (onlineLobby != null) vm.openOnlineLobby() else vm.navigate(Screen.Online) },
             ) {
                 Row(Modifier.fillMaxSize().padding(start = 16.dp, end = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f).padding(end = 8.dp)) {
-                        Text("ONLINE SPIELEN", fontFamily = Condensed, fontWeight = FontWeight.Bold, fontSize = 26.sp)
+                        Text("ONLINE SPIELEN", fontFamily = Condensed, fontWeight = FontWeight.Bold, fontSize = 26.sp, color = Color.White)
                         Text(
                             when {
                                 onlineLobby != null -> "Deine Lobby ${onlineLobby?.code} · ${onlineLobby?.players?.size}/${onlineLobby?.maxPlayers} Spieler"
@@ -178,7 +178,7 @@ fun HomeScreen(vm: AppViewModel) {
                                 vm.online.configured -> "Mit Google oder GitHub anmelden"
                                 else -> "Server eintragen"
                             },
-                            fontSize = 13.sp, color = Color(0xFFDDE6F5), maxLines = 2, overflow = TextOverflow.Ellipsis,
+                            fontSize = 13.sp, color = Color(0xFFDDE6F5), maxLines = 2, overflow = TextOverflow.Ellipsis, // Online-Kachel ist in beiden Themes dunkel
                         )
                     }
                     Chip(if (onlineLobby != null) "Lobby" else if (loggedIn) "Online" else "Login")

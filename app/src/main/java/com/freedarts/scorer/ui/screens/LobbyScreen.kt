@@ -161,8 +161,8 @@ fun LobbyScreen(vm: AppViewModel) {
                     ModeBadge(gs.mode)
                 }
                 Text(gs.mode.description(), color = DartColors.TextMuted, style = MaterialTheme.typography.bodyMedium)
-                Text("ⓘ How to play", color = Color.White, style = MaterialTheme.typography.labelMedium, textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline, modifier = Modifier.padding(top = 4.dp).clickable { showHowTo = true })
-                Spacer(Modifier.height(8.dp)); Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0xFF1F5A46)))
+                Text("ⓘ How to play", color = DartColors.Text, style = MaterialTheme.typography.labelMedium, textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline, modifier = Modifier.padding(top = 4.dp).clickable { showHowTo = true })
+                Spacer(Modifier.height(8.dp)); Box(Modifier.fillMaxWidth().height(1.dp).background(DartColors.Divider))
                 Spacer(Modifier.height(8.dp))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     settingsChips(gs).forEach { Chip(it) }
@@ -183,14 +183,14 @@ fun LobbyScreen(vm: AppViewModel) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Box(Modifier.fillMaxWidth().border(1.dp, if (lensStatus.running) DartColors.Teal else DartColors.Outline, RoundedCornerShape(12.dp)).clickable { vm.navigate(Screen.Lens) }.padding(12.dp)) {
                         Column {
-                            Text("Lens", fontWeight = FontWeight.SemiBold, color = if (lensStatus.running) Color.White else DartColors.PrimaryLight)
+                            Text("Lens", fontWeight = FontWeight.SemiBold, color = if (lensStatus.running) DartColors.Text else DartColors.PrimaryLight)
                             Text(if (lensStatus.running) lensStatus.message else "Kamera dieses Handys", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
                         }
                         if (lensStatus.running) Text("✓", color = DartColors.Teal, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.TopEnd))
                     }
                     Box(Modifier.fillMaxWidth().border(1.dp, if (settings.boardManagerEnabled) DartColors.Teal else DartColors.Outline, RoundedCornerShape(12.dp)).clickable { vm.navigate(Screen.Board) }.padding(12.dp)) {
                         Column {
-                            Text("Board Manager", fontWeight = FontWeight.SemiBold, color = if (settings.boardManagerEnabled) Color.White else DartColors.PrimaryLight)
+                            Text("Board Manager", fontWeight = FontWeight.SemiBold, color = if (settings.boardManagerEnabled) DartColors.Text else DartColors.PrimaryLight)
                             Text(if (settings.boardManagerEnabled) "${settings.boardManagerHost}:${settings.boardManagerPort}" else "Autodarts-Hardware im WLAN", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
                         }
                         if (settings.boardManagerEnabled) Text("✓", color = DartColors.Teal, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.TopEnd))

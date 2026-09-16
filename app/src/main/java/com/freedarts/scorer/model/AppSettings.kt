@@ -62,6 +62,8 @@ data class AppSettings(
     val animations: Boolean = true,
     /** Kurze Vibration bei Dart, Undo, Next und Leg-Ende. */
     val haptics: Boolean = true,
+    /** "system" | "light" | "dark" – Farbwelt der App. */
+    val theme: String = "system",
     /** Anonyme Nutzungsdaten (Firebase Analytics) und Absturzberichte (Crashlytics) senden. */
     val analyticsEnabled: Boolean = true,
 

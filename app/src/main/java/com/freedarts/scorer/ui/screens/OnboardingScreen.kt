@@ -188,7 +188,7 @@ private fun AccountStep(vm: AppViewModel, busy: Boolean, pending: String?, error
         if (!busy) TextButton(onClick = { onPending(null) }, modifier = Modifier.fillMaxWidth()) { Text("Abbrechen", color = DartColors.TextMuted) }
     }
     error?.let {
-        AdCard(Modifier.padding(top = 12.dp), background = DartColors.RedDark, padding = 10) { Text(it, color = Color.White, style = MaterialTheme.typography.bodySmall) }
+        AdCard(Modifier.padding(top = 12.dp), background = DartColors.RedDark, padding = 10) { Text(it, color = DartColors.OnTint, style = MaterialTheme.typography.bodySmall) }
     }
     Spacer(Modifier.height(12.dp))
     TextButton(onClick = onSkip, modifier = Modifier.fillMaxWidth()) { Text("Später – erst mal lokal spielen", color = DartColors.TextMuted) }

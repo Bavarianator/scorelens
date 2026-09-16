@@ -175,7 +175,7 @@ fun DevicesScreen(vm: AppViewModel) {
 private fun DeviceCard(icon: ImageVector, title: String, subtitle: String, status: Pair<String, Color>, content: @Composable () -> Unit) {
     AdCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(44.dp).background(DartColors.SurfaceHigh, RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) { Icon(icon, null, tint = Color.White) }
+            Box(Modifier.size(44.dp).background(DartColors.SurfaceHigh, RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) { Icon(icon, null, tint = DartColors.Text) }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(title, fontWeight = FontWeight.Bold, fontSize = 16.sp)

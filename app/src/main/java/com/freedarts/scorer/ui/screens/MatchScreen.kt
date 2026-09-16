@@ -292,7 +292,7 @@ fun MatchScreen(vm: AppViewModel) {
 
     // Match-Intro wie im Turnier: Spieler, Modus, dann los
     AnimatedVisibility(visible = intro, enter = fadeIn(), exit = fadeOut(), modifier = Modifier.fillMaxSize()) {
-        Box(Modifier.fillMaxSize().background(Color(0xF00B1220)).clickable { intro = false }, contentAlignment = Alignment.Center) {
+        Box(Modifier.fillMaxSize().background(DartColors.Intro).clickable { intro = false }, contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Text("MATCH", fontFamily = Condensed, fontWeight = FontWeight.Bold, fontSize = 52.sp, color = DartColors.Lime)
                 s.players.forEachIndexed { i, p ->
@@ -393,7 +393,7 @@ private fun LiveOverlays(lens: LensController.Status?, dartsInVisit: Int, checko
     Box(Modifier.fillMaxSize()) {
         // Darts Zoom: aktuelle Aufnahme groß, von der Abwurflinie lesbar
         if (zoom != null && zoom.isNotEmpty()) Row(
-            Modifier.align(Alignment.TopCenter).padding(top = 44.dp).background(Color(0xD90D1119), RoundedCornerShape(12.dp)).padding(horizontal = 14.dp, vertical = 6.dp),
+            Modifier.align(Alignment.TopCenter).padding(top = 44.dp).background(DartColors.Overlay, RoundedCornerShape(12.dp)).padding(horizontal = 14.dp, vertical = 6.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically,
         ) {
             zoom.forEach { d -> Text(d.name, fontFamily = Condensed, fontWeight = FontWeight.Bold, fontSize = 34.sp, lineHeight = 34.sp) }
@@ -401,24 +401,24 @@ private fun LiveOverlays(lens: LensController.Status?, dartsInVisit: Int, checko
         }
         if (lens != null) {
             val ready = lens.setup == LensController.Setup.READY
-            Row(Modifier.align(Alignment.TopStart).padding(10.dp).background(Color(0xD90D1119), RoundedCornerShape(999.dp)).padding(horizontal = 10.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.align(Alignment.TopStart).padding(10.dp).background(DartColors.Overlay, RoundedCornerShape(999.dp)).padding(horizontal = 10.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(8.dp).background(if (ready) DartColors.Green else DartColors.Accent, RoundedCornerShape(4.dp)))
                 Spacer(Modifier.width(6.dp))
                 Text(if (ready) "Detecting" else lens.message, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
             }
         }
-        Box(Modifier.align(Alignment.TopEnd).padding(10.dp).background(Color(0xD90D1119), RoundedCornerShape(999.dp)).padding(horizontal = 10.dp, vertical = 5.dp)) {
+        Box(Modifier.align(Alignment.TopEnd).padding(10.dp).background(DartColors.Overlay, RoundedCornerShape(999.dp)).padding(horizontal = 10.dp, vertical = 5.dp)) {
             Text("$dartsInVisit / 3 Darts", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
         }
-        if (checkout != null) Row(Modifier.align(Alignment.BottomCenter).padding(10.dp).background(Color(0xD90D1119), RoundedCornerShape(999.dp)).padding(horizontal = 12.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+        if (checkout != null) Row(Modifier.align(Alignment.BottomCenter).padding(10.dp).background(DartColors.Overlay, RoundedCornerShape(999.dp)).padding(horizontal = 12.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("Checkout", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = DartColors.TextMuted)
             Spacer(Modifier.width(8.dp))
             Text(checkout.replace("  ", " · "), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = DartColors.Orange)
         }
         val callerScale by animateFloatAsState(if (caller != null && animations) 1f else 0.6f, animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy), label = "caller")
-        if (caller != null) Column(Modifier.align(Alignment.Center).scale(if (animations) callerScale else 1f).background(Color(0xB80D1119), RoundedCornerShape(14.dp)).padding(horizontal = 18.dp, vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        if (caller != null) Column(Modifier.align(Alignment.Center).scale(if (animations) callerScale else 1f).background(DartColors.Overlay, RoundedCornerShape(14.dp)).padding(horizontal = 18.dp, vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Text(caller, fontFamily = Condensed, fontWeight = FontWeight.Bold, fontSize = if (caller == "180") 56.sp else 44.sp, lineHeight = 56.sp,
-                color = when { caller == "Bust" -> DartColors.Red; caller == "180" -> DartColors.Lime; else -> Color.White })
+                color = when { caller == "Bust" -> DartColors.Red; caller == "180" -> DartColors.Lime; else -> DartColors.OnOverlay })
             Text("CALLER", fontSize = 11.sp, letterSpacing = 1.sp, color = DartColors.TextMuted)
         }
     }
@@ -436,7 +436,7 @@ fun ScoreCard(p: PlayerState, active: Boolean, showLegs: Boolean, showSets: Bool
             Avatar(p.player, 20)
             Spacer(Modifier.width(6.dp))
             Text(p.player.name.uppercase(), fontFamily = Condensed, fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                color = if (p.isOut) DartColors.TextMuted else Color.White)
+                color = if (p.isOut) DartColors.TextMuted else DartColors.Text)
             if (p.isKiller) Text(" K", fontSize = 12.sp, color = DartColors.Accent)
         }
         Row(verticalAlignment = Alignment.Bottom) {
@@ -445,7 +445,7 @@ fun ScoreCard(p: PlayerState, active: Boolean, showLegs: Boolean, showSets: Bool
                 (androidx.compose.animation.slideInVertically { it / 2 } + fadeIn()).togetherWith(androidx.compose.animation.slideOutVertically { -it / 2 } + fadeOut())
             }) { score ->
                 Text(score, fontSize = if (compact) 46.sp else 62.sp, fontWeight = FontWeight.ExtraBold, lineHeight = if (compact) 48.sp else 64.sp, letterSpacing = (-2).sp,
-                    color = if (p.isOut) DartColors.TextMuted else Color.White, maxLines = 1)
+                    color = if (p.isOut) DartColors.TextMuted else if (active) DartColors.OnActive else DartColors.Text, maxLines = 1)
             }
             if (showLegs || showSets) {
                 Spacer(Modifier.width(8.dp))
@@ -455,9 +455,9 @@ fun ScoreCard(p: PlayerState, active: Boolean, showLegs: Boolean, showSets: Bool
                 }
             }
         }
-        Text(avgText, fontSize = 13.sp, color = if (active) Color.White else DartColors.TextMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        if (dartsText != null) Text("Darts $dartsText", fontSize = 13.sp, color = if (active) Color.White else DartColors.TextMuted)
-        if (active) { Spacer(Modifier.height(6.dp)); Box(Modifier.fillMaxWidth().height(3.dp).background(DartColors.Green)) }
+        Text(avgText, fontSize = 13.sp, color = if (active) DartColors.OnActive else DartColors.TextMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        if (dartsText != null) Text("Darts $dartsText", fontSize = 13.sp, color = if (active) DartColors.OnActive else DartColors.TextMuted)
+        if (active) { Spacer(Modifier.height(6.dp)); Box(Modifier.fillMaxWidth().height(3.dp).background(DartColors.ActiveBar)) }
     }
 }
 
@@ -533,9 +533,9 @@ private fun DartRow(darts: List<Segment>, current: Boolean, onTap: (Int) -> Unit
                     .clickable(enabled = d != null) { onTap(i) }.padding(start = 8.dp, end = 12.dp, top = 6.dp, bottom = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                DartIcon(if (d != null) Color.White else Color(0xFF7B8496))
+                DartIcon(if (d != null) Color.White else DartColors.PillEmpty)
                 Spacer(Modifier.width(6.dp))
-                Text(d?.name ?: "—", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = if (d != null) Color.White else Color(0xFF7B8496))
+                Text(d?.name ?: "—", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = if (d != null) Color.White else DartColors.PillEmpty)
             }
         }
         Spacer(Modifier.weight(1f))
@@ -570,10 +570,10 @@ private fun StatusPill(label: String, color: Color, onClick: () -> Unit) {
 @Composable
 private fun BarButton(icon: ImageVector, label: String, active: Boolean, enabled: Boolean = true, onClick: () -> Unit) {
     Box(
-        Modifier.size(48.dp, 44.dp).background(if (active) DartColors.Primary else Color(0xFF1C2740), RoundedCornerShape(12.dp)).clip(RoundedCornerShape(12.dp))
+        Modifier.size(48.dp, 44.dp).background(if (active) DartColors.Primary else DartColors.BarButton, RoundedCornerShape(12.dp)).clip(RoundedCornerShape(12.dp))
             .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
-    ) { Icon(icon, label, tint = if (!enabled) DartColors.Outline else Color.White) }
+    ) { Icon(icon, label, tint = if (!enabled) DartColors.Outline else if (active) Color.White else DartColors.Text) }
 }
 
 @Composable

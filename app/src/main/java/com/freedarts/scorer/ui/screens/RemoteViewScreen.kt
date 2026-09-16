@@ -14,6 +14,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.freedarts.scorer.ui.AppViewModel
 import com.freedarts.scorer.ui.components.AdTopBar
+import androidx.compose.ui.graphics.toArgb
 import com.freedarts.scorer.ui.theme.DartColors
 
 /**
@@ -35,7 +36,7 @@ fun RemoteViewScreen(vm: AppViewModel) {
                     this.settings.javaScriptEnabled = true
                     this.settings.domStorageEnabled = true
                     webViewClient = WebViewClient()
-                    setBackgroundColor(0xFF0B1220.toInt())
+                    setBackgroundColor(DartColors.Background.toArgb())
                     loadUrl(url)
                 }
             },

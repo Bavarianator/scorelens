@@ -171,7 +171,7 @@ fun FriendsScreen(vm: AppViewModel) {
 private fun Banner(msg: String, background: Color, onClose: () -> Unit) {
     AdCard(background = background, padding = 10) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(msg, color = Color.White, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+            Text(msg, color = DartColors.OnTint, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
             TextButton(onClick = onClose) { Text("OK") }
         }
     }
@@ -183,7 +183,7 @@ fun InviteCard(invite: Invite, friends: List<Friend>, onAccept: () -> Unit, onDi
     val name = friends.firstOrNull { it.id == invite.fromId }?.name ?: "Ein Freund"
     AdCard(background = DartColors.GreenDark) {
         Text("EINLADUNG", style = MaterialTheme.typography.headlineSmall)
-        Text("$name lädt dich in eine Lobby ein (Code ${invite.code}).", color = Color(0xFFDDE6F5), style = MaterialTheme.typography.bodySmall)
+        Text("$name lädt dich in eine Lobby ein (Code ${invite.code}).", color = DartColors.OnTileMuted, style = MaterialTheme.typography.bodySmall)
         Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             PrimaryButton("Beitreten", Modifier.weight(1f), height = 44, onClick = onAccept)

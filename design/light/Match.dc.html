@@ -1,0 +1,193 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&amp;family=DM+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+  <style>
+    html, body { height: 100%; }
+    body { margin: 0; background: #F7F5F0; color: #14161B; font-family: "DM Sans", system-ui, sans-serif; }
+    a { color: #E5484D; } a:hover { color: #B93A3E; }
+    .cond { font-family: "Barlow Condensed", "Arial Narrow", sans-serif; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; }
+    .card { background: #FFFFFF; border: 1px solid #E4E0D8; border-radius: 6px; }
+    .key { height: 44px; border-radius: 6px; background: #FFFFFF; border: 1px solid #E4E0D8; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; cursor: pointer; user-select: none; }
+    .tap { cursor: pointer; }
+  </style>
+</helmet>
+<div style="width: 390px; height: 100%; min-height: 0; display: flex; flex-direction: column; background: #F7F5F0; box-sizing: border-box; overflow: hidden;">
+
+  <div style="display: flex; align-items: center; gap: 6px; height: 56px; padding: 0 4px; flex: none;">
+    <div class="tap" onClick="{{ toHome }}" style="width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#14161B" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"></path></svg>
+    </div>
+    <span style="flex: 1; display: flex; justify-content: center;"><span style="border: 1px solid #E4E0D8; border-radius: 999px; padding: 6px 12px; font-size: 12px; font-weight: 600; background: #FFFFFF;">501 · Leg 2 von 3 · Runde {{ round }}</span></span>
+    <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; color: #1FB58F;"><span style="width: 8px; height: 8px; border-radius: 999px; background: #1FB58F;"></span>Lens</span>
+    <div style="width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#14161B" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"></path></svg>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 0 4px; flex: none;">
+    <div class="card" style="padding: 10px 12px 8px 12px; border-top: 4px solid {{ p0.top }}; display: flex; flex-direction: column; gap: 4px;">
+      <span style="display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; border-radius: 999px; padding: 3px 10px 3px 3px; background: {{ p0.pill }}; color: {{ p0.pillText }};"><span style="width: 20px; height: 20px; border-radius: 999px; background: #FFFFFF; color: #14161B; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700;">AN</span><span class="cond" style="font-size: 13px; line-height: 13px;">Anna</span></span>
+      <span style="display: flex; align-items: flex-end; gap: 8px;"><span style="font-size: 62px; font-weight: 800; line-height: 64px; letter-spacing: -2px;">{{ p0.score }}</span><span style="margin-bottom: 12px; border-radius: 3px; padding: 1px 6px; font-size: 12px; font-weight: 800; background: #14161B; color: #FFFFFF;">L 1</span></span>
+      <span style="font-size: 13px; color: #5C6370;">Leg 64,2 · Match 71,8</span>
+      <span style="font-size: 13px; color: #5C6370;">Darts {{ p0.darts }}</span>
+    </div>
+    <div class="card" style="padding: 10px 12px 8px 12px; border-top: 4px solid {{ p1.top }}; display: flex; flex-direction: column; gap: 4px;">
+      <span style="display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; border-radius: 999px; padding: 3px 10px 3px 3px; background: {{ p1.pill }}; color: {{ p1.pillText }};"><span style="width: 20px; height: 20px; border-radius: 999px; background: #FFFFFF; color: #14161B; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700;">B</span><span class="cond" style="font-size: 13px; line-height: 13px;">Bot Stufe 6</span></span>
+      <span style="display: flex; align-items: flex-end; gap: 8px;"><span style="font-size: 62px; font-weight: 800; line-height: 64px; letter-spacing: -2px;">{{ p1.score }}</span><span style="margin-bottom: 12px; border-radius: 3px; padding: 1px 6px; font-size: 12px; font-weight: 800; background: #14161B; color: #FFFFFF;">L 1</span></span>
+      <span style="font-size: 13px; color: #5C6370;">Leg 58,0 · Match 61,4</span>
+      <span style="font-size: 13px; color: #5C6370;">Darts {{ p1.darts }}</span>
+    </div>
+  </div>
+
+  <div class="card" style="margin: 10px 12px 0 12px; padding: 8px 12px; display: flex; flex-direction: column; gap: 6px; flex: none;">
+    <div style="display: flex; align-items: center;">
+      <div style="flex: 1; display: flex; flex-direction: column;">
+        <span style="font-size: 10px; color: #5C6370;">{{ hintLabel }}</span>
+        <span class="cond" style="font-size: 20px; line-height: 22px; color: {{ accent }};">{{ hint }}</span>
+      </div>
+      <div style="display: flex; flex-direction: column; align-items: flex-end;">
+        <span style="font-size: 12px; color: #5C6370;">{{ thrower }} · Aufnahme Ø {{ expected }}</span>
+        <span style="font-size: 12px; font-weight: 600; color: #1FB58F;">Checkout jetzt {{ checkoutPct }} %</span>
+      </div>
+    </div>
+    <div style="display: flex; align-items: center; font-size: 11px; font-weight: 600;"><span style="color: {{ accent }};">Anna {{ winA }} %</span><span style="flex: 1;"></span><span>{{ winB }} % Bot</span></div>
+    <div style="display: flex; height: 4px; border-radius: 2px; overflow: hidden;"><span style="width: {{ winA }}%; background: {{ accent }};"></span><span style="flex: 1; background: #14161B;"></span></div>
+  </div>
+
+  <div class="card" style="margin: 8px 12px 0 12px; padding: 8px 12px; display: flex; align-items: center; gap: 8px; flex: none;">
+    <sc-for list="{{ pills }}" as="pill" hint-placeholder-count="3">
+      <span style="display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 6px 12px 6px 8px; min-height: 32px; box-sizing: border-box; background: {{ pill.bg }}; color: {{ pill.fg }};"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M3 21 21 3M14 3h7v7"></path></svg><span style="font-size: 15px; font-weight: 700;">{{ pill.label }}</span></span>
+    </sc-for>
+    <span style="flex: 1;"></span>
+    <span style="display: flex; flex-direction: column; align-items: flex-end;"><span class="cond" style="font-size: 24px; line-height: 24px; color: #1FB58F;">{{ visitSum }}</span><span style="font-size: 10px; color: #5C6370;">Aufnahme</span></span>
+  </div>
+
+  <sc-if value="{{ showBanner }}" hint-placeholder-val="{{ false }}">
+    <div style="margin: 8px 12px 0 12px; border-radius: 6px; padding: 10px; background: {{ bannerBg }}; color: #FFFFFF; text-align: center; font-size: 22px; font-weight: 700; flex: none;">{{ banner }}</div>
+  </sc-if>
+
+  <div style="flex: 1; padding: 10px 12px 0 12px; display: flex; flex-direction: column; gap: 8px; overflow: auto;">
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px;">
+      <sc-for list="{{ mults }}" as="m" hint-placeholder-count="3">
+        <span class="key" onClick="{{ m.pick }}" style="border-radius: 999px; background: {{ m.bg }}; color: {{ m.fg }}; border-color: {{ m.border }};">{{ m.label }}</span>
+      </sc-for>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px;">
+      <sc-for list="{{ keys }}" as="k" hint-placeholder-count="20">
+        <span class="key" onClick="{{ k.pick }}">{{ k.label }}</span>
+      </sc-for>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px;">
+      <span class="key" onClick="{{ hit25 }}">25</span>
+      <span class="key" onClick="{{ hitBull }}">Bull</span>
+      <span class="key" onClick="{{ hitMiss }}" style="color: {{ accent }};">Miss</span>
+    </div>
+  </div>
+
+  <div style="flex: none; display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: #FFFFFF; border-top: 1px solid #E4E0D8;">
+    <div style="width: 48px; height: 44px; border-radius: 6px; background: #EEEAE2; display: flex; align-items: center; justify-content: center;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#14161B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"></rect><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M6 12h.01M10 12h.01M14 12h.01M18 12h.01M8 16h8"></path></svg>
+    </div>
+    <div class="tap" onClick="{{ undo }}" style="height: 48px; padding: 0 16px; border-radius: 6px; border: 1px solid #14161B; display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 700; box-sizing: border-box;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#14161B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"></path><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"></path></svg>Undo</div>
+    <div class="tap" onClick="{{ next }}" style="flex: 1; height: 48px; border-radius: 6px; background: {{ accent }}; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700;">Next</div>
+  </div>
+</div>
+</x-dc>
+<script data-dc-script data-props='{"go":{"editor":null},"accent":{"editor":null},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { scores: [170, 244], darts: [15, 15], current: 0, round: 6, mult: 'S', visit: [], history: [] };
+  }
+  segScore(seg) { return seg.n === 0 ? 0 : seg.n * seg.m; }
+  visitSum(visit) { return visit.reduce((s, x) => s + this.segScore(x), 0); }
+  remaining(st) { return st.scores[st.current] - this.visitSum(st.visit); }
+  // Double Out: 0 nur mit einem Doppel (Bull zählt als Doppel), sonst Bust
+  isBust(st) { const r = this.remaining(st); const last = st.visit[st.visit.length - 1]; return r < 0 || r === 1 || (r === 0 && (!last || last.m !== 2)); }
+  isWon(st) { return this.remaining(st) === 0 && !this.isBust(st); }
+  // Kürzester Checkout-Weg (Double Out) für [n] mit [darts] Darts – rein zur Anzeige
+  checkout(n, darts) {
+    if (n < 2 || n > 170 || darts < 1) return null;
+    const singles = []; for (let i = 20; i >= 1; i--) singles.push({ l: 'T' + i, v: 3 * i }, { l: 'S' + i, v: i });
+    singles.push({ l: 'Bull', v: 50 }, { l: '25', v: 25 });
+    const doubles = [{ l: 'Bull', v: 50 }]; for (let i = 20; i >= 1; i--) doubles.push({ l: 'D' + i, v: 2 * i });
+    const dbl = (v) => doubles.find((d) => d.v === v);
+    let d = dbl(n); if (d) return d.l;
+    if (darts < 2) return null;
+    for (const a of singles) { d = dbl(n - a.v); if (d) return a.l + '  ' + d.l; }
+    if (darts < 3) return null;
+    for (const a of singles) for (const b of singles) { d = dbl(n - a.v - b.v); if (d) return a.l + '  ' + b.l + '  ' + d.l; }
+    return null;
+  }
+  add(seg) {
+    const st = this.state;
+    if (st.visit.length >= 3 || this.isBust(st) || this.isWon(st)) return;
+    this.setState({ visit: [...st.visit, seg], mult: 'S' });
+  }
+  renderVals() {
+    const st = this.state;
+    const go = typeof this.props.go === 'function' ? this.props.go : () => {};
+    const accent = this.props.accent || '#E5484D';
+    const bust = this.isBust(st);
+    const won = this.isWon(st);
+    const rem = this.remaining(st);
+    const shown = [st.scores[0], st.scores[1]];
+    if (!bust) shown[st.current] = rem;
+    const dartsLeft = 3 - st.visit.length;
+    const route = bust ? null : this.checkout(rem, dartsLeft);
+    const names = ['Anna', 'Bot Stufe 6'];
+    const p = (i) => {
+      const active = st.current === i;
+      return { score: String(shown[i]), darts: String(st.darts[i] + (active ? st.visit.length : 0)), top: active ? accent : '#E4E0D8', pill: active ? '#14161B' : '#EEEAE2', pillText: active ? '#FFFFFF' : '#14161B' };
+    };
+    // Siegchance grob aus dem Restverhältnis (Beispielwert, in der App aus der Simulation)
+    const a = shown[0], b = shown[1];
+    const winA = a + b > 0 ? Math.round(100 * b / (a + b)) : 50;
+    const expected = st.current === 0 ? 65 : 58;
+    const checkoutPct = route ? (route.split('  ').length === 1 ? 38 : route.split('  ').length === 2 ? 23 : 9) : 0;
+    const mkMult = (label) => ({ label, pick: () => this.setState({ mult: label }), bg: st.mult === label ? '#14161B' : '#FFFFFF', fg: st.mult === label ? '#FFFFFF' : '#14161B', border: st.mult === label ? '#14161B' : '#E4E0D8' });
+    const mv = { S: 1, D: 2, T: 3 }[st.mult];
+    const keys = []; for (let n = 1; n <= 20; n++) keys.push({ label: String(n), pick: () => this.add({ n, m: mv, l: st.mult + n }) });
+    const pills = [0, 1, 2].map((i) => { const v = st.visit[i]; return v ? { label: v.l, bg: '#14161B', fg: '#FFFFFF' } : { label: '—', bg: '#EEEAE2', fg: '#9AA3B5' }; });
+    return {
+      accent, bust, showBanner: bust || won, banner: bust ? 'Bust' : 'Game Shot · Leg gewonnen', bannerBg: bust ? accent : '#14161B', round: String(st.round),
+      p0: p(0), p1: p(1),
+      hintLabel: won ? 'Leg gewonnen' : route ? 'Checkout' : 'Am Zug', hint: won ? names[st.current] : (route || names[st.current]),
+      thrower: names[st.current], expected: String(expected), checkoutPct: String(checkoutPct),
+      winA: String(winA), winB: String(100 - winA),
+      pills, visitSum: String(this.visitSum(st.visit)),
+      mults: [mkMult('S'), mkMult('D'), mkMult('T')], keys,
+      hit25: () => this.add({ n: 25, m: 1, l: '25' }),
+      hitBull: () => this.add({ n: 25, m: 2, l: 'Bull' }),
+      hitMiss: () => this.add({ n: 0, m: 1, l: 'Miss' }),
+      // Undo: erst die laufende Aufnahme, dann ganze Aufnahmen aus der Historie
+      undo: () => {
+        if (st.visit.length) return this.setState({ visit: st.visit.slice(0, -1) });
+        const prev = st.history[st.history.length - 1];
+        if (prev) this.setState({ ...prev, history: st.history.slice(0, -1) });
+      },
+      next: () => {
+        if (!st.visit.length) return;
+        const snapshot = { scores: st.scores, darts: st.darts, current: st.current, round: st.round, visit: st.visit, mult: 'S' };
+        const scores = [...st.scores]; const darts = [...st.darts];
+        if (!bust) scores[st.current] = rem;
+        darts[st.current] += st.visit.length;
+        const nextP = 1 - st.current;
+        // Leg gewonnen: neues Leg von 501, der andere beginnt
+        if (won) { scores[0] = 501; scores[1] = 501; }
+        this.setState({ scores, darts, visit: [], current: nextP, round: won ? 1 : st.round + (nextP === 0 ? 1 : 0), mult: 'S', history: [...st.history, snapshot] });
+      },
+      toHome: () => go('home'),
+    };
+  }
+}
+</script>
+</body>
+</html>

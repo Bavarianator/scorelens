@@ -1,0 +1,116 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&amp;family=DM+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+  <style>
+    html, body { height: 100%; }
+    body { margin: 0; background: #F7F5F0; color: #14161B; font-family: "DM Sans", system-ui, sans-serif; }
+    a { color: #E5484D; } a:hover { color: #B93A3E; }
+    .cond { font-family: "Barlow Condensed", "Arial Narrow", sans-serif; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; }
+    .card { background: #FFFFFF; border: 1px solid #E4E0D8; border-radius: 6px; }
+    .chip { border: 1px solid #E4E0D8; border-radius: 999px; padding: 6px 12px; font-size: 12px; font-weight: 600; color: #14161B; }
+    .tap { cursor: pointer; }
+  </style>
+</helmet>
+<div style="width: 390px; height: 100%; min-height: 0; display: flex; flex-direction: column; background: #F7F5F0; box-sizing: border-box; overflow: hidden;">
+
+  <div style="display: flex; align-items: center; height: 56px; padding: 0 4px; flex: none;">
+    <div class="tap" onClick="{{ toHome }}" style="width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#14161B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg>
+    </div>
+    <span class="cond" style="flex: 1; text-align: center; font-size: 20px; line-height: 20px;">Create Game</span>
+    <span style="width: 48px;"></span>
+  </div>
+
+  <div style="flex: 1; overflow: auto; padding: 4px 12px 90px 12px; display: flex; flex-direction: column; gap: 10px;">
+
+    <div class="card" style="padding: 14px; display: flex; flex-direction: column; gap: 10px;">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span class="cond" style="font-size: 22px; line-height: 22px;">Players</span>
+        <span class="chip">2 / 6</span>
+        <span style="flex: 1;"></span>
+        <span style="display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; color: #5C6370;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5C6370" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 3h5v5"></path><path d="M4 20 21 3"></path><path d="M21 16v5h-5"></path><path d="M15 15l6 6"></path><path d="M4 4l5 5"></path></svg>Shuffle</span>
+      </div>
+      <div style="display: flex; flex-direction: column;">
+        <div style="display: flex; align-items: center; gap: 10px; min-height: 48px; border-bottom: 1px solid #EEEAE2;">
+          <span style="width: 36px; height: 36px; border-radius: 999px; background: #14161B; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px;">AN</span>
+          <span class="cond" style="font-size: 18px; line-height: 18px;">Anna</span>
+          <span style="border-radius: 999px; padding: 3px 8px; font-size: 11px; font-weight: 700; background: #1FB58F; color: #14161B;">70+</span>
+          <span style="flex: 1;"></span>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9AA3B5" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"></path></svg>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; min-height: 48px;">
+          <span style="width: 36px; height: 36px; border-radius: 999px; background: #5C6370; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px;">B</span>
+          <span class="cond" style="font-size: 18px; line-height: 18px;">Bot Stufe 6</span>
+          <span style="border-radius: 999px; padding: 3px 8px; font-size: 11px; font-weight: 700; background: #EEEAE2; color: #5C6370;">Ø 62</span>
+          <span style="flex: 1;"></span>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9AA3B5" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"></path></svg>
+        </div>
+      </div>
+      <span style="font-size: 12px; color: #5C6370;">Prognose fürs erste Leg: Anna 62 % · Bot 38 %</span>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;">
+        <span style="height: 48px; border-radius: 6px; background: {{ accent }}; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700;">Add Player</span>
+        <span style="height: 48px; border-radius: 6px; border: 1px solid #14161B; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; box-sizing: border-box;">Add Bot</span>
+      </div>
+    </div>
+
+    <div class="card" style="padding: 14px; display: flex; flex-direction: column; gap: 10px;">
+      <div style="display: flex; align-items: baseline; gap: 8px;">
+        <span class="cond" style="font-size: 22px; line-height: 22px;">X01</span>
+        <span class="cond" style="font-size: 12px; color: #15803D;">Competitive</span>
+        <span style="flex: 1;"></span>
+        <a href="#" style="font-size: 12px; font-weight: 600; text-decoration: none;">Wie spielt man?</a>
+      </div>
+      <div style="height: 1px; background: #EEEAE2;"></div>
+      <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+        <span class="chip">501</span><span class="chip">Straight In</span><span class="chip">Double Out</span><span class="chip">Best of 3 Legs</span><span class="chip">Bull 25/50</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="height: 48px; padding: 0 16px; border-radius: 6px; border: 1px solid #14161B; display: flex; align-items: center; font-size: 14px; font-weight: 700; box-sizing: border-box;">Edit settings</span>
+        <a href="#" style="font-size: 13px; font-weight: 600; text-decoration: none;">Anderen Modus wählen ›</a>
+      </div>
+    </div>
+
+    <div class="card" style="padding: 14px; display: flex; flex-direction: column; gap: 10px;">
+      <span class="cond" style="font-size: 22px; line-height: 22px;">Autoscoring</span>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;">
+        <div style="border: 2px solid #1FB58F; border-radius: 6px; padding: 12px; display: flex; flex-direction: column; gap: 6px;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#14161B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M14.3 15 8.6 5.2M9.7 15 20.6 15M7.4 10.2 13.1 20M12 4h11.4M14.3 9 3.4 9M16.6 13.8 10.9 4M9.7 15l5.7 9.8"></path></svg>
+          <span class="cond" style="font-size: 16px; line-height: 16px;">Lens</span>
+          <span style="font-size: 12px; color: #1FB58F; font-weight: 600;">Bereit · 12 fps</span>
+        </div>
+        <div style="border: 1px solid #E4E0D8; border-radius: 6px; padding: 12px; display: flex; flex-direction: column; gap: 6px;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#14161B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="7" width="20" height="14" rx="2"></rect><path d="M12 7V3M8 3h8"></path><circle cx="12" cy="14" r="3"></circle></svg>
+          <span class="cond" style="font-size: 16px; line-height: 16px;">Board Manager</span>
+          <span style="font-size: 12px; color: #5C6370;">Nicht verbunden</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="flex: none; padding: 12px; background: #F7F5F0; border-top: 1px solid #E4E0D8; display: flex; flex-direction: column; gap: 8px;">
+    <div class="tap" onClick="{{ toMatch }}" style="height: 56px; border-radius: 6px; background: {{ accent }}; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700;">Start Game</div>
+    <div style="height: 48px; border-radius: 6px; border: 1px solid #14161B; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; box-sizing: border-box;">Als Turnier starten</div>
+  </div>
+</div>
+</x-dc>
+<script data-dc-script data-props='{"go":{"editor":null},"accent":{"editor":null},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const go = typeof this.props.go === 'function' ? this.props.go : () => {};
+    return {
+      accent: this.props.accent || '#E5484D',
+      toMatch: () => go('match'),
+      toHome: () => go('home'),
+    };
+  }
+}
+</script>
+</body>
+</html>

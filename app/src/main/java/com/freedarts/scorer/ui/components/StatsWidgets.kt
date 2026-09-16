@@ -114,7 +114,7 @@ fun HeadToHeadRow(h: Statistics.HeadToHead) {
             )
         }
         Text("${h.wins}:${h.losses}", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium,
-            color = if (h.wins > h.losses) DartColors.Green else if (h.wins < h.losses) DartColors.Red else Color.White)
+            color = if (h.wins > h.losses) DartColors.Green else if (h.wins < h.losses) DartColors.Red else DartColors.Text)
     }
 }
 
@@ -135,9 +135,9 @@ private fun CompareRow(label: String, mine: Double, theirs: Double, format: (Dou
     val share = if (total <= 0) 0.5f else (mine / total).toFloat()
     Column(Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
         Row(Modifier.fillMaxWidth()) {
-            Text(format(mine), fontWeight = FontWeight.Bold, color = if (mine >= theirs) DartColors.Lime else Color.White, modifier = Modifier.weight(1f))
+            Text(format(mine), fontWeight = FontWeight.Bold, color = if (mine >= theirs) DartColors.Lime else DartColors.Text, modifier = Modifier.weight(1f))
             Text(label, color = DartColors.TextMuted, style = MaterialTheme.typography.labelSmall)
-            Text(format(theirs), fontWeight = FontWeight.Bold, color = if (theirs > mine) DartColors.Red else Color.White, modifier = Modifier.weight(1f), textAlign = TextAlign.End)
+            Text(format(theirs), fontWeight = FontWeight.Bold, color = if (theirs > mine) DartColors.Red else DartColors.Text, modifier = Modifier.weight(1f), textAlign = TextAlign.End)
         }
         Canvas(Modifier.fillMaxWidth().height(4.dp).padding(top = 1.dp)) {
             drawRect(DartColors.Primary, size = Size(size.width * share, size.height))
@@ -164,7 +164,7 @@ fun Sparkline(values: List<Double>, modifier: Modifier = Modifier, color: Color 
         fun x(i: Int) = padX + if (values.size == 1) w / 2 else w * i / (values.size - 1)
         fun y(v: Double) = padTop + h - ((v - lo) / span * h).toFloat()
         val ym = y(mean)
-        drawLine(Color(0x55FFFFFF), Offset(padX, ym), Offset(padX + w, ym), strokeWidth = 2f, pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(8f, 8f)))
+        drawLine(DartColors.TextMuted.copy(alpha = 0.5f), Offset(padX, ym), Offset(padX + w, ym), strokeWidth = 2f, pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(8f, 8f)))
         val path = Path()
         values.forEachIndexed { i, v -> if (i == 0) path.moveTo(x(i), y(v)) else path.lineTo(x(i), y(v)) }
         drawPath(path, color, style = Stroke(4f))

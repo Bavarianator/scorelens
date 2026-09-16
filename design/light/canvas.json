@@ -1,0 +1,14 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html", "title": "Prototyp (klickbar)", "x": 0, "y": 0, "w": 390, "h": 844, "is_interactive": true },
+    { "file": "Home.dc.html", "x": 0, "y": 1000, "w": 390, "h": 844 },
+    { "file": "Lobby.dc.html", "x": 480, "y": 1000, "w": 390, "h": 844 },
+    { "file": "Match.dc.html", "x": 960, "y": 1000, "w": 390, "h": 844, "is_interactive": true },
+    { "file": "Stats.dc.html", "x": 1440, "y": 1000, "w": 390, "h": 844 }
+  ],
+  "annotations": [
+    { "id": "system", "x": 480, "y": 0, "w": 360, "text": "Hell & klar\nPapier #F7F5F0, Karten #FFFFFF mit 1px #E4E0D8, Tiefe #EEEAE2\nTinte #14161B, Sekundär #5C6370, Inaktiv #9AA3B5\nSignalrot #E5484D (Aktionen, aktiver Spieler), Mint #1FB58F (Erfolg, Lens bereit)\nBarlow Condensed uppercase für Titel und Labels, DM Sans für Text\nRadien 6 (Karten, Buttons) und 999 (Pills), keine Gradients, keine Schrägen" },
+    { "id": "proto", "x": 480, "y": 260, "w": 360, "text": "Prototyp: Hero → Match, Neues Spiel → Lobby → Start Game → Match, Tab Statistik. Im Match: S/D/T wählen, Zahl tippen, Undo, Next – Rest, Checkout-Weg und Bust rechnen mit. Lens und Einstellungen sind hier nur Platzhalter.\nUnten: dieselben Screens einzeln zum Bearbeiten. Zahlen sind Beispielwerte." }
+  ],
+  "launch": { "view": "canvas" }
+}

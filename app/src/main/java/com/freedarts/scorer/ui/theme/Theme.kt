@@ -2,13 +2,19 @@
 
 package com.freedarts.scorer.ui.theme
 
+import android.app.Activity
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.key
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -16,44 +22,74 @@ import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.view.WindowCompat
 import com.freedarts.scorer.R
 
-/** Farbwelt nach dem FreeDarts-Design-Canvas (Stil der Autodarts-App). */
-object DartColors {
-    val Background = Color(0xFF0B1220)
-    val Band = Color(0x8C162650)
-    val Surface = Color(0xFF171C27)
-    val SurfaceHigh = Color(0xFF2A3040)
-    val SurfaceDeep = Color(0xFF0D1119)
-    val Outline = Color(0xFF3A4152)
-    val Primary = Color(0xFF2B6BFF)
-    val PrimaryDark = Color(0xFF1E4FD6)
-    val PrimaryLight = Color(0xFF4C8DFF)
-    val Teal = Color(0xFF19C6A6)
-    val Lime = Color(0xFF7CF06B)
-    val Green = Color(0xFF22C55E)
-    val GreenDark = Color(0xFF123B2A)
-    val Red = Color(0xFFE5484D)
-    val RedDark = Color(0xFF7A1F23)
-    val Purple = Color(0xFF8B5CF6)
-    val PurpleDark = Color(0xFF3B2A6E)
-    val Orange = Color(0xFFF59E5B)
-    val OrangeDark = Color(0xFF3A2418)
-    val PartyLime = Color(0xFFBEF264)
-    val PartyDark = Color(0xFF2E3A16)
-    val Magenta = Color(0xFFE0287E)
-    val MagentaMid = Color(0xFFB21A8E)
-    val Violet = Color(0xFF6D28D9)
-    val Pink = Color(0xFFE9A8E4)
-    val Cream = Color(0xFFF1E9D2)
-    val Black = Color(0xFF14161B)
-    val Accent = Color(0xFFFFC107)
-    val Blue = Primary
-    val TextMuted = Color(0xFF9AA3B5)
-    val Text = Color(0xFFF3F5F9)
-    val Active = Primary
-    val BottomBar = Color(0xFF10192E)
+/**
+ * Farbwelt als Palette: Dunkel = Design-Canvas im Stil der Autodarts-App, Hell = Rework „Hell & klar“
+ * (Papier, Tinte, Signalrot). Logo und Dartscheibe sind in beiden gleich ([Black], [Cream], [Red], [Green], [Accent] am Board).
+ */
+class Palette(
+    val isDark: Boolean,
+    val Background: Color, val Band: Color, val Surface: Color, val SurfaceHigh: Color, val SurfaceDeep: Color, val Outline: Color,
+    val Primary: Color, val PrimaryDark: Color, val PrimaryLight: Color,
+    val Teal: Color, val Lime: Color, val Green: Color, val GreenDark: Color, val Red: Color, val RedDark: Color,
+    val Purple: Color, val PurpleDark: Color, val Orange: Color, val OrangeDark: Color, val PartyLime: Color, val PartyDark: Color,
+    val Magenta: Color, val MagentaMid: Color, val Violet: Color, val Pink: Color, val Cream: Color, val Black: Color, val Accent: Color,
+    val TextMuted: Color, val Text: Color, val BottomBar: Color,
+    /** Schrift auf der aktiven Spielerkarte und Farbe ihres Balkens. */
+    val OnActive: Color, val ActiveBar: Color,
+    /** Schrift auf getönten Karten (GreenDark/RedDark/OrangeDark) und gedämpfte Schrift auf Home-Kacheln. */
+    val OnTint: Color, val OnTileMuted: Color,
+    /** Verläufe der Home-Kacheln und des Kopf-Swooshs (hell: flach bzw. unsichtbar). */
+    val Hero: List<Color>, val TileNew: List<Color>, val TileFind: List<Color>, val TileOnline: List<Color>, val Swoosh: List<Color>, val HeroPill: Color,
+    /** Halbtransparente Overlays im Match (Zoom-Darts, Caller, Checkout) und das Match-Intro. */
+    val Overlay: Color, val OnOverlay: Color, val Intro: Color,
+    val ChipSelected: Color, val OnChipSelected: Color, val ChipText: Color, val Divider: Color, val BarButton: Color, val PillEmpty: Color,
+    val CricketBg: Color, val CricketFg: Color,
+) {
+    val Blue: Color get() = Primary
+    val Active: Color get() = Primary
 }
+
+val DarkPalette = Palette(
+    isDark = true,
+    Background = Color(0xFF0B1220), Band = Color(0x8C162650), Surface = Color(0xFF171C27), SurfaceHigh = Color(0xFF2A3040), SurfaceDeep = Color(0xFF0D1119), Outline = Color(0xFF3A4152),
+    Primary = Color(0xFF2B6BFF), PrimaryDark = Color(0xFF1E4FD6), PrimaryLight = Color(0xFF4C8DFF),
+    Teal = Color(0xFF19C6A6), Lime = Color(0xFF7CF06B), Green = Color(0xFF22C55E), GreenDark = Color(0xFF123B2A), Red = Color(0xFFE5484D), RedDark = Color(0xFF7A1F23),
+    Purple = Color(0xFF8B5CF6), PurpleDark = Color(0xFF3B2A6E), Orange = Color(0xFFF59E5B), OrangeDark = Color(0xFF3A2418), PartyLime = Color(0xFFBEF264), PartyDark = Color(0xFF2E3A16),
+    Magenta = Color(0xFFE0287E), MagentaMid = Color(0xFFB21A8E), Violet = Color(0xFF6D28D9), Pink = Color(0xFFE9A8E4), Cream = Color(0xFFF1E9D2), Black = Color(0xFF14161B), Accent = Color(0xFFFFC107),
+    TextMuted = Color(0xFF9AA3B5), Text = Color(0xFFF3F5F9), BottomBar = Color(0xFF10192E),
+    OnActive = Color.White, ActiveBar = Color(0xFF22C55E),
+    OnTint = Color.White, OnTileMuted = Color(0xFFDDE6F5),
+    Hero = listOf(Color(0xFF0E3A8C), Color(0xFF0F6E8F), Color(0xFF16B8B0)), TileNew = listOf(Color(0xFF1D2A4A), Color(0xFF22346A)), TileFind = listOf(Color(0xFF15305F), Color(0xFF1D4ED8)),
+    TileOnline = listOf(Color(0xFF3B1D5E), Color(0xFF6D28D9)), Swoosh = listOf(Color(0xFF1E5BFF), Color(0xFF16B8B0), Color(0xFF7CF06B)), HeroPill = Color(0x73000000),
+    Overlay = Color(0xD90D1119), OnOverlay = Color.White, Intro = Color(0xF00B1220),
+    ChipSelected = Color.White, OnChipSelected = Color(0xFF0B1220), ChipText = Color(0xFFC7CDD8), Divider = Color(0xFF1F5A46), BarButton = Color(0xFF1C2740), PillEmpty = Color(0xFF7B8496),
+    CricketBg = Color(0xFF1B2C5E), CricketFg = Color(0xFF4C8DFF),
+)
+
+val LightPalette = Palette(
+    isDark = false,
+    Background = Color(0xFFF7F5F0), Band = Color.Transparent, Surface = Color(0xFFFFFFFF), SurfaceHigh = Color(0xFFEEEAE2), SurfaceDeep = Color(0xFFE4E0D8), Outline = Color(0xFFE4E0D8),
+    Primary = Color(0xFFE5484D), PrimaryDark = Color(0xFFB93A3E), PrimaryLight = Color(0xFFC43A3F),
+    Teal = Color(0xFF0F9B87), Lime = Color(0xFF1FB58F), Green = Color(0xFF15803D), GreenDark = Color(0xFFDCFCE7), Red = Color(0xFFE5484D), RedDark = Color(0xFFFDE2E2),
+    Purple = Color(0xFF6D28D9), PurpleDark = Color(0xFFEDE9FE), Orange = Color(0xFFD97706), OrangeDark = Color(0xFFFFEDD5), PartyLime = Color(0xFF4D7C0F), PartyDark = Color(0xFFECFCCB),
+    Magenta = Color(0xFFFFFFFF), MagentaMid = Color(0xFFFFFFFF), Violet = Color(0xFFFFFFFF), Pink = Color(0xFFE9A8E4), Cream = Color(0xFFF1E9D2), Black = Color(0xFF14161B), Accent = Color(0xFFB45309),
+    TextMuted = Color(0xFF5C6370), Text = Color(0xFF14161B), BottomBar = Color(0xFFFFFFFF),
+    OnActive = Color(0xFF14161B), ActiveBar = Color(0xFFE5484D),
+    OnTint = Color(0xFF14161B), OnTileMuted = Color(0xFF5C6370),
+    Hero = listOf(Color(0xFFFFFFFF), Color(0xFFFFFFFF)), TileNew = listOf(Color(0xFFFFFFFF), Color(0xFFFFFFFF)), TileFind = listOf(Color(0xFFFFFFFF), Color(0xFFFFFFFF)),
+    TileOnline = listOf(Color(0xFF14161B), Color(0xFF14161B)), Swoosh = listOf(Color.Transparent, Color.Transparent, Color.Transparent), HeroPill = Color(0xFFEEEAE2),
+    Overlay = Color(0xE6FFFFFF), OnOverlay = Color(0xFF14161B), Intro = Color(0xF0F7F5F0),
+    ChipSelected = Color(0xFF14161B), OnChipSelected = Color.White, ChipText = Color(0xFF5C6370), Divider = Color(0xFFE4E0D8), BarButton = Color(0xFFEEEAE2), PillEmpty = Color(0xFF9AA3B5),
+    CricketBg = Color(0xFFDBEAFE), CricketFg = Color(0xFF1D4ED8),
+)
+
+// ponytail: eine globale, beim Theme-Wechsel getauschte Palette (alle Aufrufer lesen DartColors.X wie bisher);
+// CompositionLocal erst, wenn zwei Paletten gleichzeitig auf dem Bildschirm sein müssen
+var DartColors: Palette = DarkPalette
+    private set
 
 val Condensed = FontFamily(
     Font(R.font.barlow_condensed_semibold, FontWeight.SemiBold),
@@ -70,24 +106,24 @@ val Body = FontFamily(
     Font(R.font.dm_sans, FontWeight.Black, variationSettings = FontVariation.Settings(FontVariation.weight(900))),
 )
 
-private val scheme = darkColorScheme(
-    primary = DartColors.Primary,
+private fun scheme(p: Palette) = (if (p.isDark) darkColorScheme() else lightColorScheme()).copy(
+    primary = p.Primary,
     onPrimary = Color.White,
-    primaryContainer = DartColors.PrimaryDark,
+    primaryContainer = p.PrimaryDark,
     onPrimaryContainer = Color.White,
-    secondary = DartColors.Teal,
-    onSecondary = Color.Black,
-    tertiary = DartColors.Purple,
-    error = DartColors.Red,
-    background = DartColors.Background,
-    onBackground = DartColors.Text,
-    surface = DartColors.Surface,
-    onSurface = DartColors.Text,
-    surfaceVariant = DartColors.SurfaceHigh,
-    onSurfaceVariant = DartColors.TextMuted,
-    outline = DartColors.Outline,
-    surfaceContainer = DartColors.Surface,
-    surfaceContainerHigh = DartColors.SurfaceHigh,
+    secondary = p.Teal,
+    onSecondary = if (p.isDark) Color.Black else Color.White,
+    tertiary = p.Purple,
+    error = p.Red,
+    background = p.Background,
+    onBackground = p.Text,
+    surface = p.Surface,
+    onSurface = p.Text,
+    surfaceVariant = p.SurfaceHigh,
+    onSurfaceVariant = p.TextMuted,
+    outline = p.Outline,
+    surfaceContainer = p.Surface,
+    surfaceContainerHigh = p.SurfaceHigh,
 )
 
 private val typography = Typography(
@@ -112,7 +148,17 @@ private val shapes = Shapes(
     large = RoundedCornerShape(20.dp),
 )
 
+/** [mode]: "system" | "light" | "dark" (AppSettings.theme). Beim Wechsel wird der ganze Baum neu aufgebaut, damit jede Farbe neu gelesen wird. */
 @Composable
-fun FreeDartsTheme(content: @Composable () -> Unit) {
-    MaterialTheme(colorScheme = scheme, typography = typography, shapes = shapes, content = content)
+fun FreeDartsTheme(mode: String = "dark", content: @Composable () -> Unit) {
+    val dark = when (mode) { "light" -> false; "dark" -> true; else -> isSystemInDarkTheme() }
+    DartColors = if (dark) DarkPalette else LightPalette
+    val view = LocalView.current
+    if (!view.isInEditMode) SideEffect {
+        (view.context as? Activity)?.window?.let { w ->
+            WindowCompat.getInsetsController(w, view).isAppearanceLightStatusBars = !dark
+            WindowCompat.getInsetsController(w, view).isAppearanceLightNavigationBars = !dark
+        }
+    }
+    MaterialTheme(colorScheme = scheme(DartColors), typography = typography, shapes = shapes) { key(dark) { content() } }
 }

@@ -173,7 +173,7 @@ fun OnlineScreen(vm: AppViewModel) {
                     currentLobby?.let { l ->
                         AdCard(background = DartColors.GreenDark, onClick = { vm.openOnlineLobby() }) {
                             Text("DEINE LOBBY · ${l.code}", style = MaterialTheme.typography.headlineSmall)
-                            Text("${l.players.size}/${l.maxPlayers} Spieler · " + lobbyTitle(l), color = Color(0xFFDDE6F5), style = MaterialTheme.typography.bodySmall)
+                            Text("${l.players.size}/${l.maxPlayers} Spieler · " + lobbyTitle(l), color = DartColors.OnTileMuted, style = MaterialTheme.typography.bodySmall)
                             Spacer(Modifier.height(8.dp))
                             PrimaryButton("Zur Lobby", Modifier.fillMaxWidth(), height = 44) { vm.openOnlineLobby() }
                         }
@@ -244,7 +244,7 @@ fun OnlineScreen(vm: AppViewModel) {
                     Spacer(Modifier.height(8.dp))
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Player.AVATAR_COLORS.forEach { c ->
-                            Box(Modifier.size(32.dp).background(Color(c), CircleShape).border(if (c == color) 3.dp else 0.dp, Color.White, CircleShape).clickable { color = c })
+                            Box(Modifier.size(32.dp).background(Color(c), CircleShape).border(if (c == color) 3.dp else 0.dp, DartColors.Text, CircleShape).clickable { color = c })
                         }
                     }
                     Spacer(Modifier.height(8.dp))

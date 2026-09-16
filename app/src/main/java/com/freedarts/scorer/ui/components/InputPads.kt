@@ -36,7 +36,7 @@ private fun PadButton(
     label: String,
     modifier: Modifier = Modifier,
     color: Color = DartColors.SurfaceHigh,
-    textColor: Color = Color.White,
+    textColor: Color = DartColors.Text,
     enabled: Boolean = true,
     height: Int = 48,
     onClick: () -> Unit,
@@ -63,7 +63,7 @@ fun TotalScorePad(enabled: Boolean, onSubmit: (Int) -> Unit) {
             contentAlignment = Alignment.Center,
         ) {
             Text(if (input.isEmpty()) "Score eingeben" else input, fontSize = 26.sp, fontWeight = FontWeight.Bold,
-                color = if (input.isEmpty()) DartColors.TextMuted else Color.White)
+                color = if (input.isEmpty()) DartColors.TextMuted else DartColors.Text)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             listOf(26, 41, 45, 60, 85, 100).forEach { q ->

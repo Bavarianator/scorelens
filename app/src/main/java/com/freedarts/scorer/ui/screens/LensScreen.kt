@@ -273,7 +273,7 @@ private fun CheckRow(text: String, ok: Boolean) {
     Row(Modifier.padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
         Icon(if (ok) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked, null, tint = if (ok) DartColors.Lime else DartColors.TextMuted, modifier = Modifier.size(20.dp))
         Spacer(Modifier.width(10.dp))
-        Text(text, color = if (ok) Color.White else DartColors.TextMuted)
+        Text(text, color = if (ok) DartColors.Text else DartColors.TextMuted)
     }
 }
 

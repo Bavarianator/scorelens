@@ -845,6 +845,7 @@ Anmelden/Abmelden, Server eintragen.
 | *Erweitert:* Chalkboard anzeigen | Kreidetafel mit dem Aufnahme-Verlauf |
 | *Erweitert:* Bildschirm anlassen | Display bleibt während des Spiels an |
 | *Erweitert:* Darts Zoom im Kamerabild | aktuelle Aufnahme groß über dem Kamerabild |
+| Design | **System**, **Hell** oder **Dunkel**. Hell = das Rework „Hell & klar“ (Papier, Tinte, Signalrot), Dunkel = der bisherige Look; Logo und Dartscheibe sind in beiden gleich |
 | *Erweitert:* Animationen und Match-Intro | Intro, Gewinn-, Bust- und Caller-Animationen, Übergänge zwischen Screens, animierte Scores |
 | *Erweitert:* Vibration bei Dart, Undo, Next | kurzes haptisches Feedback, auch wenn Lens einen Dart erkennt |
 | *Erweitert:* Bot-Wurfpause | Pause zwischen Bot-Würfen (0,2–2 s) |

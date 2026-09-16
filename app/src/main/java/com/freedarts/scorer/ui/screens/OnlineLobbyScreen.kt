@@ -151,9 +151,9 @@ fun OnlineLobbyScreen(vm: AppViewModel) {
                     ModeBadge(gs.mode)
                 }
                 Text(gs.mode.description(), color = DartColors.TextMuted, style = MaterialTheme.typography.bodyMedium)
-                Text("ⓘ How to play", color = Color.White, style = MaterialTheme.typography.labelMedium, textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline,
+                Text("ⓘ How to play", color = DartColors.Text, style = MaterialTheme.typography.labelMedium, textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline,
                     modifier = Modifier.padding(top = 4.dp).clickable { showHowTo = true })
-                Spacer(Modifier.height(8.dp)); Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0xFF1F5A46))); Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(8.dp)); Box(Modifier.fillMaxWidth().height(1.dp).background(DartColors.Divider)); Spacer(Modifier.height(8.dp))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) { settingsChips(gs).forEach { Chip(it) } }
                 if (isHost) {
                     Spacer(Modifier.height(8.dp))

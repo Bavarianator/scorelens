@@ -67,7 +67,8 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         vm.online.handleRedirect(intent?.data)
         setContent {
-            FreeDartsTheme {
+            val themeMode by vm.settings.collectAsStateWithLifecycle()
+            FreeDartsTheme(themeMode.theme) {
                 Surface(modifier = Modifier.fillMaxSize().systemBarsPadding()) {
                     FreeDartsApp(vm, onKeepScreenOn = { on ->
                         if (on) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)

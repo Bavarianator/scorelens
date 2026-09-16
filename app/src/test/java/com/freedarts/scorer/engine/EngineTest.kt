@@ -127,9 +127,10 @@ class EngineTest {
     }
 
     @Test fun botHitsSomething() {
-        val counts = (1..200).map { Bot.throwAt(Segment.triple(20), 11) }.count { it == Segment.triple(20) }
-        assertTrue("Profi-Bot trifft T20 zu selten: $counts", counts > 40)
-        val weak = (1..200).map { Bot.throwAt(Segment.triple(20), 1) }.count { it == Segment.triple(20) }
+        val r = kotlin.random.Random(1) // fester Seed: der Test war mit Random.Default flatterhaft (39 von 200 bei Schwelle 40)
+        val counts = (1..1000).map { Bot.throwAt(Segment.triple(20), 11, r) }.count { it == Segment.triple(20) }
+        assertTrue("Profi-Bot trifft T20 zu selten: $counts", counts > 150)
+        val weak = (1..1000).map { Bot.throwAt(Segment.triple(20), 1, r) }.count { it == Segment.triple(20) }
         assertTrue(weak < counts)
     }
 }

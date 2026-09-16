@@ -193,24 +193,29 @@ fun MatchScreen(vm: AppViewModel) {
             Column(mod) {
                 // Spielerkarten
                 if (s.players.size <= 2) {
-                    Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         s.players.forEachIndexed { i, p -> ScoreCard(p, i == s.currentPlayer && !s.finished, s.showLegs, s.showSets, Modifier.weight(1f)) }
                     }
                 } else {
-                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    // Mehr als zwei Spieler: Karten scrollen, der aktive Spieler wird ins Bild geholt
+                    val cardScroll = rememberScrollState()
+                    val cardStep = with(androidx.compose.ui.platform.LocalDensity.current) { 178.dp.roundToPx() }
+                    LaunchedEffect(s.currentPlayer) { cardScroll.animateScrollTo((s.currentPlayer * cardStep - cardStep / 2).coerceAtLeast(0)) }
+                    Row(Modifier.fillMaxWidth().horizontalScroll(cardScroll).padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         s.players.forEachIndexed { i, p -> ScoreCard(p, i == s.currentPlayer && !s.finished, s.showLegs, s.showSets, Modifier.widthIn(min = 170.dp), compact = true) }
                     }
                 }
-                Spacer(Modifier.height(10.dp))
+                // Ereignis-Banner direkt unter den Scores, wo der Blick liegt
+                Banner(s.banner, Modifier.padding(top = 8.dp))
+                Spacer(Modifier.height(8.dp))
                 HintBar(if (settings.showCheckoutGuide && !s.finished) s.checkoutHint else null, prediction, s.players.map { it.player })
                 val correctable = if (s.currentVisit.isNotEmpty()) s.currentVisit else vm.correctableDarts()
                 DartRow(correctable, current = s.currentVisit.isNotEmpty(), onTap = { i -> if (!s.finished && !online && i < correctable.size) correctIndex = i },
                     onSwipeUndo = { if (game.canUndo && vm.onlineCanUndo()) vm.undo() })
                 if (online) Ticker(game.throwLog, s.players.map { it.player.name }, snapshots)
-                Banner(s.banner, Modifier.padding(top = 6.dp))
-                s.cricketTargets?.let { Spacer(Modifier.height(6.dp)); CricketTable(s.players, it, Modifier.padding(horizontal = 12.dp), hidden = s.cricketHidden ?: emptySet()) }
+                s.cricketTargets?.let { Spacer(Modifier.height(8.dp)); CricketTable(s.players, it, Modifier.padding(horizontal = 12.dp), hidden = s.cricketHidden ?: emptySet()) }
                 if (settings.showChalkboard && s.cricketTargets == null && !lensOn) {
-                    Spacer(Modifier.height(6.dp))
+                    Spacer(Modifier.height(8.dp))
                     Chalkboard(s.players, Modifier.padding(horizontal = 12.dp), rows = if (landscape) 3 else 4)
                 }
             }
@@ -237,7 +242,7 @@ fun MatchScreen(vm: AppViewModel) {
                                 TakeoutPanel(visible = lensStatus.phase == DartDetector.Phase.TAKEOUT || (settings.boardManagerEnabled && boardState.status == "Takeout")) { vm.lens.requestReference() }
                             }
                         } else {
-                            Box(Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(16.dp)).background(DartColors.Surface).padding(8.dp)) {
+                            Box(Modifier.then(if (landscape) Modifier.fillMaxHeight() else Modifier.fillMaxWidth()).aspectRatio(1f).clip(RoundedCornerShape(16.dp)).background(DartColors.Surface).padding(8.dp)) {
                                 Dartboard(Modifier.fillMaxWidth(), darts = s.currentVisit, highlight = highlight, enabled = inputEnabled) { vm.throwDart(it) }
                                 LiveOverlays(if (lensOn) lensStatus else null, s.currentVisit.size, s.checkoutHint.takeIf { settings.showCheckoutGuide }, callerText, zoom = null, animations = settings.animations)
                                 TakeoutPanel(visible = (lensOn && lensStatus.phase == DartDetector.Phase.TAKEOUT) || (settings.boardManagerEnabled && boardState.status == "Takeout")) { vm.lens.requestReference() }
@@ -257,8 +262,8 @@ fun MatchScreen(vm: AppViewModel) {
 
         if (landscape) {
             Row(Modifier.weight(1f)) {
-                content(Modifier.weight(1f).verticalScroll(rememberScrollState()))
-                input(Modifier.weight(1f).fillMaxSize())
+                content(Modifier.weight(0.45f).verticalScroll(rememberScrollState()))
+                input(Modifier.weight(0.55f).fillMaxSize())
             }
         } else {
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
@@ -406,7 +411,7 @@ private fun LiveOverlays(lens: LensController.Status?, dartsInVisit: Int, checko
             Row(Modifier.align(Alignment.TopStart).padding(10.dp).background(DartColors.Overlay, RoundedCornerShape(999.dp)).padding(horizontal = 10.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(8.dp).background(if (ready) DartColors.Green else DartColors.Accent, RoundedCornerShape(4.dp)))
                 Spacer(Modifier.width(6.dp))
-                Text(if (ready) "Detecting" else lens.message, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                Text(if (ready) "Detecting" else lens.message, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 180.dp))
             }
         }
         Box(Modifier.align(Alignment.TopEnd).padding(10.dp).background(DartColors.Overlay, RoundedCornerShape(999.dp)).padding(horizontal = 10.dp, vertical = 5.dp)) {
@@ -418,7 +423,7 @@ private fun LiveOverlays(lens: LensController.Status?, dartsInVisit: Int, checko
             Text(checkout.replace("  ", " · "), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = DartColors.Orange)
         }
         val callerScale by animateFloatAsState(if (caller != null && animations) 1f else 0.6f, animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy), label = "caller")
-        if (caller != null) Column(Modifier.align(Alignment.Center).scale(if (animations) callerScale else 1f).background(DartColors.Overlay, RoundedCornerShape(14.dp)).padding(horizontal = 18.dp, vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        if (caller != null) Column(Modifier.align(Alignment.Center).scale(if (animations) callerScale else 1f).background(DartColors.Overlay, RoundedCornerShape(12.dp)).padding(horizontal = 18.dp, vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Text(caller, fontFamily = Condensed, fontWeight = FontWeight.Bold, fontSize = if (caller == "180") 56.sp else 44.sp, lineHeight = 56.sp,
                 color = when { caller == "Bust" -> DartColors.Red; caller == "180" -> DartColors.Lime; else -> DartColors.OnOverlay })
             Text("CALLER", fontSize = 11.sp, letterSpacing = 1.sp, color = DartColors.TextMuted)
@@ -429,7 +434,7 @@ private fun LiveOverlays(lens: LensController.Status?, dartsInVisit: Int, checko
 /** Spielerkarte: aktiver Spieler im Magenta-Verlauf, großer Score, Sets/Legs-Kästchen, Leg-/Match-Average, Darts. */
 @Composable
 fun ScoreCard(p: PlayerState, active: Boolean, showLegs: Boolean, showSets: Boolean, modifier: Modifier = Modifier, compact: Boolean = false) {
-    val shape = RoundedCornerShape(6.dp)
+    val shape = RoundedCornerShape(12.dp)
     val bg = Modifier.clip(shape).then(
         if (active) Modifier.background(Brush.linearGradient(listOf(DartColors.Magenta, DartColors.MagentaMid, DartColors.Violet)), shape)
         else Modifier.background(DartColors.Surface, shape)

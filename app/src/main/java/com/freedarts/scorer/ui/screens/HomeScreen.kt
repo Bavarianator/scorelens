@@ -262,7 +262,7 @@ fun HomeScreen(vm: AppViewModel) {
         }
     }
 
-    if (showCard && profile != null) PlayerCardDialog(profile, matches, profile.id) { showCard = false }
+    if (showCard && profile != null) PlayerCardDialog(profile, matches, profile.id, onDismiss = { showCard = false }, onAllAchievements = { showCard = false; vm.navigate(Screen.Achievements(profile.id)) })
     // Mitteilungen: Einladungen, Freundschaftsanfragen und letzte Ergebnisse an einem Ort (alles aus vorhandenem Zustand, keine eigene Ablage)
     if (showInbox) {
         AlertDialog(

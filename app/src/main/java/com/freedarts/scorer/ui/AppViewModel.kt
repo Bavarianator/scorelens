@@ -83,6 +83,8 @@ sealed class Screen {
     data object MatchDetail : Screen()
     /** Nachschlagetabelle der Checkout-Wege. */
     data object CheckoutTable : Screen()
+    /** Alle Erfolge eines Spielers als Gitter. */
+    data class Achievements(val playerId: String) : Screen()
 }
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
@@ -112,7 +114,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val caller = Caller(app)
     val board = BoardManagerClient(viewModelScope)
     val lens = LensController(app)
-    val remote = RemoteServer({ remoteState() }, { lens.frameJpeg() }) { cmd -> viewModelScope.launch { when (cmd) { "undo" -> undo(); "next" -> nextPlayer(); "board:reset" -> lens.requestReference(); "board:calibrate" -> lens.startSearch(); else -> Segment.parse(cmd)?.let { s -> game?.let { g -> if (!g.finished && !g.players[g.current].isBot) throwDart(s) } } } } }
+    val remote = RemoteServer({ remoteState() }, { lens.frameJpeg() }) { cmd -> viewModelScope.launch { when {
+        cmd == "undo" -> undo(); cmd == "next" -> nextPlayer(); cmd == "board:reset" -> lens.requestReference(); cmd == "board:calibrate" -> lens.startSearch()
+        // Ein Board-Handy hat unseren Kopplungs-Code gescannt und meldet seine Adresse: dieses Gerät wird Zweitgerät
+        cmd.startsWith("pair:") -> { updateSettings { it.copy(remotePairedUrl = cmd.removePrefix("pair:")) }; toasts.tryEmit(Toast("Mit Board-Handy gekoppelt")); navigate(Screen.RemoteView) }
+        else -> Segment.parse(cmd)?.let { s -> game?.let { g -> if (!g.finished && !g.players[g.current].isBot) throwDart(s) } }
+    } } }
     private val _remoteUrl = MutableStateFlow<String?>(null)
     /** Letzter Lens-Takeout; /api/state meldet danach ~1 s lang „Takeout“, damit ein pollendes Zweithandy ihn sicher sieht. */
     @Volatile private var lensTakeoutAt = 0L
@@ -443,6 +450,27 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             _remoteUrl.value = remote.localAddress()?.let { "http://$it:${RemoteServer.PORT}" } ?: "http://<IP>:${RemoteServer.PORT}"
             repo.updateSettings { it.copy(remoteEnabled = true) }
         }
+    }
+
+    /**
+     * Gescannter Geräte-Code. Endet er auf `/pair`, ist es der Code eines Zweitgeräts: dieses Handy wird Board und meldet
+     * seine Adresse dort an. Sonst ist es die Adresse eines Board-Handys und dieses Gerät wird Zweitgerät.
+     */
+    fun handleDeviceCode(raw: String) {
+        val text = raw.trim()
+        if (!text.startsWith("http://")) { toasts.tryEmit(Toast("Das ist kein Scorelens-Gerätecode")); return }
+        if (text.endsWith("/pair")) {
+            if (_remoteUrl.value == null) startRemote()
+            val me = _remoteUrl.value?.takeIf { !it.contains("<") } ?: run { toasts.tryEmit(Toast("Keine WLAN-Adresse gefunden")); return }
+            viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                val ok = runCatching {
+                    okhttp3.OkHttpClient.Builder().connectTimeout(3, java.util.concurrent.TimeUnit.SECONDS).build()
+                        .newCall(okhttp3.Request.Builder().url("$text?url=" + java.net.URLEncoder.encode(me, "UTF-8")).build()).execute().use { it.isSuccessful }
+                }.getOrDefault(false)
+                toasts.tryEmit(Toast(if (ok) "Zweitgerät gekoppelt – es zeigt jetzt dieses Spiel" else "Zweitgerät nicht erreichbar (gleiches WLAN?)"))
+                if (ok) track("device_paired_reverse")
+            }
+        } else { updateSettings { it.copy(remotePairedUrl = text) }; navigate(Screen.RemoteView) }
     }
 
     fun stopRemote() {

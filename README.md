@@ -543,6 +543,8 @@ Ein zweites Handy kann das Spiel des Board-Handys anzeigen und bedienen:
 
 1. Am Board-Handy Remote Scoring einschalten – die Remote-Karte zeigt einen QR-Code.
 2. Am Zweitgerät: *Devices › Remote Scoring › „Als Zweitgerät koppeln“* → **QR-Code scannen** (oder IP-Adresse eintippen).
+   Oder umgekehrt: Am Zweitgerät **„Meinen Code zeigen“**, am Board-Handy unter *Remote Scoring › „Zweitgerät scannen“* den
+   Code scannen – die Kopplung funktioniert in beide Richtungen, das Zweitgerät springt danach von selbst in die Spielansicht.
 3. Optional **„Volle App: Würfe vom Board-Handy übernehmen“** – dann läuft das komplette Spiel inklusive Statistik auf
    dem Zweitgerät, das Board-Handy liefert nur die Würfe (wie ein Board Manager, mit Auftreffpunkten in Millimetern).
 
@@ -633,6 +635,10 @@ Der *Statistik*-Tab („Statistics“) zeigt pro Spieler:
 
 ### Übersicht aller Modi
 Aktivität der letzten 28 Tage und je Modus die Kennzahl; ein Tipp auf eine Zeile filtert auf den Modus.
+
+### Erfolge
+Über den Chip **Erfolge** in der Statistik (oder „Alle Erfolge“ in der Player Card) öffnet sich das Erfolge-Gitter: Fortschrittsring,
+Zähler je Stufe (Bronze, Silber, Gold), erreichte und offene Medaillen mit Stand, Details per Tipp.
 
 ### Trefferbild, Zielhilfe und Trainings-Coach
 - **Trefferbild:** Segmente nach Häufigkeit eingefärbt, dazu die Auftreffpunkte aus der Kamera.

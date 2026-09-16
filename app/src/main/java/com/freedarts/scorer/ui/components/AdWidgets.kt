@@ -77,7 +77,8 @@ fun HeaderSwoosh(modifier: Modifier = Modifier, height: Int = 150) {
 /** Scorelens-Zeichen: das Logo aus res/drawable/ic_logo.xml. */
 @Composable
 fun BrandMark(size: Int = 24) {
-    Image(painterResource(R.drawable.ic_logo), contentDescription = null, modifier = Modifier.size(size.dp))
+    // Hell: Lamellen in Tinte statt Weiß, Rot und Mint bleiben
+    Image(painterResource(if (DartColors.isDark) R.drawable.ic_logo else R.drawable.ic_logo_light), contentDescription = null, modifier = Modifier.size(size.dp))
 }
 
 @Composable

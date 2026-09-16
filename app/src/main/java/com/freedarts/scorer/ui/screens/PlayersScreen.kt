@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.freedarts.scorer.model.Player
 import com.freedarts.scorer.ui.AppViewModel
+import com.freedarts.scorer.ui.Screen
 import com.freedarts.scorer.ui.components.Avatar
 import com.freedarts.scorer.ui.theme.DartColors
 
@@ -55,7 +56,7 @@ fun PlayersScreen(vm: AppViewModel) {
     var creating by remember { mutableStateOf(false) }
     var card by remember { mutableStateOf<Player?>(null) }
     val settings by vm.settings.collectAsStateWithLifecycle()
-    card?.let { p -> com.freedarts.scorer.ui.components.PlayerCardDialog(p, matches, settings.profilePlayerId) { card = null } }
+    card?.let { p -> com.freedarts.scorer.ui.components.PlayerCardDialog(p, matches, settings.profilePlayerId, onDismiss = { card = null }, onAllAchievements = { card = null; vm.navigate(Screen.Achievements(p.id)) }) }
 
     var deleting by remember { mutableStateOf<Player?>(null) }
     Box(Modifier.fillMaxSize()) { com.freedarts.scorer.ui.components.ScreenBackground() }

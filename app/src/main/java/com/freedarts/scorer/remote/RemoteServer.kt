@@ -116,6 +116,13 @@ class RemoteServer(private val stateProvider: () -> RemoteState, private val fra
                     val tipsJson = s.boardTips.joinToString(",") { "{\"x\":${it.x},\"y\":${it.y},\"conf\":${it.conf}}" }
                     respond(out, "application/json; charset=utf-8", "{\"status\":\"${s.boardStatus}\",\"numThrows\":${s.boardThrows.size},\"throws\":[$throwsJson],\"tipSeq\":${s.tipSeq},\"tips\":[$tipsJson]}")
                 }
+                // Umgekehrte Kopplung: das Board-Handy ruft /pair?url=<seine Adresse> auf, dieses Gerät wird Zweitgerät
+                // ponytail: jeder im WLAN darf koppeln; Token erst, wenn fremde Netze relevant werden
+                path.startsWith("/pair") -> {
+                    val url = java.net.URLDecoder.decode(path.substringAfter("url=", "").substringBefore("&"), "UTF-8")
+                    if (url.startsWith("http://")) onCommand("pair:$url")
+                    respond(out, "application/json; charset=utf-8", "{\"ok\":true}")
+                }
                 path.startsWith("/api/") -> {
                     onCommand("board:" + path.removePrefix("/api/").substringBefore("?").substringBefore("/"))
                     respond(out, "application/json; charset=utf-8", "{\"ok\":true}")

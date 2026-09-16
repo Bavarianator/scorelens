@@ -55,6 +55,7 @@ import com.freedarts.scorer.model.MatchRecord
 import com.freedarts.scorer.model.Player
 import com.freedarts.scorer.model.PlayerMatchStats
 import com.freedarts.scorer.ui.AppViewModel
+import com.freedarts.scorer.ui.Screen
 import com.freedarts.scorer.ui.components.AdCard
 import com.freedarts.scorer.ui.components.AdTopBar
 import com.freedarts.scorer.ui.components.Avatar
@@ -122,7 +123,10 @@ fun StatsScreen(vm: AppViewModel, startTab: Int = 0) {
         Column(Modifier.fillMaxSize()) {
             AdTopBar("", onBack = { vm.back() })
             Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 12.dp)) {
-                BrandTitle("Statistics")
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    BrandTitle("Statistics")
+                    Chip("Erfolge", selected = true) { playerId?.let { vm.navigate(Screen.Achievements(it)) } }
+                }
                 Spacer(Modifier.height(12.dp))
                 ChipRow(gap = 14) { players.filter { !it.isBot }.forEach { p -> PlayerPick(p, p.id == id) { playerId = p.id } } }
                 Spacer(Modifier.height(10.dp))

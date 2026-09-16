@@ -40,7 +40,7 @@ fun QrCode(text: String, modifier: Modifier = Modifier, size: Dp = 180.dp) {
  * wieder, damit eine laufende Lens-Kamera nicht gestört wird. Liefert den ersten erkannten Text genau einmal.
  */
 @androidx.compose.runtime.Composable
-fun QrScannerDialog(onDismiss: () -> Unit, onResult: (String) -> Unit) {
+fun QrScannerDialog(onDismiss: () -> Unit, hint: String = "QR-Code eines Freundes scannen", onResult: (String) -> Unit) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val owner = androidx.compose.ui.platform.LocalLifecycleOwner.current
     var granted by androidx.compose.runtime.remember {
@@ -83,7 +83,7 @@ fun QrScannerDialog(onDismiss: () -> Unit, onResult: (String) -> Unit) {
                 androidx.compose.ui.viewinterop.AndroidView(factory = { previewView }, modifier = Modifier.fillMaxSize())
             }
             androidx.compose.material3.Text(
-                "QR-Code eines Freundes scannen", color = Color.White,
+                hint, color = Color.White,
                 modifier = Modifier.align(androidx.compose.ui.Alignment.TopCenter).padding(top = 48.dp),
             )
             androidx.compose.material3.IconButton(onClick = onDismiss, modifier = Modifier.align(androidx.compose.ui.Alignment.TopEnd).padding(8.dp)) {

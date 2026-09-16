@@ -106,7 +106,7 @@ fun LobbyScreen(vm: AppViewModel) {
     var showHowTo by remember { mutableStateOf(false) }
     var showTournament by remember { mutableStateOf(false) }
     var cardPlayer by remember { mutableStateOf<Player?>(null) }
-    cardPlayer?.let { p -> com.freedarts.scorer.ui.components.PlayerCardDialog(p, matches, settings.profilePlayerId) { cardPlayer = null } }
+    cardPlayer?.let { p -> com.freedarts.scorer.ui.components.PlayerCardDialog(p, matches, settings.profilePlayerId, onDismiss = { cardPlayer = null }, onAllAchievements = { cardPlayer = null; vm.navigate(Screen.Achievements(p.id)) }) }
 
     fun avgOf(p: Player): Double {
         if (p.isBot) return Player.botAverage(p.botLevel).toDouble()

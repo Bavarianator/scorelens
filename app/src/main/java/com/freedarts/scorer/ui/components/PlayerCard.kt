@@ -59,7 +59,7 @@ import com.freedarts.scorer.ui.theme.DartColors
  */
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
-fun PlayerCardDialog(player: Player, matches: List<MatchRecord>, profileId: String?, onDismiss: () -> Unit) {
+fun PlayerCardDialog(player: Player, matches: List<MatchRecord>, profileId: String?, onDismiss: () -> Unit, onAllAchievements: (() -> Unit)? = null) {
     val mine = remember(matches, player.id) { matches.filter { m -> m.players.any { it.playerId == player.id } } }
     val stats = remember(mine) { mine.map { m -> m.players.first { it.playerId == player.id } } }
     val x01 = remember(mine) { mine.filter { it.mode == GameMode.X01 }.map { m -> m.players.first { it.playerId == player.id } } }
@@ -113,8 +113,10 @@ fun PlayerCardDialog(player: Player, matches: List<MatchRecord>, profileId: Stri
                     Box(Modifier.fillMaxWidth(done.toFloat() / badges.size).height(6.dp).background(Brush.horizontalGradient(listOf(DartColors.Orange, DartColors.Accent))))
                 }
                 Spacer(Modifier.height(12.dp))
+                // Erst die erreichten, dann die nächsten offenen – der Rest im Erfolge-Screen
+                val shown = remember(badges) { (badges.filter { it.done } + badges.filter { !it.done }).take(4) }
                 FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalArrangement = Arrangement.spacedBy(10.dp), maxItemsInEachRow = 4) {
-                    badges.forEach { a -> Medal(a, selected = picked == a) { picked = if (picked == a) null else a } }
+                    shown.forEach { a -> Medal(a, selected = picked == a) { picked = if (picked == a) null else a } }
                 }
                 // Tipp auf eine Medaille: Beschreibung und Stand
                 val p = picked
@@ -128,6 +130,7 @@ fun PlayerCardDialog(player: Player, matches: List<MatchRecord>, profileId: Stri
                         fontSize = 12.sp, color = if (p == null) DartColors.TextMuted else DartColors.Text, textAlign = TextAlign.Center,
                     )
                 }
+                if (onAllAchievements != null) { Spacer(Modifier.height(10.dp)); SecondaryButton("Alle Erfolge", Modifier.fillMaxWidth()) { onAllAchievements() } }
                 Spacer(Modifier.height(16.dp))
             }
         }
@@ -143,10 +146,10 @@ private fun Tile(value: String, label: String, color: Color, modifier: Modifier 
     }
 }
 
-private fun tierName(t: Int) = when (t) { 1 -> "Bronze"; 2 -> "Silber"; else -> "Gold" }
+fun tierName(t: Int) = when (t) { 1 -> "Bronze"; 2 -> "Silber"; else -> "Gold" }
 
 /** Farbpaar (Rand, Mitte) je Stufe. */
-private fun tierColors(t: Int): Pair<Color, Color> = when (t) {
+fun tierColors(t: Int): Pair<Color, Color> = when (t) {
     1 -> Color(0xFF9C5A22) to Color(0xFFE39B5A)
     2 -> Color(0xFF7C8694) to Color(0xFFE6EBF2)
     else -> Color(0xFFB8860B) to Color(0xFFFFE082)
@@ -157,11 +160,11 @@ private fun tierColors(t: Int): Pair<Color, Color> = when (t) {
  * Emoji als Motiv, kein Icon-Set nötig.
  */
 @Composable
-private fun Medal(a: Achievements.Achievement, selected: Boolean, onClick: () -> Unit) {
+fun Medal(a: Achievements.Achievement, selected: Boolean, diameter: Int = 60, onClick: () -> Unit) {
     val (edge, center) = tierColors(a.tier)
-    Column(Modifier.width(72.dp).clip(RoundedCornerShape(12.dp)).clickable(onClick = onClick).padding(vertical = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(Modifier.size(60.dp), contentAlignment = Alignment.Center) {
-            Canvas(Modifier.size(60.dp)) {
+    Column(Modifier.width((diameter + 12).dp).clip(RoundedCornerShape(12.dp)).clickable(onClick = onClick).padding(vertical = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(Modifier.size(diameter.dp), contentAlignment = Alignment.Center) {
+            Canvas(Modifier.size(diameter.dp)) {
                 val r = size.minDimension / 2
                 val stroke = 4.dp.toPx()
                 if (a.done) {
@@ -177,7 +180,7 @@ private fun Medal(a: Achievements.Achievement, selected: Boolean, onClick: () ->
                 }
                 if (selected) drawCircle(Color.White, radius = r - 1.dp.toPx(), style = Stroke(2.dp.toPx()))
             }
-            Text(a.icon, fontSize = 26.sp, modifier = Modifier.alpha(if (a.done) 1f else 0.35f))
+            Text(a.icon, fontSize = (diameter * 0.43f).sp, modifier = Modifier.alpha(if (a.done) 1f else 0.35f))
         }
         Text(a.title, fontSize = 11.sp, fontWeight = if (a.done) FontWeight.SemiBold else FontWeight.Normal, color = if (a.done) DartColors.Text else DartColors.TextMuted,
             maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 4.dp))

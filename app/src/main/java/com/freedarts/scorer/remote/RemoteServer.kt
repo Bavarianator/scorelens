@@ -125,6 +125,8 @@ class RemoteServer(private val stateProvider: () -> RemoteState, private val fra
                     if (cmd.isNotEmpty()) onCommand(cmd)
                     respond(out, "application/json; charset=utf-8", "{\"ok\":true}")
                 }
+                // Streaming-/TV-Overlay: transparenter Scoreboard-Streifen für OBS-Browserquelle oder Fernseher
+                path.startsWith("/overlay") -> respond(out, "text/html; charset=utf-8", OVERLAY)
                 else -> respond(out, "text/html; charset=utf-8", PAGE)
             }
         }
@@ -136,6 +138,49 @@ class RemoteServer(private val stateProvider: () -> RemoteState, private val fra
         val head = "HTTP/1.1 $status\r\nContent-Type: $type\r\nContent-Length: ${bytes.size}\r\nCache-Control: no-store\r\nAccess-Control-Allow-Origin: *\r\nConnection: close\r\n\r\n"
         out.write(head.toByteArray()); out.write(bytes); out.flush()
     }
+
+    /** Overlay für OBS/TV: transparenter Hintergrund, Streifen unten (oder `?pos=top`) mit Spielern, Score, Legs/Sets, Aufnahme und Banner. */
+    private val OVERLAY = """<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Scorelens Overlay</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=DM+Sans:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root{--sur:rgba(17,22,36,.88);--line:#3A4152;--pri:#2B6BFF;--gold:#FFC107;--mut:#9AA3B5;--txt:#F3F5F9}
+*{box-sizing:border-box}html,body{height:100%;margin:0;background:transparent;overflow:hidden}
+body{font-family:"DM Sans",system-ui,sans-serif;color:var(--txt);display:flex;flex-direction:column;justify-content:flex-end}
+body.top{justify-content:flex-start}
+.cond{font-family:"Barlow Condensed","Arial Narrow",sans-serif;text-transform:uppercase;letter-spacing:.5px}
+#bar{display:flex;align-items:stretch;gap:8px;padding:10px 14px}
+.p{display:flex;align-items:center;gap:12px;background:var(--sur);border:2px solid var(--line);border-radius:14px;padding:8px 16px;min-width:220px;backdrop-filter:blur(6px)}
+.p.active{border-color:var(--pri);box-shadow:0 0 0 2px var(--pri)}.p.win{border-color:var(--gold)}
+.av{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;flex:none;border:2px solid rgba(255,255,255,.55);background-size:cover;background-position:center}
+.p .n{font-weight:700;font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px}
+.p .ls{font-size:12px;color:var(--gold);font-weight:700}
+.p .s{font-size:44px;font-weight:800;line-height:1;margin-left:auto;font-variant-numeric:tabular-nums}
+#info{display:flex;align-items:center;gap:10px;background:var(--sur);border:2px solid var(--line);border-radius:14px;padding:8px 16px;font-weight:700;backdrop-filter:blur(6px)}
+#info .v span{display:inline-block;min-width:44px;text-align:center;background:rgba(255,255,255,.08);border-radius:8px;padding:2px 6px;margin-right:4px}
+#info .b{color:var(--gold)}#info .c{color:var(--mut);font-weight:600}
+.hide{display:none!important}
+</style></head><body>
+<div id="bar"></div>
+<script>
+var q=function(id){return document.getElementById(id)},last='';
+if(location.search.indexOf('pos=top')>=0)document.body.classList.add('top');
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function ini(n){return n.split(/\s+/).map(function(w){return w[0]||''}).join('').slice(0,2).toUpperCase()}
+function av(p){var st='background-color:'+esc(p.color)+(p.avatar?';background-image:url(data:image/jpeg;base64,'+p.avatar+')':'');
+ return '<div class="av" style="'+st+'">'+(p.avatar?'':esc(p.isBot?'B':ini(p.name)))+'</div>'}
+function card(p,s){var cls='p'+(p.active?' active':'')+(s.finished&&s.winner===p.name?' win':'');
+ var ls=(p.sets?'S '+p.sets+' ':'')+(p.legs?'L '+p.legs:'');
+ return '<div class="'+cls+'">'+av(p)+'<div><div class="n">'+esc(p.name)+'</div><div class="ls">'+ls+'</div></div><div class="s cond">'+esc(p.score)+'</div></div>'}
+function render(s){var b=q('bar');if(!s.hasGame){b.innerHTML='';return}
+ var info='<div class="v">'+[0,1,2].map(function(i){return '<span class="cond">'+esc(s.visit[i]||'–')+'</span>'}).join('')+'</div><span class="cond">'+s.visitSum+'</span>'+
+  (s.banner?'<span class="b cond">'+esc(s.banner)+'</span>':'')+(s.checkout?'<span class="c">'+esc(s.checkout)+'</span>':'');
+ b.innerHTML=s.players.map(function(p){return card(p,s)}).join('')+'<div id="info">'+info+'</div>'}
+function tick(){fetch('/state').then(function(r){return r.text()}).then(function(t){if(t===last)return;last=t;render(JSON.parse(t))}).catch(function(){})}
+setInterval(tick,500);tick();
+</script></body></html>
+"""
 
     /** Spielansicht: Karten wie in der App, Live-Board aus der Lens, Tastenkürzel U/Leertaste/F. */
     private val PAGE = """<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">

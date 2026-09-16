@@ -518,6 +518,9 @@ selben WLAN:
 - Spielerkarten wie in der App, **Live-Bild der Lens** daneben.
 - **Undo** und **Next** auch im Browser.
 - Tastenkürzel: **U** (Undo), **Leertaste** (Next), **F** (Vollbild).
+- **Streamen:** `http://<Handy-IP>:8765/overlay` als Browserquelle in OBS einfügen (Hintergrund ist transparent) – Spieler,
+  Score, Legs/Sets, laufende Aufnahme und Banner liegen live über deinem Kamerabild. Für Twitch/YouTube reicht das,
+  ein eigener Dienst ist nicht nötig.
 
 ### Zweitgerät koppeln
 Ein zweites Handy kann das Spiel des Board-Handys anzeigen und bedienen:
@@ -550,6 +553,7 @@ Für Bastler – der eingebaute Server (ohne Abhängigkeiten) beantwortet:
 | `/` | Spielansicht für den Browser |
 | `/state` | Spielstand als JSON |
 | `/board.jpg` | aktuelles Lens-Bild als JPEG |
+| `/overlay` | Scoreboard-Streifen mit transparentem Hintergrund für OBS (Browserquelle) oder den Fernseher; `?pos=top` für oben |
 | `/api/state` | Board-Manager-Sicht der Lens (Throw / Takeout / Stopped, Segmente, `coords` mit `unit=mm`, dazu `tips`/`tipSeq`: rohe KI-Spitzen in mm für eine zweite Kamera) |
 | `/api/<befehl>` | Board-Befehle wie beim Autodarts Board Manager |
 | `/cmd?do=…` | Befehle der Spielansicht (Undo, Next) |

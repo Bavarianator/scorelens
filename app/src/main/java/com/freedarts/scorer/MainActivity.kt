@@ -121,7 +121,7 @@ fun FreeDartsApp(vm: AppViewModel, onKeepScreenOn: (Boolean) -> Unit) {
             tabs.forEach { (label, target) ->
                 NavigationBarItem(selected = screen == target, onClick = { vm.switchTab(target) }, label = { Text(label) },
                     icon = { Icon(painterResource(tabIcons.getValue(target)), label, Modifier.size(22.dp)) },
-                    colors = NavigationBarItemDefaults.colors(selectedIconColor = Color.White, selectedTextColor = Color.White, indicatorColor = DartColors.Primary,
+                    colors = NavigationBarItemDefaults.colors(selectedIconColor = Color.White, selectedTextColor = DartColors.Text, indicatorColor = DartColors.Primary,
                         unselectedIconColor = DartColors.TextMuted, unselectedTextColor = DartColors.TextMuted))
             }
         }

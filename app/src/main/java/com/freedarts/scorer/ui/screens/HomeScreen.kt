@@ -205,7 +205,7 @@ fun HomeScreen(vm: AppViewModel) {
                 ) {
                     Column(Modifier.fillMaxSize().padding(14.dp), verticalArrangement = Arrangement.Center) {
                         Text("GERÄTE", fontFamily = Condensed, fontWeight = FontWeight.Bold, fontSize = 22.sp)
-                        Text("Remote Scoring, zweites Handy", fontSize = 12.sp, color = DartColors.OnTileMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text("Remote, 2. Handy, Lens", fontSize = 12.sp, color = DartColors.OnTileMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
             }

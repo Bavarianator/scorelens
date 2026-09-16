@@ -265,6 +265,8 @@ fun LobbyScreen(vm: AppViewModel) {
                             FilterChip(selected = lobby.any { it.botLevel == lvl }, onClick = { vm.addBot(lvl); showBots = false },
                                 label = { Text("Stufe $lvl · Ø ${Player.botAverage(lvl)}") })
                         }
+                        FilterChip(selected = lobby.any { it.botLevel == Player.ADAPTIVE }, onClick = { vm.addBot(Player.ADAPTIVE); showBots = false },
+                            label = { Text("Wie ich · startet auf deinem Average, wächst mit") })
                     }
                 }
             },
@@ -276,7 +278,7 @@ fun LobbyScreen(vm: AppViewModel) {
         AlertDialog(
             onDismissRequest = { showSettings = false },
             title = { Text("${gs.mode.title} – Einstellungen") },
-            text = { Column(Modifier.verticalScroll(rememberScrollState())) { ModeSettings(gs) { vm.setLobbySettings(it) } } },
+            text = { Column(Modifier.verticalScroll(rememberScrollState())) { ModeSettings(gs, lobby) { vm.setLobbySettings(it) } } },
             confirmButton = { TextButton(onClick = { showSettings = false }) { Text("Fertig") } },
         )
     }
@@ -383,10 +385,14 @@ private fun SwitchRow(label: String, checked: Boolean, onChange: (Boolean) -> Un
 }
 
 @Composable
-fun ModeSettings(gs: GameSettings, onChange: (GameSettings) -> Unit) {
+fun ModeSettings(gs: GameSettings, players: List<Player> = emptyList(), onChange: (GameSettings) -> Unit) {
     when (gs.mode) {
         GameMode.X01 -> {
-            OptionRow("Startwert", listOf(121, 170, 301, 501, 701, 901, 1001).map { it to it.toString() }, gs.baseScore) { onChange(gs.copy(baseScore = it)) }
+            OptionRow("Startwert", listOf(121, 170, 301, 501, 701, 901, 1001).map { it to it.toString() }, gs.baseScore) { onChange(gs.copy(baseScore = it, handicaps = emptyMap())) }
+            // Handicap: eigener Startwert je Spieler (z.B. 401 gegen 501)
+            if (players.size > 1) players.forEach { p ->
+                OptionRow("Start ${p.name}", listOf(121, 170, 201, 301, 401, 501, 601, 701, 901, 1001).map { it to it.toString() }, gs.handicaps[p.id] ?: gs.baseScore) { onChange(gs.copy(handicaps = gs.handicaps + (p.id to it))) }
+            }
             OptionRow("Match-Modus", listOf(MatchMode.LEGS to "Legs", MatchMode.SETS to "Sets"), gs.matchMode) { onChange(gs.copy(matchMode = it)) }
             OptionRow("Wertung", listOf(WinMode.FIRST_TO to "First to", WinMode.BEST_OF to "Best of"), gs.winMode) { onChange(gs.copy(winMode = it)) }
             val winLabel = if (gs.winMode == WinMode.BEST_OF) "Best of" else "First to"

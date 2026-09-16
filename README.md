@@ -286,6 +286,7 @@ Jeder startet mit dem Startwert, geworfene Punkte werden abgezogen. Wer zuerst *
 | Option | Werte |
 |---|---|
 | Startwert | 121, 170, 301, **501**, 701, 901, 1001 |
+| Handicap | eigener Startwert je Spieler (z. B. 401 gegen 501) – in den X01-Einstellungen der Lobby unter „Start <Name>“ |
 | In-Modus | **Straight In**, Double In, Master In (Double oder Triple) |
 | Out-Modus | Straight Out, **Double Out**, Master Out (Double oder Triple) |
 | Bull-Modus | **25/50** (Single Bull 25, Bullseye 50) oder 50/50 |
@@ -583,6 +584,9 @@ schließen müssen) und streuen normalverteilt um diesen Punkt. Das getroffene S
 - **Bot-Wurfpause** (0,2–2 s) unter *Einstellungen › Match › Erweitert*.
 - **Gegner finden** ohne Online-Konto wählt die Bot-Stufe, deren Average Deinem X01-Average am nächsten liegt.
 - Bots bekommen eigene Statistiken (je Stufe).
+- **Bot „Wie ich“:** startet mit der Streuung, die zu Deinem X01-Average passt, und passt sich nach jedem Leg an –
+  gewinnt er, wird er 6 % genauer, verlierst Du nicht, wird er 6 % ungenauer. Der Stand bleibt über Spiele hinweg erhalten,
+  so hast Du immer einen Gegner auf Augenhöhe, der mit Dir wächst.
 
 ---
 

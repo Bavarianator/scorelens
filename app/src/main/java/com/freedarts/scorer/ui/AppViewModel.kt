@@ -771,6 +771,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val after = _gameState.value ?: return
         val s = settings.value
         val playerName = before.players[before.currentPlayer].player.name
+        adaptBot(before, after)
 
         if (after.finished) {
             caller.ding()
@@ -813,7 +814,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             delay(delayMs)
             while (!g.finished && g.players[g.current].isBot) {
                 val bot = g.players[g.current]
-                val seg = Bot.throwAt(g.botAim(), bot.botLevel)
+                val seg = Bot.throwAt(g.botAim(), if (bot.botLevel == Player.ADAPTIVE) adaptiveSigma() else Bot.sigma(bot.botLevel))
                 val before = g.snapshot()
                 g.throwDart(seg)
                 afterEventQuiet(before)
@@ -823,12 +824,35 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** Streuung des Bots „Wie ich“: gespeicherter Wert, sonst aus dem X01-Average des ersten Menschen im Spiel (Fallback 45 mm). */
+    private fun adaptiveSigma(): Double {
+        val saved = settings.value.adaptiveBotSigma
+        if (saved > 0) return saved
+        val human = game?.players?.firstOrNull { !it.isBot }
+        val avgs = matches.value.filter { it.mode == GameMode.X01 }.mapNotNull { m -> m.players.firstOrNull { it.playerId == human?.id }?.average3 }.take(10)
+        val sigma = if (avgs.isEmpty()) 45.0 else Bot.sigmaForAverage(avgs.average())
+        updateSettings { it.copy(adaptiveBotSigma = sigma) }
+        return sigma
+    }
+
+    /** Leg zu Ende: Bot „Wie ich“ wird stärker, wenn er gewonnen hat, sonst schwächer. */
+    // ponytail: ±6 % pro Leg; Elo-artige Anpassung erst, wenn das zu träge oder zu nervös wirkt
+    private fun adaptBot(before: GameState, after: GameState) {
+        val g = game ?: return
+        if (after.banner != "Leg gewonnen" && after.banner != "Set gewonnen" && !after.finished) return
+        if (g.players.none { it.botLevel == Player.ADAPTIVE }) return
+        val botWon = g.players[before.currentPlayer].botLevel == Player.ADAPTIVE
+        val sigma = (adaptiveSigma() * (if (botWon) 1.06 else 0.94)).coerceIn(Bot.sigma(11), Bot.sigma(1))
+        updateSettings { it.copy(adaptiveBotSigma = sigma) }
+    }
+
     private fun afterEventQuiet(before: GameState) {
         // Wie afterEvent, aber ohne erneutes Bot-Scheduling (läuft bereits in der Schleife)
         val g = game ?: return
         refresh()
         val after = _gameState.value ?: return
         val playerName = before.players[before.currentPlayer].player.name
+        adaptBot(before, after)
         if (after.finished) {
             caller.ding(); caller.callGameShot(after.winnerIndex?.let { g.players[it].name } ?: "Niemand")
             recordMatch(); return

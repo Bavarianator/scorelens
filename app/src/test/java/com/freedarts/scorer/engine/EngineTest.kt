@@ -42,6 +42,13 @@ class EngineTest {
         assertEquals(2, Checkout.bestRoute(100, 3, OutMode.DOUBLE)!!.size)
     }
 
+    @Test fun x01HandicapStartScores() {
+        val g = X01Game(listOf(a, b), GameSettings(baseScore = 501, handicaps = mapOf("b" to 401), legs = 2), seed = 1)
+        assertEquals("501", g.snapshot().players[0].score); assertEquals("401", g.snapshot().players[1].score)
+        g.throwDart(Segment.triple(20)); g.throwDart(Segment.MISS); g.throwDart(Segment.MISS)
+        assertEquals("441", g.snapshot().players[0].score)
+    }
+
     @Test fun x01BustAndCheckout() {
         val g = X01Game(listOf(a, b), GameSettings(mode = GameMode.X01, baseScore = 101), seed = 1)
         g.throwDart(Segment.triple(20)); g.throwDart(Segment.single(20)); g.throwDart(Segment.single(1)) // 20 Rest

@@ -21,6 +21,8 @@ data class AppSettings(
     val inputMethod: InputMethod = InputMethod.BOARD,
     val keepScreenOn: Boolean = true,
     val botDelayMillis: Long = 700,
+    /** Streuung (mm) des Bots „Wie ich“; 0 = noch nie gesetzt (wird aus dem eigenen Average abgeleitet). */
+    val adaptiveBotSigma: Double = 0.0,
 
     // Autodarts Board Manager (lokal, Port 3180)
     val boardManagerEnabled: Boolean = false,

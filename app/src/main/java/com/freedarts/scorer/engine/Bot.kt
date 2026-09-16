@@ -1,5 +1,6 @@
 package com.freedarts.scorer.engine
 
+import com.freedarts.scorer.model.Player
 import com.freedarts.scorer.model.Segment
 import kotlin.math.cos
 import kotlin.math.ln
@@ -17,11 +18,24 @@ object Bot {
 
     fun sigma(level: Int): Double = SIGMA_MM[level.coerceIn(1, 11)]
 
-    fun throwAt(target: Segment, level: Int, random: Random = Random.Default): Segment {
+    /** Streuung (mm) für einen 3-Dart-Average: linear zwischen den Stufen interpoliert, außerhalb geklemmt (Bot „Wie ich“). */
+    fun sigmaForAverage(avg: Double): Double {
+        val a = Player.botAverage(1).toDouble(); val z = Player.botAverage(11).toDouble()
+        if (avg <= a) return SIGMA_MM[1]
+        if (avg >= z) return SIGMA_MM[11]
+        for (l in 1 until 11) {
+            val lo = Player.botAverage(l).toDouble(); val hi = Player.botAverage(l + 1).toDouble()
+            if (avg <= hi) return SIGMA_MM[l] + (SIGMA_MM[l + 1] - SIGMA_MM[l]) * (avg - lo) / (hi - lo)
+        }
+        return SIGMA_MM[11]
+    }
+
+    fun throwAt(target: Segment, level: Int, random: Random = Random.Default): Segment = throwAt(target, sigma(level), random)
+
+    fun throwAt(target: Segment, sigmaMm: Double, random: Random = Random.Default): Segment {
         val (cx, cy) = Board.centerOf(target)
-        val s = sigma(level)
         val (gx, gy) = gaussianPair(random)
-        return Board.segmentAt(cx + gx * s, cy + gy * s)
+        return Board.segmentAt(cx + gx * sigmaMm, cy + gy * sigmaMm)
     }
 
     private fun gaussianPair(random: Random): Pair<Double, Double> {

@@ -55,11 +55,13 @@ class X01Game(players: List<Player>, settings: GameSettings, seed: Long = System
 
     init { resetState() }
 
+    private fun fillStartScores() { for (i in players.indices) scores[i] = settings.handicaps[players[i].id] ?: settings.baseScore }
+
     override fun resetState() {
-        scores.fill(settings.baseScore)
+        fillStartScores()
         opened.fill(settings.inMode == InMode.STRAIGHT)
         legsWon.fill(0); setsWon.fill(0); legsWonTotal.fill(0)
-        legStarter = starter; visitStart = settings.baseScore; visitPoints = 0
+        legStarter = starter; visitStart = scores[current]; visitPoints = 0
         legDarts.fill(0); legPoints.fill(0); legNumber = 1; legsPlayed = 0; setsPlayed = 0
         first9Points.fill(0); first9Darts.fill(0); checkouts.fill(0); dartsAtDouble.fill(0); highestCheckout.fill(0)
         highestVisit.fill(0); busts.fill(0); bestLeg.fill(0); worstLeg.fill(0)
@@ -189,7 +191,7 @@ class X01Game(players: List<Player>, settings: GameSettings, seed: Long = System
     }
 
     private fun nextLeg() {
-        scores.fill(settings.baseScore)
+        fillStartScores()
         opened.fill(settings.inMode == InMode.STRAIGHT)
         legDarts.fill(0); legPoints.fill(0)
         legNumber++

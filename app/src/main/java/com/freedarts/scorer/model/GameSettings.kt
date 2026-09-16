@@ -69,6 +69,8 @@ data class GameSettings(
 
     // X01
     val baseScore: Int = 501,
+    /** Handicap: abweichender Startwert je Spieler-ID (fehlt = [baseScore]). */
+    val handicaps: Map<String, Int> = emptyMap(),
     val inMode: InMode = InMode.STRAIGHT,
     val outMode: OutMode = OutMode.DOUBLE,
     val bullMode: BullMode = BullMode.B25_50,

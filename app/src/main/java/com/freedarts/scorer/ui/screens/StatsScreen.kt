@@ -38,7 +38,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.freedarts.scorer.engine.AimAdvisor
 import com.freedarts.scorer.engine.Statistics
+import com.freedarts.scorer.model.Segment
 import com.freedarts.scorer.model.GameMode
 import com.freedarts.scorer.model.MatchRecord
 import com.freedarts.scorer.model.Player
@@ -137,12 +139,19 @@ fun StatsScreen(vm: AppViewModel, startTab: Int = 0) {
                         if (m == null) AllModes(mine, perMode, id) { mode = it } else ModeDetails(m, ms, stats, id)
 
                         val heat = remember(ms, id) { Statistics.heatmap(ms, id) }
+                        val advice = remember(ms, id) { AimAdvisor.scatter(ms, id)?.let { it to AimAdvisor.advise(it.sigmaMm) } }
                         if (heat.darts > 0) {
                             SectionLabel("Trefferbild", trailing = { Chip("${heat.darts} Darts") })
                             AdCard {
-                                HeatmapBoard(heat, Modifier.padding(4.dp))
+                                HeatmapBoard(heat, Modifier.padding(4.dp), mark = advice?.second?.best)
                                 Text(topSegments(heat), fontWeight = FontWeight.SemiBold)
                                 Text("Rot = oft, Blau = selten" + (if (heat.points.isNotEmpty()) " · Punkte = Auftreffpunkte (Lens)" else ""), color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
+                                if (advice != null) {
+                                    val (sc, ad) = advice
+                                    Text("Zielhilfe: Streuung ø %.0f mm (%d Darts) · bester Zielpunkt %s mit Ø %.1f Punkte pro Dart (T20: %.1f · Bull: %.1f)".format(
+                                        sc.sigmaMm, sc.darts, ad.best.name, ad.expected[ad.best] ?: 0.0, ad.expected[Segment.triple(20)] ?: 0.0, ad.expected[Segment.BULL] ?: 0.0),
+                                        color = DartColors.Lime, style = MaterialTheme.typography.bodySmall)
+                                } else if (heat.points.isNotEmpty()) Text("Zielhilfe ab ${AimAdvisor.MIN_DARTS} Lens-Darts", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
                             }
                         }
                         val h2h = remember(ms, id) { Statistics.headToHead(ms, id) }

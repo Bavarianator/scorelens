@@ -38,7 +38,7 @@ private val HeatNone = Color(0xFF262B36)
 
 /** Trefferbild: Segmente nach Trefferhäufigkeit eingefärbt, dazu die Auftreffpunkte aus der Kamera-Erkennung. */
 @Composable
-fun HeatmapBoard(heat: Statistics.Heatmap, modifier: Modifier = Modifier) {
+fun HeatmapBoard(heat: Statistics.Heatmap, modifier: Modifier = Modifier, mark: Segment? = null) {
     val textPaint = remember {
         android.graphics.Paint().apply {
             color = android.graphics.Color.WHITE; textAlign = android.graphics.Paint.Align.CENTER; isAntiAlias = true
@@ -93,6 +93,8 @@ fun HeatmapBoard(heat: Statistics.Heatmap, modifier: Modifier = Modifier) {
             drawContext.canvas.nativeCanvas.drawText(Board.NUMBERS[i].toString(), cx + numR * cos(a).toFloat(), cy + numR * sin(a).toFloat() + textPaint.textSize / 3, textPaint)
         }
         heat.points.forEach { (x, y) -> drawCircle(Color.White.copy(alpha = 0.85f), r(2.2), Offset(cx + r(x.toDouble()), cy - r(y.toDouble()))) }
+        // Zielhilfe: empfohlener Zielpunkt
+        mark?.let { val (mx, my) = Board.centerOf(it); drawCircle(DartColors.Lime, r(9.0), Offset(cx + r(mx), cy - r(my)), style = Stroke(r(2.0))) }
     }
 }
 

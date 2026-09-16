@@ -38,7 +38,7 @@ object Bot {
         return Board.segmentAt(cx + gx * sigmaMm, cy + gy * sigmaMm)
     }
 
-    private fun gaussianPair(random: Random): Pair<Double, Double> {
+    internal fun gaussianPair(random: Random): Pair<Double, Double> {
         val u1 = random.nextDouble().coerceAtLeast(1e-12)
         val u2 = random.nextDouble()
         val r = sqrt(-2.0 * ln(u1))

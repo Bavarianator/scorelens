@@ -21,6 +21,8 @@ data class ThrowRecord(
     @SerialName("y") val y: Float? = null,
     @SerialName("b") val bust: Boolean = false,
     @SerialName("t") val at: Long = 0L,
+    /** Angenommenes Ziel (Segmentname): das, was ein Bot in dieser Lage anvisieren würde – Basis der Zielhilfe. */
+    @SerialName("a") val aim: String? = null,
 ) {
     val segment: Segment get() = Segment(number, multiplier)
     val score: Int get() = number * multiplier

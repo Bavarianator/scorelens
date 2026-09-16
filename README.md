@@ -403,7 +403,16 @@ getroffen wird, scheidet aus. Der letzte Spieler gewinnt. Trefferart einstellbar
   Ein Tipp auf das Board übernimmt auch die **Position** (bleibt im Trefferbild), und bei einem Lens-Dart wird das
   Kamerabild mit dem korrigierten Label als `fix_*` in den Trainingsordner gelegt – auch ohne „Trainingsdaten sammeln“.
   So wird jede Fehlerkennung automatisch zum Feintuning-Beispiel.
-- **Letzten Dart zurücknehmen** (Undo), auch über mehrere Aufnahmen hinweg.
+- **Letzten Dart zurücknehmen** (Undo), auch über mehrere Aufnahmen hinweg – per Button oder **Wischen nach links**
+  über die Aufnahme-Leiste. Eine Snackbar bietet **„Wiederherstellen“**, falls es doch richtig war.
+- Die Korrektur öffnet als Bottom Sheet, einhändig vom Board aus bedienbar.
+
+### Hinweisleiste und Live-Vorhersage
+Unter den Spielerkarten liegt eine Leiste, die bei jeder Eingabeart den **Checkout-Weg** zeigt (nicht mehr nur im
+Kamerabild). In X01 rechnet die App dazu live eine **Vorhersage**: Siegchance fürs laufende Leg je Spieler (Balken in
+Spielerfarben), erwartete Aufnahme des Werfers und seine Checkout-Chance mit den restlichen Darts. Grundlage ist eine
+Monte-Carlo-Simulation mit dem Spielmotor: jeder Spieler wirft wie ein Bot mit seiner Streuung – aus echten Lens-Würfen,
+sonst aus dem Average (online aus dem Profil des Gegners). Die Lobby zeigt vor dem Spiel eine Prognose fürs erste Leg.
 - **Referee-Bild**: bei Lens-Darts den Kamera-Ausschnitt um die Spitze ansehen, um strittige Darts zu prüfen.
 
 ### Takeout
@@ -622,6 +631,15 @@ Der *Statistik*-Tab („Statistics“) zeigt pro Spieler:
 ### Übersicht aller Modi
 Aktivität der letzten 28 Tage und je Modus die Kennzahl; ein Tipp auf eine Zeile filtert auf den Modus.
 
+### Trefferbild, Zielhilfe und Trainings-Coach
+- **Trefferbild:** Segmente nach Häufigkeit eingefärbt, dazu die Auftreffpunkte aus der Kamera.
+- **Zielhilfe** (ab 30 Lens-Darts): Aus der eigenen Streuung wird für jeden Zielpunkt die erwartete Punktzahl pro Dart
+  berechnet – wer breit streut, holt mit T19 oder dem Bull-Bereich oft mehr als mit T20. Der beste Zielpunkt ist im
+  Trefferbild markiert.
+- **Trainings-Coach:** Jeder Wurf speichert das angepeilte Ziel (das, was ein Bot in dieser Lage anvisieren würde).
+  Daraus entsteht die Trefferquote je Doppel; die schwächsten Doppel stehen mit einem Tipp im Segment-Training
+  (bis 10 Treffer), und das Training zählt wieder in die Quote.
+
 ### Kennzahl je Modus
 | Modus | Kennzahl |
 |---|---|
@@ -710,6 +728,10 @@ Lobby eröffnet, der andere beitreten können.
 - **Anwesenheit:** Die App zeigt, wenn ein Gegner offline ist.
 - **Undo** ist nur für das eigene letzte Ereignis erlaubt.
 - **Netz kurz weg?** Die Verbindung baut sich selbst wieder auf, verpasste Würfe werden nachgeladen.
+
+### Verbindung
+- Listen (Lobbys, Rangliste, Freunde) lassen sich per **Herunterziehen** aktualisieren.
+- Ohne Internet zeigt der Online-Screen einen **Offline-Hinweis** mit „Erneut versuchen“ statt einer Fehlermeldung.
 
 ### Zuschauen und Rangliste
 - Laufende öffentliche Matches anderer lassen sich **live mitverfolgen** (nur lesend).
@@ -823,7 +845,8 @@ Anmelden/Abmelden, Server eintragen.
 | *Erweitert:* Chalkboard anzeigen | Kreidetafel mit dem Aufnahme-Verlauf |
 | *Erweitert:* Bildschirm anlassen | Display bleibt während des Spiels an |
 | *Erweitert:* Darts Zoom im Kamerabild | aktuelle Aufnahme groß über dem Kamerabild |
-| *Erweitert:* Animationen und Match-Intro | Intro, Gewinn-, Bust- und Caller-Animationen |
+| *Erweitert:* Animationen und Match-Intro | Intro, Gewinn-, Bust- und Caller-Animationen, Übergänge zwischen Screens, animierte Scores |
+| *Erweitert:* Vibration bei Dart, Undo, Next | kurzes haptisches Feedback, auch wenn Lens einen Dart erkennt |
 | *Erweitert:* Bot-Wurfpause | Pause zwischen Bot-Würfen (0,2–2 s) |
 
 ### 🎥 Geräte

@@ -25,6 +25,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -57,6 +59,7 @@ import com.freedarts.scorer.ui.components.levelOf
 import com.freedarts.scorer.ui.theme.DartColors
 
 /** Freunde wie bei Autodarts: per QR-Code oder Namen hinzufügen, Anfragen, Statistik und schnell zusammen spielen. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FriendsScreen(vm: AppViewModel) {
     val online = vm.online
@@ -77,7 +80,8 @@ fun FriendsScreen(vm: AppViewModel) {
         AdTopBar("Freunde", onBack = { vm.back() }) {
             IconButton(onClick = { showScanner = true }) { Icon(Icons.Default.QrCodeScanner, "QR-Code scannen") }
         }
-        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        PullToRefreshBox(isRefreshing = busy, onRefresh = { online.loadFriends() }, modifier = Modifier.weight(1f)) {
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             invite?.let { InviteCard(it, friends, onAccept = { vm.acceptInvite(it) }, onDismiss = { online.dismissInvite(it) }) }
             if (busy) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) { CircularProgressIndicator(Modifier.size(28.dp)) }
 
@@ -152,6 +156,7 @@ fun FriendsScreen(vm: AppViewModel) {
             if (accepted.isEmpty()) AdCard { Text("Noch keine Freunde – scanne einen QR-Code oder suche nach dem Namen.", color = DartColors.TextMuted) }
             accepted.forEach { f -> FriendRow(f, online, busy, isOnline = f.id in onlineIds, onInvite = { vm.inviteFriend(f.id) }, onJoin = { code -> online.joinByCode(code); vm.openOnlineLobby() }, onSpectate = { id -> vm.spectate(id) }) }
             Spacer(Modifier.height(24.dp))
+        }
         }
     }
 

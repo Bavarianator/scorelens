@@ -25,6 +25,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import com.freedarts.scorer.ui.components.PrimaryButton
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -39,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.freedarts.scorer.engine.AimAdvisor
+import com.freedarts.scorer.engine.Coach
 import com.freedarts.scorer.engine.Statistics
 import com.freedarts.scorer.model.Segment
 import com.freedarts.scorer.model.GameMode
@@ -152,6 +154,18 @@ fun StatsScreen(vm: AppViewModel, startTab: Int = 0) {
                                         sc.sigmaMm, sc.darts, ad.best.name, ad.expected[ad.best] ?: 0.0, ad.expected[Segment.triple(20)] ?: 0.0, ad.expected[Segment.BULL] ?: 0.0),
                                         color = DartColors.Lime, style = MaterialTheme.typography.bodySmall)
                                 } else if (heat.points.isNotEmpty()) Text("Zielhilfe ab ${AimAdvisor.MIN_DARTS} Lens-Darts", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                        // Trainings-Coach: schwächste Doppel aus den angepeilten Zielen, ein Tipp startet das passende Segment-Training
+                        val coach = remember(ms, id) { Coach.weakestDoubles(Coach.targets(ms, id)) }
+                        if (coach.isNotEmpty()) {
+                            SectionLabel("Trainings-Coach")
+                            AdCard {
+                                coach.forEach { t -> Text("${t.aim.name} · ${"%.0f".format(t.rate * 100)} % getroffen (${t.hits} von ${t.attempts})", fontWeight = FontWeight.SemiBold) }
+                                Text("Deine schwächsten Doppel. Segment-Training bis 10 Treffer – das Training zählt wieder in diese Quote.", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
+                                Spacer(Modifier.height(8.dp))
+                                val weakest = coach.first().aim
+                                PrimaryButton("Segment-Training auf ${weakest.name} starten", Modifier.fillMaxWidth(), height = 44) { vm.startTraining(weakest) }
                             }
                         }
                         val h2h = remember(ms, id) { Statistics.headToHead(ms, id) }

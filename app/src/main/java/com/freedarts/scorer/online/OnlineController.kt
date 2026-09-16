@@ -111,9 +111,15 @@ class OnlineController(private val context: Context, private val repo: Repositor
 
     private fun requireApi(): SupabaseApi = api ?: throw OnlineException(0, "Kein Server eingetragen (Supabase-URL und Anon-Key).")
 
+    /** true, sobald ein Aufruf am Netz gescheitert ist (kein Internet / Server nicht erreichbar); der nächste erfolgreiche Aufruf setzt es zurück. */
+    val offline = MutableStateFlow(false)
+
     private suspend fun <T> guarded(block: suspend () -> T): T? {
         _busy.value = true
-        return try { block() } catch (e: Exception) { error.value = e.message ?: e.toString(); null } finally { _busy.value = false }
+        return try { block().also { offline.value = false } }
+        catch (e: java.io.IOException) { offline.value = true; error.value = "Keine Verbindung zum Server – bist du online?"; null }
+        catch (e: Exception) { error.value = e.message ?: e.toString(); null }
+        finally { _busy.value = false }
     }
 
     private fun setSession(s: OnlineSession?) {

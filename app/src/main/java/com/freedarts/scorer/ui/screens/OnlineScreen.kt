@@ -38,6 +38,8 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -81,6 +83,7 @@ import com.freedarts.scorer.ui.theme.DartColors
  * Online-Modus wie bei Autodarts: Konto (E-Mail, Supabase OAuth, Gast), Profil, "Gegner finden", Lobby erstellen,
  * per Code beitreten und öffentliche Lobbys. Server = supabase.com-Projekt oder eigener Stack (selfhost/).
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OnlineScreen(vm: AppViewModel) {
     val online = vm.online
@@ -103,6 +106,7 @@ fun OnlineScreen(vm: AppViewModel) {
     LaunchedEffect(loggedIn) { if (loggedIn && profile == null) runCatching { online.loadProfile() } }
     LaunchedEffect(loggedIn) { if (loggedIn) online.loadLeaderboard() }
     val leaderboard by online.leaderboard.collectAsStateWithLifecycle()
+    val offline by online.offline.collectAsStateWithLifecycle()
     // Push bei geschlossener App (Einladungen, Freundschaftsanfragen) braucht ab Android 13 die Erlaubnis für Mitteilungen.
     val notifications = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
     LaunchedEffect(loggedIn) { if (loggedIn && android.os.Build.VERSION.SDK_INT >= 33) notifications.launch(android.Manifest.permission.POST_NOTIFICATIONS) }
@@ -116,7 +120,14 @@ fun OnlineScreen(vm: AppViewModel) {
         AdTopBar("Online", onBack = { vm.back() }) {
             IconButton(onClick = { showServer = true }) { Icon(Icons.Default.Settings, "Server") }
         }
-        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        PullToRefreshBox(isRefreshing = busy, onRefresh = { online.refreshLobbies(); online.loadLeaderboard() }, modifier = Modifier.weight(1f)) {
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            if (offline) AdCard(background = DartColors.OrangeDark, padding = 10) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Offline – keine Verbindung zum Server.", color = DartColors.Orange, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+                    TextButton(onClick = { online.refreshLobbies(); online.loadLeaderboard() }) { Text("Erneut versuchen") }
+                }
+            }
             if (busy) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) { CircularProgressIndicator(Modifier.size(28.dp)) }
 
             when {
@@ -201,6 +212,7 @@ fun OnlineScreen(vm: AppViewModel) {
                 }
             }
             Spacer(Modifier.height(24.dp))
+        }
         }
     }
 

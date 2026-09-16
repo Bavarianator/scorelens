@@ -563,6 +563,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     // ---------- Lobby ----------
 
     fun setLobbySettings(s: GameSettings) { _lobbySettings.value = s }
+
+    /** Trainings-Coach: Segment-Training auf [target] (Double/Triple/Single je nach Ziel) bis 10 Treffer, Lobby öffnen. */
+    fun startTraining(target: Segment) {
+        val hit = when (target.multiplier) { 2 -> com.freedarts.scorer.model.HitMode.DOUBLE; 3 -> com.freedarts.scorer.model.HitMode.TRIPLE; else -> com.freedarts.scorer.model.HitMode.SINGLE }
+        _lobbySettings.value = GameSettings(mode = GameMode.SEGMENT_TRAINING, trainingSegment = target.number, hitMode = hit, endAfterHits = true, hitCount = 10)
+        navigate(Screen.Lobby); track("coach_training")
+    }
     fun setMode(mode: GameMode) { _lobbySettings.update { it.withModeDefaults(mode) } }
 
     fun toggleLobbyPlayer(p: Player) {

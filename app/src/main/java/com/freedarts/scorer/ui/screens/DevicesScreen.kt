@@ -68,7 +68,7 @@ fun DevicesScreen(vm: AppViewModel) {
     Box(Modifier.fillMaxSize()) {
         ScreenBackground()
         Column(Modifier.fillMaxSize()) {
-            AdTopBar("Geräte", onBack = null)
+            AdTopBar("Geräte", onBack = { vm.back() })
             Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 SectionLabel("Meine Geräte")
 

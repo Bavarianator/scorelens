@@ -181,8 +181,32 @@ fun HomeScreen(vm: AppViewModel) {
                             fontSize = 13.sp, color = Color(0xFFDDE6F5), maxLines = 2, overflow = TextOverflow.Ellipsis, // Online-Kachel ist in beiden Themes dunkel
                         )
                     }
-                    // Freunde direkt erreichbar (Einladen, Zuschauen); ohne Konto führt der Chip zur Anmeldung
-                    Chip(if (onlineLobby != null) "Lobby" else if (loggedIn) "Freunde" else "Anmelden", selected = true) { if (loggedIn && onlineLobby == null) vm.navigate(Screen.Friends) else if (onlineLobby != null) vm.openOnlineLobby() else vm.navigate(Screen.Online) }
+                    Chip(if (onlineLobby != null) "Lobby" else if (loggedIn) "Online" else "Login")
+                }
+            }
+
+            Spacer(Modifier.height(10.dp))
+            // Mit Freunden spielen (Freundesliste, Einladen) und Geräte (Remote Scoring, zweites Handy, Lens)
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Box(
+                    Modifier.weight(1f).height(96.dp).clip(RoundedCornerShape(16.dp))
+                        .background(Brush.linearGradient(DartColors.TileFind)).border(1.dp, DartColors.CardBorder, RoundedCornerShape(16.dp))
+                        .clickable { vm.navigate(if (loggedIn) Screen.Friends else Screen.Online) },
+                ) {
+                    Column(Modifier.fillMaxSize().padding(14.dp), verticalArrangement = Arrangement.Center) {
+                        Text("MIT FREUNDEN", fontFamily = Condensed, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+                        Text(if (friendsOnline > 0) "$friendsOnline online · einladen" else if (loggedIn) "Einladen, zuschauen" else "Anmelden, dann einladen", fontSize = 12.sp, color = DartColors.OnTileMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+                Box(
+                    Modifier.weight(1f).height(96.dp).clip(RoundedCornerShape(16.dp))
+                        .background(Brush.linearGradient(DartColors.TileNew)).border(1.dp, DartColors.CardBorder, RoundedCornerShape(16.dp))
+                        .clickable { vm.navigate(Screen.Devices) },
+                ) {
+                    Column(Modifier.fillMaxSize().padding(14.dp), verticalArrangement = Arrangement.Center) {
+                        Text("GERÄTE", fontFamily = Condensed, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+                        Text("Remote, 2. Handy, Lens", fontSize = 12.sp, color = DartColors.OnTileMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
                 }
             }
 

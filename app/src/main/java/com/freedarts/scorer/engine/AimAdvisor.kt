@@ -3,6 +3,7 @@ package com.freedarts.scorer.engine
 import com.freedarts.scorer.model.GameMode
 import com.freedarts.scorer.model.MatchRecord
 import com.freedarts.scorer.model.Segment
+import com.freedarts.scorer.model.ThrowRecord
 import kotlin.math.hypot
 import kotlin.random.Random
 
@@ -22,24 +23,31 @@ object AimAdvisor {
     // ponytail: eine runde Streuung; Ellipse/Richtung erst, wenn jemand horizontale vs. vertikale Streuung sehen will
     /** Streuung eines Spielers aus allen Würfen mit Auftreffpunkt und (angenommenem) Ziel; null unter [MIN_DARTS]. */
     fun scatter(matches: List<MatchRecord>, playerId: String): Scatter? {
-        val radial = ArrayList<Double>()
-        for (m in matches) {
-            val idx = m.players.indexOfFirst { it.playerId == playerId }
-            if (idx < 0) continue
-            for (t in m.throws) {
-                if (t.player != idx || t.leg == 0 || t.x == null || t.y == null) continue
-                // Alte Protokolle ohne Ziel: in X01 wird T20 angenommen
-                val aim = t.aim?.let(Segment::parse) ?: (if (m.mode == GameMode.X01) Segment.triple(20) else null) ?: continue
-                if (aim.isMiss) continue
-                val (cx, cy) = Board.centerOf(aim)
-                radial.add(hypot(t.x - cx, t.y - cy))
-            }
-        }
+        val radial = radials(matches, playerId)
+        return sigmaOf(radial)?.let { Scatter(it, radial.size) }
+    }
+
+    /** Radialabstände (mm) zum Ziel über alle Spiele eines Spielers. */
+    fun radials(matches: List<MatchRecord>, playerId: String): List<Double> = matches.flatMap { m ->
+        val idx = m.players.indexOfFirst { it.playerId == playerId }
+        if (idx < 0) emptyList() else radials(m.throws, idx, assumeT20 = m.mode == GameMode.X01)
+    }
+
+    /** Radialabstände (mm) der Würfe von Spieler [playerIndex]; ohne Zielangabe wird in X01 T20 angenommen ([assumeT20]). */
+    fun radials(throws: List<ThrowRecord>, playerIndex: Int, assumeT20: Boolean): List<Double> = throws.mapNotNull { t ->
+        if (t.player != playerIndex || t.leg == 0 || t.x == null || t.y == null) return@mapNotNull null
+        val aim = t.aim?.let(Segment::parse) ?: (if (assumeT20) Segment.triple(20) else null) ?: return@mapNotNull null
+        if (aim.isMiss) return@mapNotNull null
+        val (cx, cy) = Board.centerOf(aim)
+        hypot(t.x - cx, t.y - cy)
+    }
+
+    /** σ aus Radialabständen (Rayleigh-Median); null unter [MIN_DARTS]. */
+    fun sigmaOf(radial: List<Double>): Double? {
         if (radial.size < MIN_DARTS) return null
-        radial.sort()
-        val n = radial.size
-        val median = if (n % 2 == 1) radial[n / 2] else (radial[n / 2 - 1] + radial[n / 2]) / 2
-        return Scatter(median / RAYLEIGH_MEDIAN, n)
+        val s = radial.sorted(); val n = s.size
+        val median = if (n % 2 == 1) s[n / 2] else (s[n / 2 - 1] + s[n / 2]) / 2
+        return median / RAYLEIGH_MEDIAN
     }
 
     /** Erwartete Punkte je Zielpunkt (Triple-Mitten, große Single-Felder, Bull) bei Streuung [sigmaMm]; feste Stichprobe, damit das Ergebnis stabil ist. */

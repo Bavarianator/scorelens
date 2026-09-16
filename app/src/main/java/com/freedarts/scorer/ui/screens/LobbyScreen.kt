@@ -142,8 +142,10 @@ fun LobbyScreen(vm: AppViewModel) {
                         IconButton(onClick = { vm.toggleLobbyPlayer(p) }) { Icon(Icons.Default.Close, "Entfernen", tint = DartColors.TextMuted) }
                     }
                 }
-                onlineError?.let { msg ->
-                    Text(msg, color = DartColors.Red, style = MaterialTheme.typography.bodySmall, modifier = Modifier.fillMaxWidth().clickable { vm.online.error.value = null }.padding(vertical = 4.dp))
+                // Prognose fürs erste Leg aus Streuung/Average der Spieler (nur X01)
+                if (gs.mode == GameMode.X01 && lobby.size >= 2) {
+                    val forecast by androidx.compose.runtime.produceState<DoubleArray?>(null, lobby, gs) { value = vm.forecast(lobby, gs) }
+                    forecast?.let { f -> Text("Prognose: " + lobby.mapIndexed { i, p -> "${p.name} ${"%.0f".format(f[i] * 100)} %" }.joinToString(" · "), color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp)) }
                 }
                 Spacer(Modifier.height(6.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

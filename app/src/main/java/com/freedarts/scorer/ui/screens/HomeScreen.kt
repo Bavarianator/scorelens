@@ -54,6 +54,7 @@ import com.freedarts.scorer.ui.components.BrandTitle
 import com.freedarts.scorer.ui.components.Chip
 import com.freedarts.scorer.ui.components.DartboardPreview
 import com.freedarts.scorer.ui.components.HeaderSwoosh
+import com.freedarts.scorer.ui.components.PlayerCardDialog
 import com.freedarts.scorer.ui.components.PrimaryButton
 import com.freedarts.scorer.ui.components.ScreenBackground
 import com.freedarts.scorer.ui.components.SecondaryButton
@@ -86,6 +87,7 @@ fun HomeScreen(vm: AppViewModel) {
     val friends by vm.online.friends.collectAsStateWithLifecycle()
     val invite by vm.online.invite.collectAsStateWithLifecycle()
     var showInbox by remember { mutableStateOf(false) }
+    var showCard by remember { mutableStateOf(false) }
     val requests = friends.filter { !it.accepted && it.incoming }
     val unread = requests.size + (if (invite != null) 1 else 0)
     val profile = players.firstOrNull { it.id == settings.profilePlayerId } ?: players.firstOrNull()
@@ -104,7 +106,7 @@ fun HomeScreen(vm: AppViewModel) {
         HeaderSwoosh(Modifier.align(Alignment.TopEnd), height = 200)
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 14.dp)) {
             Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                if (profile != null) Box(Modifier.clickable { vm.navigate(Screen.Players) }) { Avatar(profile, 40) }
+                if (profile != null) Box(Modifier.clickable { showCard = true }) { Avatar(profile, 40) }
                 Box(Modifier.weight(1f), contentAlignment = Alignment.Center) { BrandTitle("Scorelens", size = 22) }
                 IconButton(onClick = { showInbox = true }) {
                     BadgedBox(badge = { if (unread > 0) Badge { Text("$unread") } }) { Icon(Icons.Default.Notifications, "Mitteilungen") }
@@ -229,12 +231,13 @@ fun HomeScreen(vm: AppViewModel) {
                 SectionLabel("Letzte Matches", trailing = {
                     Text("Alle", color = DartColors.PrimaryLight, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.clickable { vm.navigate(Screen.History) })
                 })
-                AdCard { matches.takeLast(3).reversed().forEach { RecentMatchRow(it, profile?.id, df) { vm.navigate(Screen.History) } } }
+                AdCard { matches.takeLast(3).reversed().forEach { RecentMatchRow(it, profile?.id, df) { vm.openMatch(it) } } }
             }
             Spacer(Modifier.height(24.dp))
         }
     }
 
+    if (showCard && profile != null) PlayerCardDialog(profile, matches, profile.id) { showCard = false }
     // Mitteilungen: Einladungen, Freundschaftsanfragen und letzte Ergebnisse an einem Ort (alles aus vorhandenem Zustand, keine eigene Ablage)
     if (showInbox) {
         AlertDialog(
@@ -256,7 +259,7 @@ fun HomeScreen(vm: AppViewModel) {
                     }
                     Text("Letzte Ergebnisse", fontWeight = FontWeight.Bold)
                     if (matches.isEmpty()) Text("Noch keine Matches.", color = DartColors.TextMuted)
-                    matches.takeLast(5).reversed().forEach { RecentMatchRow(it, profile?.id, df) { showInbox = false; vm.navigate(Screen.History) } }
+                    matches.takeLast(5).reversed().forEach { RecentMatchRow(it, profile?.id, df) { showInbox = false; vm.openMatch(it) } }
                     if (unread == 0 && matches.isEmpty()) Text("Nichts Neues.", color = DartColors.TextMuted)
                 }
             },

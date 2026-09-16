@@ -152,7 +152,7 @@ fun StatsScreen(vm: AppViewModel, startTab: Int = 0) {
                         }
 
                         SectionLabel("Matches", trailing = { Chip("${ms.size}") })
-                        ms.asReversed().take(if (showAll) Int.MAX_VALUE else 5).forEach { MatchRow(it, id, df) }
+                        ms.asReversed().take(if (showAll) Int.MAX_VALUE else 5).forEach { MatchRow(it, id, df) { vm.openMatch(it) } }
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                             if (ms.size > 5) TextButton(onClick = { showAll = !showAll }) { Text(if (showAll) "Weniger" else "Alle ${ms.size} anzeigen") } else Spacer(Modifier.width(1.dp))
                             TextButton(onClick = { vm.clearHistory() }) { Text("Verlauf löschen", color = DartColors.Red) }
@@ -412,12 +412,11 @@ private fun modeLines(mode: GameMode, ms: List<MatchRecord>, stats: List<PlayerM
     }
 }
 
+/** Eine Zeile im Verlauf; Tipp öffnet den Match-Detail-Screen mit Wurfprotokoll. */
 @Composable
-private fun MatchRow(m: MatchRecord, selectedId: String?, df: SimpleDateFormat) {
+private fun MatchRow(m: MatchRecord, selectedId: String?, df: SimpleDateFormat, onOpen: () -> Unit) {
     val me = m.players.firstOrNull { it.playerId == selectedId } ?: return
-    var open by remember(m.id) { mutableStateOf(false) }
-    val legs = remember(m.id) { if (m.mode == GameMode.X01) m.legs() else emptyList() }
-    AdCard(Modifier.padding(bottom = 8.dp), padding = 10, onClick = if (legs.isNotEmpty()) ({ open = !open }) else null) {
+    AdCard(Modifier.padding(bottom = 8.dp), padding = 10, onClick = onOpen) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(m.players.joinToString(" vs ") { it.playerName }, fontWeight = FontWeight.SemiBold)
@@ -425,20 +424,6 @@ private fun MatchRow(m: MatchRecord, selectedId: String?, df: SimpleDateFormat) 
                     color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
             }
             Badge(if (me.won) "Sieg" else if (m.winnerId == null) "Remis" else "Niederlage", Color.White, if (me.won) DartColors.GreenDark else if (m.winnerId == null) DartColors.SurfaceHigh else DartColors.RedDark)
-        }
-        // Leg-für-Leg-Verlauf aus dem Wurfprotokoll
-        if (open) {
-            Spacer(Modifier.height(6.dp))
-            legs.forEach { leg ->
-                val label = (if (m.settings.sets > 1 || leg.set > 1) "Set ${leg.set} · " else "") + "Leg ${leg.leg}"
-                val detail = m.players.indices.joinToString("   ") { p ->
-                    "${m.players[p].playerName.take(10)} ${leg.darts[p]} Darts Ø %.1f".format(leg.average(p)) + (if (leg.winner == p) " ✓" else "")
-                }
-                Row(Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
-                    Text(label, Modifier.width(90.dp), color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
-                    Text(detail, style = MaterialTheme.typography.bodySmall)
-                }
-            }
         }
     }
 }

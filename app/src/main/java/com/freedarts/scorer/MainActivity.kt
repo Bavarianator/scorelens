@@ -30,6 +30,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.freedarts.scorer.ui.AppViewModel
 import com.freedarts.scorer.ui.Screen
 import com.freedarts.scorer.ui.screens.BoardScreen
+import com.freedarts.scorer.ui.screens.CheckoutTableScreen
+import com.freedarts.scorer.ui.screens.MatchDetailScreen
 import com.freedarts.scorer.ui.screens.DevicesScreen
 import com.freedarts.scorer.ui.screens.FriendsScreen
 import com.freedarts.scorer.ui.screens.HelpScreen
@@ -127,5 +129,7 @@ private fun ScreenContent(screen: Screen, vm: AppViewModel) {
         Screen.Friends -> FriendsScreen(vm)
         Screen.Tournament -> TournamentScreen(vm)
         Screen.RemoteView -> RemoteViewScreen(vm)
+        Screen.MatchDetail -> MatchDetailScreen(vm)
+        Screen.CheckoutTable -> CheckoutTableScreen(vm)
     }
 }

@@ -53,6 +53,9 @@ fun PlayersScreen(vm: AppViewModel) {
     val matches by vm.matches.collectAsStateWithLifecycle()
     var editing by remember { mutableStateOf<Player?>(null) }
     var creating by remember { mutableStateOf(false) }
+    var card by remember { mutableStateOf<Player?>(null) }
+    val settings by vm.settings.collectAsStateWithLifecycle()
+    card?.let { p -> com.freedarts.scorer.ui.components.PlayerCardDialog(p, matches, settings.profilePlayerId) { card = null } }
 
     Scaffold(
         topBar = { TopBar("Spieler", onBack = { vm.back() }) },
@@ -66,7 +69,7 @@ fun PlayersScreen(vm: AppViewModel) {
                 val d = x01.sumOf { it.dartsThrown }
                 val avg = if (d == 0) 0.0 else x01.sumOf { it.pointsScored }.toDouble() / d * 3
                 val (lvl, lvlBg, lvlFg) = com.freedarts.scorer.ui.components.levelOf(avg)
-                Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth().clickable { card = p }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Avatar(p, 40); Spacer(Modifier.width(10.dp))
                     Column(Modifier.weight(1f)) {
                         com.freedarts.scorer.ui.components.NameRibbon(p.name, lvl, lvlBg, lvlFg)

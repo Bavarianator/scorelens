@@ -230,6 +230,7 @@ Die Kamera ist optional (`required=false`) – die App läuft auch auf Geräten 
 | **Gegner finden** | Angemeldet: Online-Gegnersuche (501, First to 3). Ohne Konto: ein Bot passend zu Deinem X01-Average. |
 | **Online spielen** | Online-Übersicht bzw. zurück in Deine offene Lobby |
 | **Turnier** | Erscheint, solange ein Turnier läuft: offene Spiele oder Sieger |
+| **Player Card** | Tipp auf Dein Profilbild: Level, X01-Kennzahlen, Form, Erfolge – wie die Player Card bei Autodarts |
 | **Deine Form** | Average, Checkout-Quote und Serie aus den letzten 10 X01-Spielen |
 | **Training des Tages** | Ein Trainingsmodus, abgeleitet aus Deinem Checkout und Average – ein Tipp startet ihn |
 | **Letzte Ergebnisse** | Die drei letzten Matches, „Alle“ öffnet den Verlauf |
@@ -250,6 +251,8 @@ Die Lobby („Create Game“) ist wie bei Autodarts aufgebaut:
 - **QR-Code des Mitspielers scannen** – spielt jemand mit eigenem Scorelens-Konto an Deinem Board mit, zeigt er seinen
   QR-Code (*Freunde › Mein QR-Code*). Das Match landet dann **auch in seinem Verlauf und seiner Statistik**.
 - **Shuffle** mischt die Reihenfolge.
+- **Tipp auf einen Namen** öffnet die **Player Card**: Level, Average, Checkout-Quote, 180er, höchstes Finish, Form,
+  Head-to-Head gegen Dein Profil und Erfolge.
 
 ### Modus und Einstellungen
 Modus wählen („Anderen Modus wählen ›“), dann die Optionen des Modus – siehe [Spielmodi im Detail](#spielmodi-im-detail).
@@ -419,7 +422,8 @@ abgebrochen und nicht gewertet.
 ### Ergebnis
 Sieger, Legs/Sets, Average, First-9, Checkout-Quote, höchster Score, höchstes Finish, bestes/schlechtestes Leg, Busts
 bzw. die Kennzahlen des Modus. **Rematch** startet dasselbe Spiel neu, im Turnier führt „Zum Turnier“ zurück zum
-Spielplan.
+Spielplan. **Wurfprotokoll und Teilen** öffnet das Match-Detail: jede Aufnahme Leg für Leg mit Rest, dazu ein
+Teilen-Button, der das Ergebnis als Text an Messenger oder Zwischenablage gibt.
 
 ---
 
@@ -575,6 +579,9 @@ Der Checkout-Guide zeigt für den aktuellen Rest und die verbleibenden Darts der
 
 Die Bots nutzen dieselben Wege. Auch Random Checkout und 121 zeigen den Guide.
 
+**Checkout-Tabelle:** Unter *Einstellungen › Match* und im Zahnrad des Matches gibt es die komplette Tabelle 2 bis 170
+(bzw. 180 bei Straight Out) mit demselben Weg, den der Guide vorschlägt – Reste ohne 3-Dart-Finish sind grau.
+
 ---
 
 ## Statistiken
@@ -617,7 +624,10 @@ Die große Kennzahl vergleicht die **letzten 10 Spiele mit den 10 davor** und ze
   höchstes Finish
 - **Serien:** Siege bzw. Niederlagen in Folge, längste Siegesserie
 - **Spielzeit** und Anzahl Spiele
-- **Verlauf:** jedes Match mit Leg-für-Leg-Verlauf aus dem Wurfprotokoll
+- **Verlauf:** jedes Match; ein Tipp öffnet das **Match-Detail** mit Statistik-Tabelle und dem kompletten Wurfprotokoll
+  (jede Aufnahme mit Darts, Summe und Rest, Leg für Leg) sowie Teilen-Button
+- **Erfolge:** 16 Badges aus dem Verlauf (erstes 180, Ton-Finish, 170er, 15-Darter, 9-Darter, Siegesserie, Ø 50/70,
+  Allrounder …) mit Fortschritt – auf der Player Card jedes Spielers
 
 ### Verlauf löschen und exportieren
 - **Verlauf löschen** entfernt alle Matches (angemeldet auch die Cloud-Sicherung).

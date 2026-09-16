@@ -101,6 +101,8 @@ fun LobbyScreen(vm: AppViewModel) {
     var showSettings by remember { mutableStateOf(false) }
     var showHowTo by remember { mutableStateOf(false) }
     var showTournament by remember { mutableStateOf(false) }
+    var cardPlayer by remember { mutableStateOf<Player?>(null) }
+    cardPlayer?.let { p -> com.freedarts.scorer.ui.components.PlayerCardDialog(p, matches, settings.profilePlayerId) { cardPlayer = null } }
 
     fun avgOf(p: Player): Double {
         if (p.isBot) return Player.botAverage(p.botLevel).toDouble()
@@ -135,7 +137,7 @@ fun LobbyScreen(vm: AppViewModel) {
                         Spacer(Modifier.width(6.dp))
                         Avatar(p, 36); Spacer(Modifier.width(8.dp))
                         val (lvl, lvlBg, lvlFg) = levelOf(avgOf(p))
-                        NameRibbon(p.name, lvl, lvlBg, lvlFg)
+                        Box(Modifier.clickable { cardPlayer = p }) { NameRibbon(p.name, lvl, lvlBg, lvlFg) }
                         Spacer(Modifier.weight(1f))
                         IconButton(onClick = { vm.toggleLobbyPlayer(p) }) { Icon(Icons.Default.Close, "Entfernen", tint = DartColors.TextMuted) }
                     }

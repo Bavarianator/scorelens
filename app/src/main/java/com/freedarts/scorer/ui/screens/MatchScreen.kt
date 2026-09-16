@@ -306,6 +306,8 @@ fun MatchScreen(vm: AppViewModel) {
                     SettingSwitch("Chalkboard anzeigen", settings.showChalkboard) { v -> vm.updateSettings { it.copy(showChalkboard = v) } }
                     SettingSwitch("Checkout-Guide", settings.showCheckoutGuide) { v -> vm.updateSettings { it.copy(showCheckoutGuide = v) } }
                     SettingSwitch("Jeden Dart ansagen", settings.countEachThrow) { v -> vm.updateSettings { it.copy(countEachThrow = v) } }
+                    Spacer(Modifier.height(8.dp))
+                    SecondaryButton("Checkout-Tabelle", Modifier.fillMaxWidth()) { showSettings = false; vm.navigate(Screen.CheckoutTable) }
                     if (lensOn) {
                         Spacer(Modifier.height(8.dp))
                         // Positionswechsel mitten im Match: Board neu suchen, Darts auf dem Board bleiben erhalten

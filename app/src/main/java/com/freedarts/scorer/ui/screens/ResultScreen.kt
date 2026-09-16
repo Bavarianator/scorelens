@@ -68,6 +68,10 @@ fun ResultScreen(vm: AppViewModel) {
             Text("${r.mode.title} · Spielzeit ${formatDuration(r.durationMillis)}", color = DartColors.TextMuted)
             Spacer(Modifier.height(16.dp))
             StatsTable(r)
+            if (r.throws.isNotEmpty()) {
+                Spacer(Modifier.height(10.dp))
+                com.freedarts.scorer.ui.components.SecondaryButton("Wurfprotokoll und Teilen", Modifier.fillMaxWidth()) { vm.openMatch(r) }
+            }
         }
         Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             com.freedarts.scorer.ui.components.SecondaryButton("Menü", Modifier.weight(1f)) { vm.goHome() }

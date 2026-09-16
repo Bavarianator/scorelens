@@ -76,6 +76,10 @@ sealed class Screen {
     data object Tournament : Screen()
     /** Zweitgerät: Remote-Seite des Board-Handys im WebView. */
     data object RemoteView : Screen()
+    /** Ein Match aus dem Verlauf: Statistik und Wurfprotokoll. */
+    data object MatchDetail : Screen()
+    /** Nachschlagetabelle der Checkout-Wege. */
+    data object CheckoutTable : Screen()
 }
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
@@ -149,6 +153,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val gameState: StateFlow<GameState?> = _gameState
     private val _lastRecord = MutableStateFlow<MatchRecord?>(null)
     val lastRecord: StateFlow<MatchRecord?> = _lastRecord
+    private val _detailRecord = MutableStateFlow<MatchRecord?>(null)
+    /** Match, das der Detail-Screen zeigt. */
+    val detailRecord: StateFlow<MatchRecord?> = _detailRecord
+    fun openMatch(r: MatchRecord) { _detailRecord.value = r; navigate(Screen.MatchDetail) }
     private var botJob: Job? = null
     private var autoNextJob: Job? = null
     private var recorded = false

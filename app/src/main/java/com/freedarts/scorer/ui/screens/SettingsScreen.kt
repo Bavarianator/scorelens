@@ -133,6 +133,7 @@ fun SettingsScreen(vm: AppViewModel) {
 
                 SettingsCard(Icons.Default.SportsScore, "Match", "Anzeige und Ablauf im Spiel") {
                     SettingSwitch("Checkout-Guide", s.showCheckoutGuide) { v -> vm.updateSettings { it.copy(showCheckoutGuide = v) } }
+                    SecondaryButton("Checkout-Tabelle", Modifier.fillMaxWidth()) { vm.navigate(Screen.CheckoutTable) }
                     SettingSlider("Automatisch nächster Spieler", if (s.autoNextDelayMs == 0L) "Aus" else "nach ${s.autoNextDelayMs / 1000} s",
                         s.autoNextDelayMs.toFloat(), 0f..20000f, steps = 19) { v -> vm.updateSettings { it.copy(autoNextDelayMs = (v / 1000).toInt() * 1000L) } }
                     // Selten gebraucht: erst auf Tipp sichtbar

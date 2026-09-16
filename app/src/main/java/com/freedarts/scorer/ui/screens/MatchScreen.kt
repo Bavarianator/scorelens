@@ -268,7 +268,7 @@ fun MatchScreen(vm: AppViewModel) {
         }
 
         // Untere Leiste wie bei Autodarts: Eingabe-Umschalter, Undo, großer Next-Button. Korrektur: Dart in der Aufnahme-Leiste antippen.
-        androidx.compose.material3.HorizontalDivider(color = DartColors.CardBorder, thickness = 1.dp)
+        androidx.compose.material3.HorizontalDivider(color = DartColors.Outline, thickness = 1.dp)
         Row(Modifier.fillMaxWidth().background(DartColors.BottomBar).padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             var inputMenu by remember { mutableStateOf(false) }
             val cameraShown = inputMethod == InputMethod.BOARD && lensOn && showCamera
@@ -484,7 +484,7 @@ private fun TakeoutPanel(visible: Boolean, onReset: () -> Unit) {
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("TAKEOUT", fontFamily = Condensed, fontWeight = FontWeight.Bold, fontSize = 48.sp, color = Color(0xFF1A1206))
                 Text("Darts entfernen", fontWeight = FontWeight.SemiBold, color = Color(0xFF1A1206))
-                SecondaryButton("Reset", Modifier.width(120.dp)) { onReset() }
+                Box(Modifier.background(Color(0xFF1A1206), RoundedCornerShape(12.dp)).clip(RoundedCornerShape(12.dp)).clickable { onReset() }.padding(horizontal = 28.dp, vertical = 12.dp)) { Text("Reset", color = Color.White, fontWeight = FontWeight.Bold) }
             }
         }
     }

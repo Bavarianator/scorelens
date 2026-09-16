@@ -264,7 +264,7 @@ private fun AngleBar(angle: Double?) {
         val w = size.width; val h = size.height
         drawRoundRect(DartColors.Accent.copy(alpha = 0.35f), size = size, cornerRadius = CornerRadius(h / 2))
         drawRoundRect(DartColors.Lime, topLeft = Offset(w * lo / 90f, 0f), size = Size(w * (hi - lo) / 90f, h), cornerRadius = CornerRadius(h / 2))
-        angle?.let { drawCircle(Color.White, radius = h * 0.8f, center = Offset(w * it.toFloat().coerceIn(0f, 90f) / 90f, h / 2)) }
+        angle?.let { drawCircle(DartColors.Text, radius = h * 0.8f, center = Offset(w * it.toFloat().coerceIn(0f, 90f) / 90f, h / 2)) }
     }
 }
 

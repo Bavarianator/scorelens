@@ -67,62 +67,6 @@ fun Avatar(player: Player, size: Int = 36, online: Boolean = size >= 32) {
     }
 }
 
-@Composable
-fun PlayerCard(state: PlayerState, active: Boolean, compact: Boolean, showLegs: Boolean, showSets: Boolean, modifier: Modifier = Modifier) {
-    val border = if (active) DartColors.Active else Color.Transparent
-    Column(
-        modifier = modifier
-            .background(if (active) DartColors.SurfaceHigh else DartColors.Surface, RoundedCornerShape(14.dp))
-            .border(2.dp, border, RoundedCornerShape(14.dp))
-            .padding(horizontal = 10.dp, vertical = 8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-            Avatar(state.player, 24)
-            Spacer(Modifier.width(6.dp))
-            Text(state.player.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                color = if (state.isOut) DartColors.TextMuted else DartColors.Text)
-            if (state.isKiller) Text(" 🔪", fontSize = 14.sp)
-        }
-        Text(
-            state.score,
-            fontSize = if (compact) 34.sp else 46.sp,
-            fontWeight = FontWeight.Bold,
-            color = if (state.isOut) DartColors.TextMuted else DartColors.Text,
-            textAlign = TextAlign.Center,
-        )
-        Text(state.detail, style = MaterialTheme.typography.bodyMedium, color = DartColors.TextMuted, maxLines = 1)
-        if (showLegs || showSets) {
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                if (showSets) Text("Sets ${state.sets}", style = MaterialTheme.typography.labelSmall, color = DartColors.Accent)
-                if (showLegs) Text("Legs ${state.legs}", style = MaterialTheme.typography.labelSmall, color = DartColors.Accent)
-            }
-        }
-    }
-}
-
-/** Die drei Dart-Slots der aktuellen Aufnahme. */
-@Composable
-fun VisitRow(darts: List<Segment>, modifier: Modifier = Modifier) {
-    Row(modifier = modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)) {
-        for (i in 0 until 3) {
-            val d = darts.getOrNull(i)
-            Box(
-                modifier = Modifier.width(76.dp).height(40.dp)
-                    .background(if (d != null) DartColors.SurfaceHigh else DartColors.Surface, RoundedCornerShape(10.dp))
-                    .border(1.dp, if (d != null) DartColors.Blue else DartColors.SurfaceHigh, RoundedCornerShape(10.dp)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(d?.name ?: "–", fontWeight = FontWeight.Bold, color = if (d != null) Color.White else DartColors.TextMuted)
-            }
-        }
-        val sum = darts.sumOf { it.score }
-        Box(modifier = Modifier.width(56.dp).height(40.dp), contentAlignment = Alignment.Center) {
-            Text(if (darts.isEmpty()) "" else "= $sum", color = DartColors.Accent, fontWeight = FontWeight.Bold)
-        }
-    }
-}
-
 /** Ereignis-Banner: Farbe je Ereignis (Bust rot, 180 gold, Game Shot gold, sonst grün), blendet nach [holdMs] von selbst aus. */
 @Composable
 fun Banner(text: String?, modifier: Modifier = Modifier, holdMs: Long = 4000) {
@@ -149,7 +93,7 @@ fun Banner(text: String?, modifier: Modifier = Modifier, holdMs: Long = 4000) {
 /** Kreidetafel: die letzten Aufnahmen aller Spieler. */
 @Composable
 fun Chalkboard(players: List<PlayerState>, modifier: Modifier = Modifier, rows: Int = 4) {
-    Row(modifier = modifier.fillMaxWidth().background(DartColors.Surface, RoundedCornerShape(12.dp)).padding(8.dp)) {
+    Row(modifier = modifier.fillMaxWidth().background(DartColors.Surface, RoundedCornerShape(12.dp)).border(1.dp, DartColors.CardBorder, RoundedCornerShape(12.dp)).padding(8.dp)) {
         players.forEach { p ->
             Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                 p.history.takeLast(rows).forEach { e ->
@@ -166,7 +110,7 @@ fun Chalkboard(players: List<PlayerState>, modifier: Modifier = Modifier, rows: 
 /** Cricket-Tafel mit Marks (/, X, ⊗) pro Zahl und Spieler. */
 @Composable
 fun CricketTable(players: List<PlayerState>, targets: List<Int>, modifier: Modifier = Modifier, hidden: Set<Int> = emptySet()) {
-    Column(modifier = modifier.fillMaxWidth().background(DartColors.Surface, RoundedCornerShape(12.dp)).padding(6.dp)) {
+    Column(modifier = modifier.fillMaxWidth().background(DartColors.Surface, RoundedCornerShape(12.dp)).border(1.dp, DartColors.CardBorder, RoundedCornerShape(12.dp)).padding(6.dp)) {
         targets.forEach { t ->
             Row(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
                 val closedByAll = players.all { (it.marks?.get(t) ?: 0) >= 3 }

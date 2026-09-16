@@ -42,7 +42,7 @@ fun BoardScreen(vm: AppViewModel) {
 
     androidx.compose.foundation.layout.Box(Modifier.fillMaxSize()) { com.freedarts.scorer.ui.components.ScreenBackground() }
     Column(Modifier.fillMaxSize()) {
-        TopBar("Board Manager", onBack = { vm.back() })
+        com.freedarts.scorer.ui.components.AdTopBar("Board Manager", onBack = { vm.back() })
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("Verbinde Scorelens mit einem Autodarts Board Manager im selben WLAN (Standard-Port 3180). " +
                 "Erkannte Würfe werden automatisch in das laufende Spiel übernommen – die Kamera-Erkennung selbst bleibt kostenlos.",

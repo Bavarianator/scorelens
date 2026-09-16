@@ -80,7 +80,7 @@ fun DevicesScreen(vm: AppViewModel) {
                 ) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         PrimaryButton(if (lens.running) "Detection Mode öffnen" else "Start Lens Detection Mode", Modifier.weight(1f), height = 48) { vm.navigate(Screen.Lens) }
-                        if (lens.running) SecondaryButton("Done", Modifier.width(88.dp)) { vm.stopLens() }
+                        if (lens.running) SecondaryButton("Done", Modifier.weight(0.45f)) { vm.stopLens() }
                     }
                 }
 
@@ -125,20 +125,23 @@ fun DevicesScreen(vm: AppViewModel) {
                         val asBoard = settings.boardManagerEnabled && settings.boardManagerHost == u.host && connection == BoardManagerClient.Connection.CONNECTED
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             PrimaryButton(settings.remotePairedUrl.removePrefix("http://"), Modifier.weight(1f), height = 48) { vm.navigate(Screen.RemoteView) }
-                            SecondaryButton("Trennen", Modifier.width(88.dp)) { vm.updateSettings { it.copy(remotePairedUrl = "") }; if (asBoard) vm.disconnectBoard() }
+                            SecondaryButton("Trennen", Modifier.weight(0.45f)) { vm.updateSettings { it.copy(remotePairedUrl = "") }; if (asBoard) vm.disconnectBoard() }
                         }
                         Spacer(Modifier.height(8.dp))
                         Text(if (lens.running) "Zwei Kameras: Läuft hier ebenfalls Lens, werden die Spitzen beider Handys zusammengeführt – schneller bestätigt, verdeckte Darts gesehen. Gezählt wird hier."
                             else "Volle App: Das ganze Spiel läuft hier (alle Modi, Statistik, Online), das Board-Handy ist nur noch Kamera und liefert die Würfe wie ein Board Manager.",
                             color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
                         Spacer(Modifier.height(6.dp))
-                        if (asBoard) SecondaryButton(if (lens.running) "Zwei Kameras aktiv" else "Volle App aktiv – Würfe kommen vom Board-Handy", Modifier.fillMaxWidth()) { vm.disconnectBoard() }
+                        if (asBoard) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            com.freedarts.scorer.ui.components.Badge(if (lens.running) "Zwei Kameras aktiv" else "Volle App aktiv", DartColors.OnTint, DartColors.GreenDark, Modifier.weight(1f))
+                            SecondaryButton("Würfe nicht mehr übernehmen", Modifier.weight(1.4f)) { vm.disconnectBoard() }
+                        }
                         else PrimaryButton("Volle App: Würfe vom Board-Handy übernehmen", Modifier.fillMaxWidth(), height = 48) {
                             vm.connectBoard(u.host ?: "", if (u.port > 0) u.port else com.freedarts.scorer.remote.RemoteServer.PORT)
                         }
                     } else Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         PrimaryButton("QR-Code scannen", Modifier.weight(1f), height = 48) { scan = true }
-                        SecondaryButton("Adresse", Modifier.width(100.dp)) { manual = true }
+                        SecondaryButton("Adresse", Modifier.weight(0.5f)) { manual = true }
                     }
                 }
                 if (scan) QrScannerDialog(onDismiss = { scan = false }) { text ->

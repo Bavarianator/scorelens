@@ -34,6 +34,9 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -130,7 +133,7 @@ fun OnlineLobbyScreen(vm: AppViewModel) {
                         NameRibbon(p.name + (if (p.userId == me) " (du)" else ""), lvl, bg, fg)
                         Spacer(Modifier.weight(1f))
                         if (p.userId == l.hostId) Chip("Host")
-                        else if (p.ready) Text("✓ bereit", color = DartColors.Teal, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        else if (p.ready) Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.CheckCircle, null, Modifier.size(16.dp), tint = DartColors.Teal); Spacer(Modifier.width(4.dp)); Text("bereit", color = DartColors.Teal, fontWeight = FontWeight.Bold, fontSize = 12.sp) }
                         if (isHost && p.userId != me) IconButton(onClick = { online.kick(p.userId) }) { Icon(Icons.Default.Close, "Entfernen", tint = DartColors.TextMuted) }
                     }
                 }
@@ -151,8 +154,7 @@ fun OnlineLobbyScreen(vm: AppViewModel) {
                     ModeBadge(gs.mode)
                 }
                 Text(gs.mode.description(), color = DartColors.TextMuted, style = MaterialTheme.typography.bodyMedium)
-                Text("ⓘ How to play", color = DartColors.Text, style = MaterialTheme.typography.labelMedium, textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline,
-                    modifier = Modifier.padding(top = 4.dp).clickable { showHowTo = true })
+                TextButton(onClick = { showHowTo = true }, contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) { Icon(Icons.Outlined.Info, null, Modifier.size(16.dp)); Spacer(Modifier.width(6.dp)); Text("How to play", style = MaterialTheme.typography.labelMedium) }
                 Spacer(Modifier.height(8.dp)); Box(Modifier.fillMaxWidth().height(1.dp).background(DartColors.Divider)); Spacer(Modifier.height(8.dp))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) { settingsChips(gs).forEach { Chip(it) } }
                 if (isHost) {
@@ -172,7 +174,7 @@ fun OnlineLobbyScreen(vm: AppViewModel) {
 
             Text("Jeder wirft an seinem eigenen Board (Lens, Board Manager oder manuell); die Scores laufen live auf allen Geräten.",
                 color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
-            Spacer(Modifier.height(70.dp))
+            Spacer(Modifier.height(8.dp))
         }
         if (l != null) Box(Modifier.fillMaxWidth().padding(12.dp)) {
             if (l.tournament != null) PrimaryButton("Turnier-Spielplan", Modifier.fillMaxWidth(), height = 56) { vm.navigate(Screen.Tournament) }
@@ -182,7 +184,7 @@ fun OnlineLobbyScreen(vm: AppViewModel) {
             }
             else {
                 val meReady = l.players.firstOrNull { it.userId == me }?.ready == true
-                PrimaryButton(if (meReady) "Bereit ✓ – warten auf Host" else "Bereit", Modifier.fillMaxWidth(), height = 56) { online.setReady(!meReady) }
+                PrimaryButton(if (meReady) "Bereit – warten auf Host" else "Bereit", Modifier.fillMaxWidth(), icon = if (meReady) Icons.Default.Check else null, height = 56) { online.setReady(!meReady) }
             }
         }
     }

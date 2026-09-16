@@ -57,11 +57,16 @@ fun PlayersScreen(vm: AppViewModel) {
     val settings by vm.settings.collectAsStateWithLifecycle()
     card?.let { p -> com.freedarts.scorer.ui.components.PlayerCardDialog(p, matches, settings.profilePlayerId) { card = null } }
 
-    Scaffold(
-        topBar = { TopBar("Spieler", onBack = { vm.back() }) },
-        floatingActionButton = { FloatingActionButton(onClick = { creating = true }) { Icon(Icons.Default.Add, "Spieler hinzufügen") } },
-    ) { pad ->
-        LazyColumn(Modifier.fillMaxSize().padding(pad).padding(horizontal = 16.dp)) {
+    var deleting by remember { mutableStateOf<Player?>(null) }
+    Box(Modifier.fillMaxSize()) { com.freedarts.scorer.ui.components.ScreenBackground() }
+    Column(Modifier.fillMaxSize()) {
+        com.freedarts.scorer.ui.components.AdTopBar("Spieler", onBack = { vm.back() }) {
+            IconButton(onClick = { creating = true }) { Icon(Icons.Default.Add, "Spieler hinzufügen") }
+        }
+        if (players.isEmpty()) com.freedarts.scorer.ui.components.AdCard(Modifier.padding(12.dp)) {
+            Text("Noch keine Spieler – lege oben rechts den ersten an.", color = DartColors.TextMuted)
+        }
+        LazyColumn(Modifier.fillMaxSize().padding(horizontal = 12.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(players, key = { it.id }) { p ->
                 val played = matches.count { m -> m.players.any { it.playerId == p.id } }
                 val won = matches.count { it.winnerId == p.id }
@@ -69,17 +74,28 @@ fun PlayersScreen(vm: AppViewModel) {
                 val d = x01.sumOf { it.dartsThrown }
                 val avg = if (d == 0) 0.0 else x01.sumOf { it.pointsScored }.toDouble() / d * 3
                 val (lvl, lvlBg, lvlFg) = com.freedarts.scorer.ui.components.levelOf(avg)
-                Row(Modifier.fillMaxWidth().clickable { card = p }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Avatar(p, 40); Spacer(Modifier.width(10.dp))
-                    Column(Modifier.weight(1f)) {
-                        com.freedarts.scorer.ui.components.NameRibbon(p.name, lvl, lvlBg, lvlFg)
-                        Text("$played Spiele · $won Siege · Ø %.1f".format(avg), color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
+                com.freedarts.scorer.ui.components.AdCard(onClick = { card = p }, padding = 10) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Avatar(p, 40); Spacer(Modifier.width(10.dp))
+                        Column(Modifier.weight(1f)) {
+                            com.freedarts.scorer.ui.components.NameRibbon(p.name, lvl, lvlBg, lvlFg)
+                            Text("$played Spiele · $won Siege · Ø %.1f".format(avg), color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
+                        }
+                        IconButton(onClick = { editing = p }) { Icon(Icons.Default.Edit, "Bearbeiten") }
+                        IconButton(onClick = { deleting = p }, enabled = players.size > 1) { Icon(Icons.Default.Delete, "Löschen", tint = DartColors.TextMuted) }
                     }
-                    IconButton(onClick = { editing = p }) { Icon(Icons.Default.Edit, "Bearbeiten") }
-                    IconButton(onClick = { vm.removePlayer(p.id) }, enabled = players.size > 1) { Icon(Icons.Default.Delete, "Löschen") }
                 }
             }
         }
+    }
+    deleting?.let { p ->
+        AlertDialog(
+            onDismissRequest = { deleting = null },
+            title = { Text("${p.name} löschen?") },
+            text = { Text("Der Spieler wird aus der Liste entfernt. Gespielte Matches bleiben im Verlauf.") },
+            confirmButton = { TextButton(onClick = { vm.removePlayer(p.id); deleting = null }) { Text("Löschen", color = DartColors.Red) } },
+            dismissButton = { TextButton(onClick = { deleting = null }) { Text("Abbrechen") } },
+        )
     }
 
     if (creating) PlayerDialog(null, onDismiss = { creating = false }) { name, color, avatar -> vm.addPlayer(name, color, avatar); creating = false }

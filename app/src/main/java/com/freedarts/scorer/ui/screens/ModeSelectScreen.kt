@@ -19,6 +19,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.Icons
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -70,13 +74,13 @@ fun ModeSelectScreen(vm: AppViewModel) {
 private fun ModeCard(mode: GameMode, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
     Column(
         modifier.heightIn(min = 96.dp)
-            .then(if (selected) Modifier.background(androidx.compose.ui.graphics.Brush.linearGradient(listOf(androidx.compose.ui.graphics.Color(0xFF1B3FA8), androidx.compose.ui.graphics.Color(0xFF1E4FD6))), RoundedCornerShape(16.dp))
-                  else Modifier.background(DartColors.Surface, RoundedCornerShape(16.dp)))
+            .then(if (selected) Modifier.background(androidx.compose.ui.graphics.Brush.linearGradient(DartColors.TileFind), RoundedCornerShape(16.dp)).border(2.dp, DartColors.Primary, RoundedCornerShape(16.dp))
+                  else Modifier.background(DartColors.Surface, RoundedCornerShape(16.dp)).border(1.dp, DartColors.CardBorder, RoundedCornerShape(16.dp)))
             .clickable(onClick = onClick).padding(14.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(mode.title, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
-            if (selected) Text("✓ ", color = DartColors.Green, fontWeight = FontWeight.Bold)
+            if (selected) Icon(Icons.Default.CheckCircle, "Gewählt", Modifier.size(18.dp).padding(end = 2.dp), tint = DartColors.Primary)
             ModeBadge(mode)
         }
         Spacer(Modifier.height(6.dp))

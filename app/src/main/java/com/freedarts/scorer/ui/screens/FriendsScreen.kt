@@ -25,6 +25,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import com.freedarts.scorer.ui.components.Badge
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.LaunchedEffect
@@ -116,8 +117,8 @@ fun FriendsScreen(vm: AppViewModel) {
                             }
                             when {
                                 known == null -> TextButton(onClick = { online.addFriend(p.id); query = "" }, enabled = !busy) { Text("Hinzufügen") }
-                                known.accepted -> Text("Freund", color = DartColors.TextMuted)
-                                else -> Text("Angefragt", color = DartColors.TextMuted)
+                                known.accepted -> Badge("Freund", DartColors.OnTint, DartColors.GreenDark)
+                                else -> Badge("Angefragt", DartColors.TextMuted, DartColors.SurfaceHigh)
                             }
                         }
                     }
@@ -164,16 +165,6 @@ fun FriendsScreen(vm: AppViewModel) {
         showScanner = false
         val id = OnlineController.friendIdFrom(text)
         if (id != null) online.addFriend(id) else online.error.value = "Das ist kein Scorelens-Freundescode"
-    }
-}
-
-@Composable
-private fun Banner(msg: String, background: Color, onClose: () -> Unit) {
-    AdCard(background = background, padding = 10) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(msg, color = DartColors.OnTint, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
-            TextButton(onClick = onClose) { Text("OK") }
-        }
     }
 }
 

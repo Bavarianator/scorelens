@@ -32,6 +32,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.material3.TextButton
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.Palette
 import com.freedarts.scorer.ui.components.Chip
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -97,6 +101,14 @@ fun SettingsScreen(vm: AppViewModel) {
                     else SecondaryButton("Anmelden und online spielen", Modifier.fillMaxWidth()) { vm.navigate(Screen.Online) }
                 }
 
+                SettingsCard(Icons.Default.Palette, "Darstellung", "Hell, Dunkel oder wie das System") {
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        listOf("system" to "System", "light" to "Hell", "dark" to "Dunkel").forEach { (k, l) ->
+                            Chip(l, selected = s.theme == k) { vm.updateSettings { it.copy(theme = k) } }
+                        }
+                    }
+                }
+
                 SettingsCard(Icons.Default.VolumeUp, "Caller & Sound", "Sprachansage und Effekte") {
                     SettingSwitch("Caller (Sprachansage)", s.callerEnabled) { v -> vm.updateSettings { it.copy(callerEnabled = v) } }
                     if (s.callerEnabled) {
@@ -138,15 +150,11 @@ fun SettingsScreen(vm: AppViewModel) {
                     SettingSlider("Automatisch nächster Spieler", if (s.autoNextDelayMs == 0L) "Aus" else "nach ${s.autoNextDelayMs / 1000} s",
                         s.autoNextDelayMs.toFloat(), 0f..20000f, steps = 19) { v -> vm.updateSettings { it.copy(autoNextDelayMs = (v / 1000).toInt() * 1000L) } }
                     // Selten gebraucht: erst auf Tipp sichtbar
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 6.dp)) {
-                        Text("Design", modifier = Modifier.weight(1f))
-                        listOf("system" to "System", "light" to "Hell", "dark" to "Dunkel").forEach { (k, l) ->
-                            Chip(l, Modifier.padding(start = 6.dp), selected = s.theme == k) { vm.updateSettings { it.copy(theme = k) } }
-                        }
-                    }
                     var advanced by remember { mutableStateOf(false) }
-                    Text(if (advanced) "Weniger" else "Erweitert …", color = DartColors.PrimaryLight, fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
-                        modifier = Modifier.clickable { advanced = !advanced }.padding(vertical = 6.dp))
+                    TextButton(onClick = { advanced = !advanced }, contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) {
+                        Icon(if (advanced) Icons.Default.ExpandLess else Icons.Default.ExpandMore, null, Modifier.size(18.dp), tint = DartColors.PrimaryLight)
+                        Spacer(Modifier.width(4.dp)); Text(if (advanced) "Weniger" else "Erweitert", color = DartColors.PrimaryLight, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                    }
                     if (advanced) {
                         SettingSwitch("Chalkboard anzeigen", s.showChalkboard) { v -> vm.updateSettings { it.copy(showChalkboard = v) } }
                         SettingSwitch("Bildschirm anlassen", s.keepScreenOn) { v -> vm.updateSettings { it.copy(keepScreenOn = v) } }

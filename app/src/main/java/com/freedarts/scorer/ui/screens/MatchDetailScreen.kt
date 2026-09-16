@@ -93,7 +93,7 @@ private fun LegTable(r: MatchRecord, set: Int, leg: Int, list: List<ThrowRecord>
         Row {
             Text((if (r.settings.sets > 1 || set > 1) "Set $set · " else "") + "Leg $leg", fontWeight = FontWeight.Bold, modifier = Modifier.width(44.dp))
             r.players.forEachIndexed { p, ps ->
-                Text(ps.playerName + (if (winner == p) " ✓" else ""), Modifier.weight(1f), textAlign = TextAlign.Center, fontWeight = FontWeight.SemiBold,
+                Text(ps.playerName, Modifier.weight(1f), textAlign = TextAlign.Center, fontWeight = FontWeight.SemiBold,
                     color = if (winner == p) DartColors.Lime else DartColors.Text, maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 13.sp)
             }
         }

@@ -39,6 +39,10 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -161,7 +165,7 @@ fun LobbyScreen(vm: AppViewModel) {
                     ModeBadge(gs.mode)
                 }
                 Text(gs.mode.description(), color = DartColors.TextMuted, style = MaterialTheme.typography.bodyMedium)
-                Text("ⓘ How to play", color = DartColors.Text, style = MaterialTheme.typography.labelMedium, textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline, modifier = Modifier.padding(top = 4.dp).clickable { showHowTo = true })
+                TextButton(onClick = { showHowTo = true }, contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) { Icon(Icons.Outlined.Info, null, Modifier.size(16.dp)); Spacer(Modifier.width(6.dp)); Text("How to play", style = MaterialTheme.typography.labelMedium) }
                 Spacer(Modifier.height(8.dp)); Box(Modifier.fillMaxWidth().height(1.dp).background(DartColors.Divider))
                 Spacer(Modifier.height(8.dp))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -169,7 +173,8 @@ fun LobbyScreen(vm: AppViewModel) {
                 }
                 Spacer(Modifier.height(8.dp))
                 SecondaryButton("Edit settings", Modifier.fillMaxWidth(), icon = Icons.Default.Settings) { showSettings = true }
-                Text("Anderen Modus wählen ›", color = DartColors.Primary, style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(top = 8.dp))
+                Spacer(Modifier.height(8.dp))
+                SecondaryButton("Anderen Modus wählen", Modifier.fillMaxWidth(), icon = Icons.Default.KeyboardArrowRight) { vm.navigate(Screen.ModeSelect) }
             }
 
             // AUTOSCORING
@@ -186,14 +191,14 @@ fun LobbyScreen(vm: AppViewModel) {
                             Text("Lens", fontWeight = FontWeight.SemiBold, color = if (lensStatus.running) DartColors.Text else DartColors.PrimaryLight)
                             Text(if (lensStatus.running) lensStatus.message else "Kamera dieses Handys", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
                         }
-                        if (lensStatus.running) Text("✓", color = DartColors.Teal, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.TopEnd))
+                        if (lensStatus.running) Icon(Icons.Default.CheckCircle, "Aktiv", tint = DartColors.Teal, modifier = Modifier.align(Alignment.TopEnd).size(18.dp))
                     }
                     Box(Modifier.fillMaxWidth().border(1.dp, if (settings.boardManagerEnabled) DartColors.Teal else DartColors.Outline, RoundedCornerShape(12.dp)).clickable { vm.navigate(Screen.Board) }.padding(12.dp)) {
                         Column {
                             Text("Board Manager", fontWeight = FontWeight.SemiBold, color = if (settings.boardManagerEnabled) DartColors.Text else DartColors.PrimaryLight)
                             Text(if (settings.boardManagerEnabled) "${settings.boardManagerHost}:${settings.boardManagerPort}" else "Autodarts-Hardware im WLAN", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
                         }
-                        if (settings.boardManagerEnabled) Text("✓", color = DartColors.Teal, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.TopEnd))
+                        if (settings.boardManagerEnabled) Icon(Icons.Default.CheckCircle, "Aktiv", tint = DartColors.Teal, modifier = Modifier.align(Alignment.TopEnd).size(18.dp))
                     }
                     Box(Modifier.fillMaxWidth().border(1.dp, if (settings.remoteEnabled || settings.remotePairedUrl.isNotBlank()) DartColors.Teal else DartColors.Outline, RoundedCornerShape(12.dp)).clickable { vm.navigate(Screen.Devices) }.padding(12.dp)) {
                         Column {
@@ -204,11 +209,11 @@ fun LobbyScreen(vm: AppViewModel) {
                                 else -> "Spielansicht auf Tablet/TV, Zweitgerät koppeln, zweite Kamera"
                             }, color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
                         }
-                        if (settings.remoteEnabled || settings.remotePairedUrl.isNotBlank()) Text("✓", color = DartColors.Teal, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.TopEnd))
+                        if (settings.remoteEnabled || settings.remotePairedUrl.isNotBlank()) Icon(Icons.Default.CheckCircle, "Aktiv", tint = DartColors.Teal, modifier = Modifier.align(Alignment.TopEnd).size(18.dp))
                     }
                 }
             }
-            Spacer(Modifier.height(70.dp))
+            Spacer(Modifier.height(8.dp))
         }
         Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             PrimaryButton("Start Game", Modifier.fillMaxWidth(), enabled = lobby.isNotEmpty(), height = 56) { vm.startGame() }

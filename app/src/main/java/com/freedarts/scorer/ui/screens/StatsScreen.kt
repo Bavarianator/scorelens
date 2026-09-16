@@ -25,6 +25,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.automirrored.filled.TrendingDown
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.Icons
 import com.freedarts.scorer.ui.components.PrimaryButton
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -86,6 +93,14 @@ fun StatsScreen(vm: AppViewModel, startTab: Int = 0) {
     /** 0 = heute, 1 = 7 Tage, 2 = 30 Tage, 3 = gesamt. */
     var range by remember { mutableIntStateOf(3) }
     var showAll by remember { mutableStateOf(startTab == 1) }
+    var confirmClear by remember { mutableStateOf(false) }
+    if (confirmClear) AlertDialog(
+        onDismissRequest = { confirmClear = false },
+        title = { Text("Verlauf löschen?") },
+        text = { Text("Alle gespeicherten Matches und Statistiken auf diesem Gerät werden gelöscht. Das lässt sich nicht rückgängig machen.") },
+        confirmButton = { TextButton(onClick = { vm.clearHistory(); confirmClear = false }) { Text("Löschen", color = DartColors.Red) } },
+        dismissButton = { TextButton(onClick = { confirmClear = false }) { Text("Abbrechen") } },
+    )
     val df = remember { SimpleDateFormat("dd.MM.yy HH:mm", Locale.GERMANY) }
     val since = remember(range) {
         when (range) {
@@ -178,7 +193,7 @@ fun StatsScreen(vm: AppViewModel, startTab: Int = 0) {
                         ms.asReversed().take(if (showAll) Int.MAX_VALUE else 5).forEach { MatchRow(it, id, df) { vm.openMatch(it) } }
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                             if (ms.size > 5) TextButton(onClick = { showAll = !showAll }) { Text(if (showAll) "Weniger" else "Alle ${ms.size} anzeigen") } else Spacer(Modifier.width(1.dp))
-                            TextButton(onClick = { vm.clearHistory() }) { Text("Verlauf löschen", color = DartColors.Red) }
+                            TextButton(onClick = { confirmClear = true }) { Text("Verlauf löschen", color = DartColors.Red) }
                         }
                     }
                 }
@@ -207,7 +222,11 @@ private fun Hero(mode: GameMode?, ms: List<MatchRecord>, stats: List<PlayerMatch
                 if (prev.isNotEmpty()) {
                     val d = Statistics.metricTotal(mode, stats.takeLast(10)) - Statistics.metricTotal(mode, prev)
                     // alle Kennzahlen: höher = besser
-                    Text((if (d >= 0) "▲ +" else "▼ −") + Statistics.formatMetric(mode, kotlin.math.abs(d)) + " vs. 10 davor", color = if (d >= 0) DartColors.Lime else DartColors.Red, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(if (d >= 0) Icons.AutoMirrored.Filled.TrendingUp else Icons.AutoMirrored.Filled.TrendingDown, null, Modifier.size(16.dp), tint = if (d >= 0) DartColors.Lime else DartColors.Red)
+                        Spacer(Modifier.width(4.dp))
+                        Text((if (d >= 0) "+" else "−") + Statistics.formatMetric(mode, kotlin.math.abs(d)) + " vs. 10 davor", color = if (d >= 0) DartColors.Lime else DartColors.Red, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    }
                 }
             }
         }
@@ -243,7 +262,7 @@ private fun AllModes(mine: List<MatchRecord>, perMode: Map<GameMode, List<MatchR
                     Text(Statistics.formatMetric(mode, Statistics.metricTotal(mode, s)), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                     Text(Statistics.metricLabel(mode), color = DartColors.TextMuted, style = MaterialTheme.typography.labelSmall)
                 }
-                Text("›", color = DartColors.TextMuted, fontSize = 22.sp, modifier = Modifier.padding(start = 10.dp))
+                Icon(Icons.Default.KeyboardArrowRight, null, Modifier.padding(start = 6.dp), tint = DartColors.TextMuted)
             }
         }
     }

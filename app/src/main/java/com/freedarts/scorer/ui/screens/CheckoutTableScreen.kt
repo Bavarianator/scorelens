@@ -51,7 +51,8 @@ fun CheckoutTableScreen(vm: AppViewModel) {
             listOf(OutMode.DOUBLE to "Double Out", OutMode.MASTER to "Master Out", OutMode.STRAIGHT to "Straight Out").forEach { (m, label) -> Chip(label, selected = outMode == m) { outMode = m } }
         }
         Text("Rest · bester Weg mit 3 Darts · Grau = nicht mit 3 Darts machbar", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
-        LazyColumn(Modifier.fillMaxSize().padding(horizontal = 12.dp)) {
+        if (rows.isEmpty()) Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) { androidx.compose.material3.CircularProgressIndicator() }
+        LazyColumn(Modifier.fillMaxSize().padding(horizontal = 12.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 24.dp)) {
             items(rows, key = { it.first }) { (score, route) ->
                 val darts = route?.split("  ")?.size ?: 0
                 Row(Modifier.fillMaxWidth().padding(vertical = 3.dp).background(DartColors.Surface, RoundedCornerShape(10.dp)).padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {

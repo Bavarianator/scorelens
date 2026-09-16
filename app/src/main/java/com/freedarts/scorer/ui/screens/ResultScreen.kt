@@ -60,8 +60,8 @@ fun ResultScreen(vm: AppViewModel) {
     val pop by animateFloatAsState(if (shown || !celebrate) 1f else 0.4f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow), label = "pop")
     Box(Modifier.fillMaxSize()) { com.freedarts.scorer.ui.components.ScreenBackground() }
     Column(Modifier.fillMaxSize()) {
-        TopBar("Ergebnis", onBack = { vm.goHome() })
-        if (r == null) { Text("Kein Ergebnis vorhanden", Modifier.padding(16.dp)); return }
+        com.freedarts.scorer.ui.components.AdTopBar("Ergebnis", onBack = { vm.goHome() })
+        if (r == null) { com.freedarts.scorer.ui.components.AdCard(Modifier.padding(12.dp)) { Text("Kein Ergebnis vorhanden", color = DartColors.TextMuted) }; return }
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(16.dp)) {
             Text((winner?.let { "${it.playerName} gewinnt" } ?: "Unentschieden").uppercase(), fontFamily = com.freedarts.scorer.ui.theme.Condensed, fontWeight = FontWeight.Bold, fontSize = 34.sp, color = DartColors.Lime,
                 modifier = Modifier.scale(pop))
@@ -85,7 +85,7 @@ fun ResultScreen(vm: AppViewModel) {
 @Composable
 private fun Confetti(key: Any?) {
     class P(val x: Float, val speed: Float, val phase: Float, val size: Float, val color: Color, val delay: Float)
-    val colors = listOf(DartColors.Lime, DartColors.Accent, DartColors.PrimaryLight, Color.White, DartColors.Red)
+    val colors = listOf(DartColors.Lime, DartColors.Accent, DartColors.PrimaryLight, DartColors.Orange, DartColors.Red)
     val parts = remember(key) { List(120) { P(Random.nextFloat(), 0.25f + Random.nextFloat() * 0.35f, Random.nextFloat() * 6.28f, 8f + Random.nextFloat() * 10f, colors.random(), Random.nextFloat() * 1.5f) } }
     var t by remember(key) { mutableStateOf(0f) }
     LaunchedEffect(key) {

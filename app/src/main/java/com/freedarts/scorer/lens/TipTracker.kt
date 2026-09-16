@@ -87,17 +87,22 @@ class TipTracker(private val detector: DartDetector) {
         return detector.phase == DartDetector.Phase.IDLE && detector.lastMotionFraction < 0.003 && now - lastPoll > IDLE_POLL_MS
     }
 
-    /** Ergebnis einer KI-Auswertung; [gray] ist der aktuelle Frame (wird bei einer Zählung Referenz). */
-    fun onTips(tips: List<Tip>, gray: ByteArray, now: Long): DartDetector.Event? {
-        afterReference = false
-        lastPoll = now
+    /**
+     * Ergebnis einer KI-Auswertung; [gray] ist der aktuelle Frame (wird bei einer Zählung Referenz).
+     * [remote] = Messung der zweiten Kamera (Board-Handy): zählt nur als zusätzliche Stichprobe, steuert weder
+     * Abfragetakt noch Versuche noch Takeout – die andere Kamera kann Darts schlicht nicht sehen.
+     */
+    fun onTips(tips: List<Tip>, gray: ByteArray, now: Long, remote: Boolean = false): DartDetector.Event? {
+        if (remote && tips.isEmpty()) return null
+        if (!remote) { afterReference = false; lastPoll = now }
         val fresh = assign(tips)
-        candidate?.let { return check(it, fresh, gray, now) }
+        candidate?.let { return check(it, fresh, gray, now, countTry = !remote) }
         val best = fresh.filter { it.conf >= MIN_UNPROMPTED_CONF }.maxByOrNull { it.conf }
         if (known.size < MAX_DARTS && best != null) {
             candidate = Candidate(null, best.x to best.y, now).also { it.samples.add(best.x to best.y) }
             return null
         }
+        if (remote) return null
         if (known.isNotEmpty() && tips.isEmpty()) {
             emptyPolls++
             if (emptyPolls >= 2) { emptyPolls = 0; detector.setReference(gray); known.clear(); return DartDetector.Event.Takeout }
@@ -125,8 +130,8 @@ class TipTracker(private val detector: DartDetector) {
         return tips.filterIndexed { i, _ -> !tDone[i] }
     }
 
-    private fun check(c: Candidate, fresh: List<Tip>, gray: ByteArray, now: Long): DartDetector.Event? {
-        c.lastCheck = now; c.tries++
+    private fun check(c: Candidate, fresh: List<Tip>, gray: ByteArray, now: Long, countTry: Boolean = true): DartDetector.Event? {
+        if (countTry) { c.lastCheck = now; c.tries++ }
         val center = c.center()
         fresh.minByOrNull { hypot(it.x - center.first, it.y - center.second) }?.let { t ->
             if (c.samples.isEmpty() || hypot(t.x - center.first, t.y - center.second) < detector.boardRadiusPx * 0.06) c.samples.add(t.x to t.y)

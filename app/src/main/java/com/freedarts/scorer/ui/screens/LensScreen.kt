@@ -203,7 +203,7 @@ fun LensScreen(vm: AppViewModel) {
                             " · ${status.fps} fps" + (status.calibResidualMm?.let { " · Kalibrierung ±%.1f mm".format(it) } ?: "") +
                             (status.ellipse?.let { " · Blick %.0f°".format(it.viewAngleDeg) } ?: "") +
                             (if (status.cameraSize.isNotEmpty()) " · ${status.cameraSize}" else "") +
-                            " · Δ ${"%.1f".format(status.changeFraction * 100)} % · Phase ${status.phase}",
+                            " · Δ ${"%.1f".format(status.changeFraction * 100)} % · Phase ${status.phase}" + (if (status.remoteCamera) " · 2. Kamera" else ""),
                         color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall,
                     )
                 }

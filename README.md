@@ -527,6 +527,21 @@ Ein zweites Handy kann das Spiel des Board-Handys anzeigen und bedienen:
 3. Optional **„Volle App: Würfe vom Board-Handy übernehmen“** – dann läuft das komplette Spiel inklusive Statistik auf
    dem Zweitgerät, das Board-Handy liefert nur die Würfe (wie ein Board Manager, mit Auftreffpunkten in Millimetern).
 
+### Zweite Kamera
+Zwei Handys sehen mehr als eines: Verdeckt ein Dart einen anderen, sieht ihn die zweite Kamera aus ihrem Winkel,
+und knapp am Draht zählt der Mittelwert beider Blickwinkel. Außerdem sammeln sich die nötigen Messungen doppelt
+so schnell, ein Dart wird also schneller bestätigt.
+
+| Handy | Schritte |
+|---|---|
+| Kamera 2 | Lens starten (Detection Mode bleibt offen), *Devices › Remote Scoring* einschalten. Kein Spiel nötig. |
+| Haupt-Handy | Lens starten, *Devices › „Als Zweitgerät koppeln“* → QR-Code der Kamera 2 scannen → **„Würfe übernehmen“**. Das Spiel läuft hier. |
+
+Die Lens-Diagnosezeile des Haupt-Handys zeigt dann `2. Kamera`. Technisch fließen die rohen KI-Spitzen der zweiten
+Kamera (in Board-Millimetern) als zusätzliche Messungen in die Bestätigung des Haupt-Handys ein; gezählt und
+„Darts entnommen“ entscheidet nur das Haupt-Handy, es zählt also nichts doppelt. Aufstellung: die zweite Kamera
+30–45° versetzt zur ersten, beide ruhig und sauber kalibriert. Fällt Kamera 2 aus, läuft das Haupt-Handy wie gewohnt weiter.
+
 ### HTTP-Schnittstelle des Board-Handys
 Für Bastler – der eingebaute Server (ohne Abhängigkeiten) beantwortet:
 
@@ -535,7 +550,7 @@ Für Bastler – der eingebaute Server (ohne Abhängigkeiten) beantwortet:
 | `/` | Spielansicht für den Browser |
 | `/state` | Spielstand als JSON |
 | `/board.jpg` | aktuelles Lens-Bild als JPEG |
-| `/api/state` | Board-Manager-Sicht der Lens (Throw / Takeout / Stopped, Segmente, `coords` mit `unit=mm`) |
+| `/api/state` | Board-Manager-Sicht der Lens (Throw / Takeout / Stopped, Segmente, `coords` mit `unit=mm`, dazu `tips`/`tipSeq`: rohe KI-Spitzen in mm für eine zweite Kamera) |
 | `/api/<befehl>` | Board-Befehle wie beim Autodarts Board Manager |
 | `/cmd?do=…` | Befehle der Spielansicht (Undo, Next) |
 

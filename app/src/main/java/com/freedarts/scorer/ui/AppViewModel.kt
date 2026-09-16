@@ -177,8 +177,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 if (provider != null) track(com.google.firebase.analytics.FirebaseAnalytics.Event.LOGIN, com.google.firebase.analytics.FirebaseAnalytics.Param.METHOD to provider)
             }
         }
-        viewModelScope.launch { board.throws.collect { t -> onBoardThrow(t.segment, t.x, t.y) } }
-        viewModelScope.launch { board.takeout.collect { onBoardTakeout() } }
+        // Läuft hier selbst Lens, ist das Board-Handy die zweite Kamera: seine Roh-Spitzen fließen in die eigene
+        // Bestätigung ein, seine fertigen Würfe/Takeouts nicht (sonst doppelt)
+        viewModelScope.launch { board.throws.collect { t -> if (!lens.status.value.running) onBoardThrow(t.segment, t.x, t.y) } }
+        viewModelScope.launch { board.takeout.collect { if (!lens.status.value.running) onBoardTakeout() } }
+        viewModelScope.launch { board.tips.collect { b -> lens.onRemoteTips(b.tips.map { LensController.BoardTip(it.x, it.y, it.conf) }) } }
         viewModelScope.launch { lens.throws.collect { t -> onBoardThrow(t.segment, t.boardX, t.boardY) } }
         viewModelScope.launch { lens.takeout.collect { lensTakeoutAt = System.currentTimeMillis(); onBoardTakeout() } }
         lens.setSensitivity(settings.value.lensSensitivity)
@@ -445,7 +448,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             else -> "Throw"
         }
         val boardThrows = lens.detections.value.map { RemoteServer.BoardThrow(it.segment.name, it.boardX, it.boardY) }
-        if (g == null || st == null) return RemoteServer.RemoteState(false, lens = if (lensStatus.running) "Lens: ${lensStatus.message}" else "", boardStatus = boardStatus, boardThrows = boardThrows)
+        val boardTips = if (lensStatus.running) lens.lastTips else emptyList()
+        if (g == null || st == null) return RemoteServer.RemoteState(false, lens = if (lensStatus.running) "Lens: ${lensStatus.message}" else "", boardStatus = boardStatus, boardThrows = boardThrows, boardTips = boardTips, tipSeq = lens.tipSeq)
         val title = g.settings.mode.title + (if (g.settings.mode == GameMode.X01) " ${g.settings.baseScore}" else "")
         val headline = st.headline + (if (st.visitLocked) " · Darts entnehmen" else "")
         return RemoteServer.RemoteState(
@@ -457,7 +461,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             },
             finished = st.finished, winner = st.winnerIndex?.let { st.players.getOrNull(it)?.player?.name },
             lens = if (lensStatus.running) "Lens: ${lensStatus.message}" else "", lensReady = lensStatus.setup == LensController.Setup.READY,
-            boardStatus = boardStatus, boardThrows = boardThrows,
+            boardStatus = boardStatus, boardThrows = boardThrows, boardTips = boardTips, tipSeq = lens.tipSeq,
         )
     }
 

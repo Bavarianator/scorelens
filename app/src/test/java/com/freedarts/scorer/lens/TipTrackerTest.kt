@@ -160,6 +160,35 @@ class TipTrackerTest {
         assertEquals(0, t.knownTips.size)
     }
 
+    @Test fun remoteTipsSpeedUpConfirmationWithoutTakeoutOrTries() {
+        val d = detector(); val t = TipTracker(d)
+        val t20 = tip(0.0, 103.0)
+        var now = 10_000L
+        assertNull(t.step(classic(t20, Segment.triple(20)), gray, now))
+        now += 130; assertNull(feed(t, listOf(t20), now))                 // 1 lokale Messung
+        assertNull(t.onTips(listOf(t20), gray, now + 10, remote = true))   // 2. Messung von Kamera 2
+        assertTrue(t.wantsInference(now + 130))                            // Remote-Messung verschiebt den lokalen Takt nicht
+        val ev = t.onTips(listOf(tip(0.5, 103.5)), gray, now + 20, remote = true) // 3. → bestätigt, ohne dritte lokale Auswertung
+        assertEquals(Segment.triple(20), (ev as DartDetector.Event.Dart).segment)
+        assertEquals(1, t.knownTips.size)
+        // Leere Remote-Auswertungen (Kamera 2 sieht den Dart nicht) lösen nie ein Takeout aus
+        repeat(3) { now += 2000; assertNull(t.onTips(emptyList(), gray, now, remote = true)) }
+        assertEquals(1, t.knownTips.size)
+    }
+
+    @Test fun remoteOnlyDartBecomesCandidateAndIsConfirmed() {
+        val d = detector(); val t = TipTracker(d)
+        val hidden = tip(0.0, 103.0)   // hier verdeckt, nur Kamera 2 sieht ihn
+        var now = 10_000L
+        assertNull(t.step(null, gray, now))
+        assertNull(t.onTips(listOf(hidden), gray, now, remote = true))
+        assertTrue(t.checking)
+        var ev: DartDetector.Event? = null
+        repeat(TipTracker.HITS_UNPROMPTED - 1) { now += 150; ev = t.onTips(listOf(hidden), gray, now, remote = true) ?: ev }
+        assertEquals(Segment.triple(20), (ev as DartDetector.Event.Dart).segment)
+        assertEquals(1, t.knownTips.size)
+    }
+
     @Test fun resyncKeepsHiddenDartsAndFindsNewOnes() {
         val d = detector(); val t = TipTracker(d)
         val t20 = tip(0.0, 103.0)

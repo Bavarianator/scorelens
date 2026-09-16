@@ -79,7 +79,13 @@ class LensController(private val context: Context) {
         val exposure: Int = 0,
         val exposureRange: IntRange = 0..0,
         val frontCamera: Boolean = false,
+        /** Zweite Kamera (gekoppeltes Board-Handy) liefert gerade Spitzen. */
+        val remoteCamera: Boolean = false,
     )
+
+    /** Rohe KI-Spitze in Board-Millimetern (Mitte 0/0) – Austauschformat zwischen zwei Kamera-Handys. */
+    @kotlinx.serialization.Serializable
+    data class BoardTip(val x: Float, val y: Float, val conf: Float)
 
     /**
      * Erkannter Dart in Analyse-Koordinaten. [snapshot] = Kamera-Ausschnitt um die Spitze (Referee-Bild),
@@ -133,6 +139,10 @@ class LensController(private val context: Context) {
     /** KI-Inferenz läuft getrennt vom Analyse-Thread, damit die Bewegungslogik keine Frames verpasst. */
     private val aiExecutor = Executors.newSingleThreadExecutor()
     @Volatile private var aiBusy = false
+    /** Spitzen der letzten KI-Auswertung in Board-mm, für /api/state (Rolle: zweite Kamera); [tipSeq] zählt die Auswertungen. */
+    @Volatile var lastTips: List<BoardTip> = emptyList(); private set
+    @Volatile var tipSeq = 0; private set
+    @Volatile private var remoteTipsAt = 0L
     /** Letzter Board-Ausschnitt in Kameraauflösung (Quelle für Referee-Bilder). */
     @Volatile private var lastCrop: RgbFrame? = null
     private var provider: ProcessCameraProvider? = null
@@ -403,10 +413,27 @@ class LensController(private val context: Context) {
             lastAiMs = res.inferenceMs
             if (setup != Setup.READY) return@execute
             val list = res.darts.map { p -> analysisPoint(rgb, p.x, p.y).let { (x, y) -> TipTracker.Tip(x, y, p.conf) } }
+            detector.imageToBoard?.let { h -> lastTips = list.map { t -> val (bx, by) = h.map(t.x + 0.5, t.y + 0.5); BoardTip(bx.toFloat(), by.toFloat(), t.conf) }; tipSeq++ }
             val ev = tips.onTips(list, lastFrame, System.currentTimeMillis())
             // Trainingsdaten: genau der Ausschnitt, den das Modell gesehen hat, sobald ein Dart bestätigt ist
             if (ev is DartDetector.Event.Dart && training.enabled) aiExecutor.execute { training.save(rgb, res) }
             emit(ev)
+            publish()
+        }
+    }
+
+    /**
+     * Roh-Spitzen der zweiten Kamera (Board-mm): zusätzliche Messungen für die Bestätigung des laufenden
+     * Kandidaten bzw. ein Kandidat für einen hier verdeckten Dart. Takeout entscheidet weiterhin nur diese Kamera.
+     */
+    fun onRemoteTips(remote: List<BoardTip>) {
+        executor.execute {
+            val b2i = detector.boardToImage ?: return@execute
+            if (setup != Setup.READY || !yolo.available) return@execute
+            val now = System.currentTimeMillis()
+            remoteTipsAt = now
+            val list = remote.map { t -> val (x, y) = b2i.map(t.x.toDouble(), t.y.toDouble()); TipTracker.Tip(x - 0.5, y - 0.5, t.conf) }
+            emit(tips.onTips(list, lastFrame, now, remote = true))
             publish()
         }
     }
@@ -596,6 +623,7 @@ class LensController(private val context: Context) {
             exposure = exposure,
             exposureRange = camera?.cameraInfo?.exposureState?.takeIf { it.isExposureCompensationSupported }?.exposureCompensationRange?.let { it.lower..it.upper } ?: 0..0,
             frontCamera = useFrontCamera,
+            remoteCamera = System.currentTimeMillis() - remoteTipsAt < 2000,
         )
     }
 }

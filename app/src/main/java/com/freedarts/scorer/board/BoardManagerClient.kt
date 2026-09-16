@@ -1,6 +1,7 @@
 package com.freedarts.scorer.board
 
 import com.freedarts.scorer.model.Segment
+import com.freedarts.scorer.remote.RemoteServer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -45,6 +46,11 @@ class BoardManagerClient(private val scope: CoroutineScope) {
 
     data class BoardState(val status: String = "", val event: String = "", val numThrows: Int = 0, val throws: List<Throw> = emptyList())
 
+    /** Rohe KI-Spitze der Kamera des Board-Handys in Board-mm (Scorelens-Erweiterung, Feld "tips"). */
+    data class Tip(val x: Float, val y: Float, val conf: Float)
+    /** Spitzen einer KI-Auswertung; [seq] ist deren laufende Nummer, jede Auswertung wird nur einmal weitergegeben. */
+    data class TipBatch(val seq: Int, val tips: List<Tip>)
+
     private val http = OkHttpClient.Builder()
         .connectTimeout(1500, TimeUnit.MILLISECONDS)
         .readTimeout(2000, TimeUnit.MILLISECONDS)
@@ -60,17 +66,23 @@ class BoardManagerClient(private val scope: CoroutineScope) {
     /** Wird ausgelöst, wenn das Board von "Throw" auf "Takeout" wechselt (Aufnahme beendet). */
     private val _takeout = MutableSharedFlow<Unit>(extraBufferCapacity = 4)
     val takeout: SharedFlow<Unit> = _takeout
+    private val _tips = MutableSharedFlow<TipBatch>(extraBufferCapacity = 16)
+    val tips: SharedFlow<TipBatch> = _tips
 
     private var job: Job? = null
     private var baseUrl = ""
     private var seenThrows = 0
     private var lastStatus = ""
+    private var lastTipSeq = -1
 
-    fun connect(host: String, port: Int, intervalMillis: Long = 400) {
+    // ponytail: Scorelens-Board-Handy (Port 8765) wird alle 150 ms gepollt, damit seine Roh-Spitzen zeitnah ankommen;
+    // Long-Poll/WebSocket erst, wenn Akku oder Latenz messbar stören
+    fun connect(host: String, port: Int, intervalMillis: Long = if (port == RemoteServer.PORT) 150 else 400) {
         disconnect()
         baseUrl = "http://${host.trim()}:$port"
         seenThrows = 0
         lastStatus = ""
+        lastTipSeq = -1
         _connection.value = Connection.CONNECTING
         job = scope.launch(Dispatchers.IO) {
             while (isActive) {
@@ -129,6 +141,17 @@ class BoardManagerClient(private val scope: CoroutineScope) {
         if (status == "Takeout" && lastStatus != "Takeout") _takeout.tryEmit(Unit)
         lastStatus = status
         _state.value = BoardState(status, event, num, segs)
+        val tipSeq = obj["tipSeq"]?.jsonPrimitive?.intOrNull
+        if (tipSeq != null && tipSeq != lastTipSeq) {
+            lastTipSeq = tipSeq
+            val tips = obj["tips"]?.let { it as? kotlinx.serialization.json.JsonArray }?.mapNotNull { t ->
+                val o = t.jsonObject
+                val x = o["x"]?.jsonPrimitive?.floatOrNull ?: return@mapNotNull null
+                val y = o["y"]?.jsonPrimitive?.floatOrNull ?: return@mapNotNull null
+                Tip(x, y, o["conf"]?.jsonPrimitive?.floatOrNull ?: 1f)
+            } ?: emptyList()
+            _tips.tryEmit(TipBatch(tipSeq, tips))
+        }
     }
 
     /** Steuerbefehle des Board Managers (Start/Stop/Reset/Kalibrieren). */

@@ -127,10 +127,11 @@ fun DevicesScreen(vm: AppViewModel) {
                             SecondaryButton("Trennen", Modifier.width(88.dp)) { vm.updateSettings { it.copy(remotePairedUrl = "") }; if (asBoard) vm.disconnectBoard() }
                         }
                         Spacer(Modifier.height(8.dp))
-                        Text("Volle App: Das ganze Spiel läuft hier (alle Modi, Statistik, Online), das Board-Handy ist nur noch Kamera und liefert die Würfe wie ein Board Manager.",
+                        Text(if (lens.running) "Zwei Kameras: Läuft hier ebenfalls Lens, werden die Spitzen beider Handys zusammengeführt – schneller bestätigt, verdeckte Darts gesehen. Gezählt wird hier."
+                            else "Volle App: Das ganze Spiel läuft hier (alle Modi, Statistik, Online), das Board-Handy ist nur noch Kamera und liefert die Würfe wie ein Board Manager.",
                             color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
                         Spacer(Modifier.height(6.dp))
-                        if (asBoard) SecondaryButton("Volle App aktiv – Würfe kommen vom Board-Handy", Modifier.fillMaxWidth()) { vm.disconnectBoard() }
+                        if (asBoard) SecondaryButton(if (lens.running) "Zwei Kameras aktiv" else "Volle App aktiv – Würfe kommen vom Board-Handy", Modifier.fillMaxWidth()) { vm.disconnectBoard() }
                         else PrimaryButton("Volle App: Würfe vom Board-Handy übernehmen", Modifier.fillMaxWidth(), height = 48) {
                             vm.connectBoard(u.host ?: "", if (u.port > 0) u.port else com.freedarts.scorer.remote.RemoteServer.PORT)
                         }

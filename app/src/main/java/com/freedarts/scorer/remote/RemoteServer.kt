@@ -1,5 +1,6 @@
 package com.freedarts.scorer.remote
 
+import com.freedarts.scorer.lens.LensController
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -41,6 +42,9 @@ class RemoteServer(private val stateProvider: () -> RemoteState, private val fra
         /** Board-Manager-Sicht der Lens (GET /api/state): Throw / Takeout / Stopped und die Segmente der Aufnahme. */
         val boardStatus: String = "Stopped",
         val boardThrows: List<BoardThrow> = emptyList(),
+        /** Rohe KI-Spitzen der letzten Auswertung (Board-mm) und deren laufende Nummer – Futter für ein zweites Kamera-Handy. */
+        val boardTips: List<LensController.BoardTip> = emptyList(),
+        val tipSeq: Int = 0,
     )
 
     /** Ein Wurf für /api/state: Segmentname plus Auftreffpunkt in Board-Millimetern (null = unbekannt). */
@@ -109,7 +113,8 @@ class RemoteServer(private val stateProvider: () -> RemoteState, private val fra
                     val throwsJson = s.boardThrows.joinToString(",") { t ->
                         "{\"segment\":{\"name\":\"${t.name}\"}" + (if (t.x != null && t.y != null) ",\"coords\":{\"x\":${t.x},\"y\":${t.y},\"unit\":\"mm\"}" else "") + "}"
                     }
-                    respond(out, "application/json; charset=utf-8", "{\"status\":\"${s.boardStatus}\",\"numThrows\":${s.boardThrows.size},\"throws\":[$throwsJson]}")
+                    val tipsJson = s.boardTips.joinToString(",") { "{\"x\":${it.x},\"y\":${it.y},\"conf\":${it.conf}}" }
+                    respond(out, "application/json; charset=utf-8", "{\"status\":\"${s.boardStatus}\",\"numThrows\":${s.boardThrows.size},\"throws\":[$throwsJson],\"tipSeq\":${s.tipSeq},\"tips\":[$tipsJson]}")
                 }
                 path.startsWith("/api/") -> {
                     onCommand("board:" + path.removePrefix("/api/").substringBefore("?").substringBefore("/"))

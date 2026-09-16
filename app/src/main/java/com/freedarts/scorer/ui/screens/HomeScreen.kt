@@ -118,7 +118,7 @@ fun HomeScreen(vm: AppViewModel) {
             // Weiter spielen: letzte Einstellungen und Spieler, ein Tipp
             Box(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
-                    .background(Brush.linearGradient(DartColors.Hero))
+                    .background(Brush.linearGradient(DartColors.Hero)).border(1.dp, DartColors.CardBorder, RoundedCornerShape(16.dp))
                     .clickable { if (running) vm.navigate(Screen.Match) else vm.playNow() },
             ) {
                 // Karte wächst mit dem Inhalt, Board bleibt komplett innerhalb (kein Offset, kein Abschneiden)
@@ -143,7 +143,7 @@ fun HomeScreen(vm: AppViewModel) {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Box(
                     Modifier.weight(1f).height(96.dp).clip(RoundedCornerShape(16.dp))
-                        .background(Brush.linearGradient(DartColors.TileNew)).clickable { vm.navigate(Screen.Lobby) },
+                        .background(Brush.linearGradient(DartColors.TileNew)).border(1.dp, DartColors.CardBorder, RoundedCornerShape(16.dp)).clickable { vm.navigate(Screen.Lobby) },
                 ) {
                     Column(Modifier.fillMaxSize().padding(14.dp), verticalArrangement = Arrangement.Center) {
                         Text("NEUES SPIEL", fontFamily = Condensed, fontWeight = FontWeight.Bold, fontSize = 22.sp)
@@ -152,7 +152,7 @@ fun HomeScreen(vm: AppViewModel) {
                 }
                 Box(
                     Modifier.weight(1f).height(96.dp).clip(RoundedCornerShape(16.dp))
-                        .background(Brush.linearGradient(DartColors.TileFind)).clickable { vm.findOpponent() },
+                        .background(Brush.linearGradient(DartColors.TileFind)).border(1.dp, DartColors.CardBorder, RoundedCornerShape(16.dp)).clickable { vm.findOpponent() },
                 ) {
                     Column(Modifier.fillMaxSize().padding(14.dp), verticalArrangement = Arrangement.Center) {
                         Text("GEGNER FINDEN", fontFamily = Condensed, fontWeight = FontWeight.Bold, fontSize = 22.sp)
@@ -182,6 +182,31 @@ fun HomeScreen(vm: AppViewModel) {
                         )
                     }
                     Chip(if (onlineLobby != null) "Lobby" else if (loggedIn) "Online" else "Login")
+                }
+            }
+
+            Spacer(Modifier.height(10.dp))
+            // Mit Freunden spielen (Freundesliste, Einladen) und Geräte (Remote Scoring, zweites Handy, Lens)
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Box(
+                    Modifier.weight(1f).height(96.dp).clip(RoundedCornerShape(16.dp))
+                        .background(Brush.linearGradient(DartColors.TileFind)).border(1.dp, DartColors.CardBorder, RoundedCornerShape(16.dp))
+                        .clickable { vm.navigate(if (loggedIn) Screen.Friends else Screen.Online) },
+                ) {
+                    Column(Modifier.fillMaxSize().padding(14.dp), verticalArrangement = Arrangement.Center) {
+                        Text("MIT FREUNDEN", fontFamily = Condensed, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+                        Text(if (friendsOnline > 0) "$friendsOnline online · einladen" else if (loggedIn) "Einladen, zuschauen" else "Anmelden, dann einladen", fontSize = 12.sp, color = DartColors.OnTileMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+                Box(
+                    Modifier.weight(1f).height(96.dp).clip(RoundedCornerShape(16.dp))
+                        .background(Brush.linearGradient(DartColors.TileNew)).border(1.dp, DartColors.CardBorder, RoundedCornerShape(16.dp))
+                        .clickable { vm.navigate(Screen.Devices) },
+                ) {
+                    Column(Modifier.fillMaxSize().padding(14.dp), verticalArrangement = Arrangement.Center) {
+                        Text("GERÄTE", fontFamily = Condensed, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+                        Text("Remote Scoring, zweites Handy", fontSize = 12.sp, color = DartColors.OnTileMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
                 }
             }
 

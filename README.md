@@ -535,6 +535,9 @@ selben WLAN:
   Score, Legs/Sets, laufende Aufnahme und Banner liegen live über deinem Kamerabild. Für Twitch/YouTube reicht das,
   ein eigener Dienst ist nicht nötig.
 
+Schnellster Weg dorthin: auf dem Home-Screen die Kachel **Geräte** (Remote Scoring, zweites Handy, Lens) – oder in der Lobby unter
+*Autoscoring › Zweites Handy / Remote Scoring*. Daneben liegt **Mit Freunden**: Freundesliste, einladen, zuschauen.
+
 ### Zweitgerät koppeln
 Ein zweites Handy kann das Spiel des Board-Handys anzeigen und bedienen:
 
@@ -845,7 +848,7 @@ Anmelden/Abmelden, Server eintragen.
 | *Erweitert:* Chalkboard anzeigen | Kreidetafel mit dem Aufnahme-Verlauf |
 | *Erweitert:* Bildschirm anlassen | Display bleibt während des Spiels an |
 | *Erweitert:* Darts Zoom im Kamerabild | aktuelle Aufnahme groß über dem Kamerabild |
-| Design | **System**, **Hell** oder **Dunkel**. Hell = das Rework „Hell & klar“ (Papier, Tinte, Signalrot), Dunkel = der bisherige Look; Logo und Dartscheibe sind in beiden gleich |
+| Design | **System**, **Hell** oder **Dunkel**. Hell = das Rework „Hell & klar“ (warmes Papier, Tinte, Signalrot, Karten mit Kante), Dunkel = der bisherige Look; Logo und Dartscheibe sind in beiden gleich |
 | *Erweitert:* Animationen und Match-Intro | Intro, Gewinn-, Bust- und Caller-Animationen, Übergänge zwischen Screens, animierte Scores |
 | *Erweitert:* Vibration bei Dart, Undo, Next | kurzes haptisches Feedback, auch wenn Lens einen Dart erkennt |
 | *Erweitert:* Bot-Wurfpause | Pause zwischen Bot-Würfen (0,2–2 s) |

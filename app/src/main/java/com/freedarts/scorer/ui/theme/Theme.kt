@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.key
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
@@ -47,6 +48,8 @@ class Palette(
     val Overlay: Color, val OnOverlay: Color, val Intro: Color,
     val ChipSelected: Color, val OnChipSelected: Color, val ChipText: Color, val Divider: Color, val BarButton: Color, val PillEmpty: Color,
     val CricketBg: Color, val CricketFg: Color,
+    /** 1dp-Kante um Karten und Kacheln (dunkel: unsichtbar). */
+    val CardBorder: Color,
 ) {
     val Blue: Color get() = Primary
     val Active: Color get() = Primary
@@ -67,23 +70,26 @@ val DarkPalette = Palette(
     Overlay = Color(0xD90D1119), OnOverlay = Color.White, Intro = Color(0xF00B1220),
     ChipSelected = Color.White, OnChipSelected = Color(0xFF0B1220), ChipText = Color(0xFFC7CDD8), Divider = Color(0xFF1F5A46), BarButton = Color(0xFF1C2740), PillEmpty = Color(0xFF7B8496),
     CricketBg = Color(0xFF1B2C5E), CricketFg = Color(0xFF4C8DFF),
+    CardBorder = Color.Transparent,
 )
 
 val LightPalette = Palette(
     isDark = false,
-    Background = Color(0xFFF7F5F0), Band = Color.Transparent, Surface = Color(0xFFFFFFFF), SurfaceHigh = Color(0xFFEEEAE2), SurfaceDeep = Color(0xFFE4E0D8), Outline = Color(0xFFE4E0D8),
+    // Band/Swoosh in Hintergrundfarbe statt transparent: Transparent.copy(alpha) wäre schwarz-grau
+    Background = Color(0xFFEDE9E1), Band = Color(0xFFEDE9E1), Surface = Color(0xFFF7F4EE), SurfaceHigh = Color(0xFFE3DED4), SurfaceDeep = Color(0xFFD8D2C6), Outline = Color(0xFFCFC8BC),
     Primary = Color(0xFFE5484D), PrimaryDark = Color(0xFFB93A3E), PrimaryLight = Color(0xFFC43A3F),
     Teal = Color(0xFF0F9B87), Lime = Color(0xFF1FB58F), Green = Color(0xFF15803D), GreenDark = Color(0xFFDCFCE7), Red = Color(0xFFE5484D), RedDark = Color(0xFFFDE2E2),
     Purple = Color(0xFF6D28D9), PurpleDark = Color(0xFFEDE9FE), Orange = Color(0xFFD97706), OrangeDark = Color(0xFFFFEDD5), PartyLime = Color(0xFF4D7C0F), PartyDark = Color(0xFFECFCCB),
-    Magenta = Color(0xFFFFFFFF), MagentaMid = Color(0xFFFFFFFF), Violet = Color(0xFFFFFFFF), Pink = Color(0xFFE9A8E4), Cream = Color(0xFFF1E9D2), Black = Color(0xFF14161B), Accent = Color(0xFFB45309),
-    TextMuted = Color(0xFF5C6370), Text = Color(0xFF14161B), BottomBar = Color(0xFFFFFFFF),
+    Magenta = Color(0xFFF7F4EE), MagentaMid = Color(0xFFF7F4EE), Violet = Color(0xFFF7F4EE), Pink = Color(0xFFE9A8E4), Cream = Color(0xFFF1E9D2), Black = Color(0xFF14161B), Accent = Color(0xFFB45309),
+    TextMuted = Color(0xFF5C6370), Text = Color(0xFF14161B), BottomBar = Color(0xFFF7F4EE),
     OnActive = Color(0xFF14161B), ActiveBar = Color(0xFFE5484D),
     OnTint = Color(0xFF14161B), OnTileMuted = Color(0xFF5C6370),
-    Hero = listOf(Color(0xFFFFFFFF), Color(0xFFFFFFFF)), TileNew = listOf(Color(0xFFFFFFFF), Color(0xFFFFFFFF)), TileFind = listOf(Color(0xFFFFFFFF), Color(0xFFFFFFFF)),
-    TileOnline = listOf(Color(0xFF14161B), Color(0xFF14161B)), Swoosh = listOf(Color.Transparent, Color.Transparent, Color.Transparent), HeroPill = Color(0xFFEEEAE2),
-    Overlay = Color(0xE6FFFFFF), OnOverlay = Color(0xFF14161B), Intro = Color(0xF0F7F5F0),
-    ChipSelected = Color(0xFF14161B), OnChipSelected = Color.White, ChipText = Color(0xFF5C6370), Divider = Color(0xFFE4E0D8), BarButton = Color(0xFFEEEAE2), PillEmpty = Color(0xFF9AA3B5),
+    Hero = listOf(Color(0xFFF7F4EE), Color(0xFFF7F4EE)), TileNew = listOf(Color(0xFFF7F4EE), Color(0xFFF7F4EE)), TileFind = listOf(Color(0xFFF7F4EE), Color(0xFFF7F4EE)),
+    TileOnline = listOf(Color(0xFF14161B), Color(0xFF14161B)), Swoosh = listOf(Color(0xFFEDE9E1), Color(0xFFEDE9E1), Color(0xFFEDE9E1)), HeroPill = Color(0xFFE3DED4),
+    Overlay = Color(0xE6F7F4EE), OnOverlay = Color(0xFF14161B), Intro = Color(0xF0EDE9E1),
+    ChipSelected = Color(0xFF14161B), OnChipSelected = Color.White, ChipText = Color(0xFF5C6370), Divider = Color(0xFFD8D2C6), BarButton = Color(0xFFE3DED4), PillEmpty = Color(0xFF9AA3B5),
     CricketBg = Color(0xFFDBEAFE), CricketFg = Color(0xFF1D4ED8),
+    CardBorder = Color(0xFFD8D2C6),
 )
 
 // ponytail: eine globale, beim Theme-Wechsel getauschte Palette (alle Aufrufer lesen DartColors.X wie bisher);
@@ -158,6 +164,8 @@ fun FreeDartsTheme(mode: String = "dark", content: @Composable () -> Unit) {
         (view.context as? Activity)?.window?.let { w ->
             WindowCompat.getInsetsController(w, view).isAppearanceLightStatusBars = !dark
             WindowCompat.getInsetsController(w, view).isAppearanceLightNavigationBars = !dark
+            // Fensterhintergrund (Bereich hinter Status-/Navigationsleiste) in Theme-Farbe statt fest dunkel
+            w.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(DartColors.Background.toArgb()))
         }
     }
     MaterialTheme(colorScheme = scheme(DartColors), typography = typography, shapes = shapes) { key(dark) { content() } }

@@ -195,6 +195,17 @@ fun LobbyScreen(vm: AppViewModel) {
                         }
                         if (settings.boardManagerEnabled) Text("✓", color = DartColors.Teal, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.TopEnd))
                     }
+                    Box(Modifier.fillMaxWidth().border(1.dp, if (settings.remoteEnabled || settings.remotePairedUrl.isNotBlank()) DartColors.Teal else DartColors.Outline, RoundedCornerShape(12.dp)).clickable { vm.navigate(Screen.Devices) }.padding(12.dp)) {
+                        Column {
+                            Text("Zweites Handy / Remote Scoring", fontWeight = FontWeight.SemiBold, color = if (settings.remoteEnabled || settings.remotePairedUrl.isNotBlank()) DartColors.Text else DartColors.PrimaryLight)
+                            Text(when {
+                                settings.remotePairedUrl.isNotBlank() -> "Gekoppelt mit ${settings.remotePairedUrl.removePrefix("http://")}"
+                                settings.remoteEnabled -> "Remote Scoring läuft – Anzeige im Browser oder am Zweitgerät"
+                                else -> "Spielansicht auf Tablet/TV, Zweitgerät koppeln, zweite Kamera"
+                            }, color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
+                        }
+                        if (settings.remoteEnabled || settings.remotePairedUrl.isNotBlank()) Text("✓", color = DartColors.Teal, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.TopEnd))
+                    }
                 }
             }
             Spacer(Modifier.height(70.dp))

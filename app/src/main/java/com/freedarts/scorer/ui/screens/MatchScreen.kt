@@ -43,6 +43,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -267,6 +268,7 @@ fun MatchScreen(vm: AppViewModel) {
         }
 
         // Untere Leiste wie bei Autodarts: Eingabe-Umschalter, Undo, großer Next-Button. Korrektur: Dart in der Aufnahme-Leiste antippen.
+        androidx.compose.material3.HorizontalDivider(color = DartColors.CardBorder, thickness = 1.dp)
         Row(Modifier.fillMaxWidth().background(DartColors.BottomBar).padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             var inputMenu by remember { mutableStateOf(false) }
             val cameraShown = inputMethod == InputMethod.BOARD && lensOn && showCamera
@@ -427,8 +429,13 @@ private fun LiveOverlays(lens: LensController.Status?, dartsInVisit: Int, checko
 /** Spielerkarte: aktiver Spieler im Magenta-Verlauf, großer Score, Sets/Legs-Kästchen, Leg-/Match-Average, Darts. */
 @Composable
 fun ScoreCard(p: PlayerState, active: Boolean, showLegs: Boolean, showSets: Boolean, modifier: Modifier = Modifier, compact: Boolean = false) {
-    val bg = if (active) Modifier.background(Brush.linearGradient(listOf(DartColors.Magenta, DartColors.MagentaMid, DartColors.Violet)), RoundedCornerShape(6.dp))
-    else Modifier.background(DartColors.Surface, RoundedCornerShape(6.dp))
+    val shape = RoundedCornerShape(6.dp)
+    val bg = Modifier.clip(shape).then(
+        if (active) Modifier.background(Brush.linearGradient(listOf(DartColors.Magenta, DartColors.MagentaMid, DartColors.Violet)), shape)
+        else Modifier.background(DartColors.Surface, shape)
+    ).border(1.dp, DartColors.CardBorder, shape)
+        // Helles Theme: aktiver Spieler mit farbiger Oberkante statt Verlauf
+        .then(if (active && !DartColors.isDark) Modifier.drawBehind { drawRect(DartColors.ActiveBar, size = androidx.compose.ui.geometry.Size(size.width, 4.dp.toPx())) } else Modifier)
     val parts = p.detail.split("|")
     val avgText = parts[0]; val dartsText = parts.getOrNull(1)
     Column(modifier.then(bg).padding(start = 12.dp, end = 12.dp, top = 10.dp, bottom = 8.dp)) {

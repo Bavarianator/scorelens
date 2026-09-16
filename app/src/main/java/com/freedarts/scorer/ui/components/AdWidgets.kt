@@ -108,7 +108,7 @@ fun SectionLabel(text: String, modifier: Modifier = Modifier, size: Int = 22, tr
 
 @Composable
 fun AdCard(modifier: Modifier = Modifier, onClick: (() -> Unit)? = null, padding: Int = 14, background: Color = DartColors.Surface, content: @Composable ColumnScope.() -> Unit) {
-    var m = modifier.fillMaxWidth().background(background, RoundedCornerShape(16.dp))
+    var m = modifier.fillMaxWidth().background(background, RoundedCornerShape(16.dp)).border(1.dp, DartColors.CardBorder, RoundedCornerShape(16.dp))
     if (onClick != null) m = m.clickable(onClick = onClick)
     Column(m.padding(padding.dp), content = content)
 }

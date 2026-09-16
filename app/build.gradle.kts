@@ -26,8 +26,8 @@ android {
         applicationId = "com.freedarts.scorer"
         minSdk = 26
         targetSdk = 36
-        versionCode = 11
-        versionName = "1.0.0-beta.11"
+        versionCode = 12
+        versionName = "1.0.0-beta.12"
         vectorDrawables { useSupportLibrary = true }
 
         // Voreinstellung für den Online-Modus (optional): in gradle.properties oder ~/.gradle/gradle.properties

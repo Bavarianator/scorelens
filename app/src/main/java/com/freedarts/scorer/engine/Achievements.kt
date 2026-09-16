@@ -9,7 +9,8 @@ import com.freedarts.scorer.model.MatchRecord
  */
 object Achievements {
 
-    data class Achievement(val title: String, val description: String, val progress: Int, val goal: Int) {
+    /** [tier] 1 = Bronze, 2 = Silber, 3 = Gold; [icon] ein Emoji für die Medaille. */
+    data class Achievement(val title: String, val description: String, val progress: Int, val goal: Int, val icon: String, val tier: Int) {
         val done: Boolean get() = progress >= goal
     }
 
@@ -25,22 +26,22 @@ object Achievements {
         val bestAvg = x01.filter { it.dartsThrown >= 15 }.maxOfOrNull { it.average3 } ?: 0.0
         fun n(v: Int, goal: Int) = v.coerceAtMost(goal)
         return listOf(
-            Achievement("Erstes Match", "Ein Spiel abgeschlossen", n(mine.size, 1), 1),
-            Achievement("Stammgast", "50 Spiele", n(mine.size, 50), 50),
-            Achievement("Marathon", "250 Spiele", n(mine.size, 250), 250),
-            Achievement("Sieger", "10 Siege", n(wins, 10), 10),
-            Achievement("Dominator", "100 Siege", n(wins, 100), 100),
-            Achievement("Serie", "5 Siege in Folge", n(best, 5), 5),
-            Achievement("180!", "Erstes Maximum", n(x01.sumOf { it.count180 }, 1), 1),
-            Achievement("180-Sammler", "25 × 180", n(x01.sumOf { it.count180 }, 25), 25),
-            Achievement("Ton-Finish", "Checkout ab 100", if (highFinish >= 100) 1 else 0, 1),
-            Achievement("Big Fish", "170er Finish", if (highFinish >= 170) 1 else 0, 1),
-            Achievement("Ø 50", "Match-Average über 50", if (bestAvg >= 50) 1 else 0, 1),
-            Achievement("Ø 70", "Match-Average über 70", if (bestAvg >= 70) 1 else 0, 1),
-            Achievement("15-Darter", "Leg in 15 Darts oder weniger", if (bestLeg <= 15) 1 else 0, 1),
-            Achievement("9-Darter", "Das perfekte Leg", if (bestLeg <= 9) 1 else 0, 1),
-            Achievement("Allrounder", "5 verschiedene Modi gespielt", n(mine.map { it.mode }.distinct().size, 5), 5),
-            Achievement("Fleißig", "25 Trainingsspiele", n(mine.count { it.mode.category == GameMode.Category.PRACTICE }, 25), 25),
+            Achievement("Erstes Match", "Ein Spiel abgeschlossen", n(mine.size, 1), 1, "🎯", 1),
+            Achievement("Stammgast", "50 Spiele", n(mine.size, 50), 50, "🍺", 2),
+            Achievement("Marathon", "250 Spiele", n(mine.size, 250), 250, "🏃", 3),
+            Achievement("Sieger", "10 Siege", n(wins, 10), 10, "🏆", 1),
+            Achievement("Dominator", "100 Siege", n(wins, 100), 100, "👑", 3),
+            Achievement("Serie", "5 Siege in Folge", n(best, 5), 5, "🔥", 2),
+            Achievement("180!", "Erstes Maximum", n(x01.sumOf { it.count180 }, 1), 1, "💯", 2),
+            Achievement("180-Sammler", "25 × 180", n(x01.sumOf { it.count180 }, 25), 25, "💎", 3),
+            Achievement("Ton-Finish", "Checkout ab 100", if (highFinish >= 100) 1 else 0, 1, "🎰", 2),
+            Achievement("Big Fish", "170er Finish", if (highFinish >= 170) 1 else 0, 1, "🐟", 3),
+            Achievement("Ø 50", "Match-Average über 50", if (bestAvg >= 50) 1 else 0, 1, "📈", 1),
+            Achievement("Ø 70", "Match-Average über 70", if (bestAvg >= 70) 1 else 0, 1, "🚀", 3),
+            Achievement("15-Darter", "Leg in 15 Darts oder weniger", if (bestLeg <= 15) 1 else 0, 1, "⚡", 2),
+            Achievement("9-Darter", "Das perfekte Leg", if (bestLeg <= 9) 1 else 0, 1, "🦄", 3),
+            Achievement("Allrounder", "5 verschiedene Modi gespielt", n(mine.map { it.mode }.distinct().size, 5), 5, "🧩", 1),
+            Achievement("Fleißig", "25 Trainingsspiele", n(mine.count { it.mode.category == GameMode.Category.PRACTICE }, 25), 25, "🎓", 2),
         )
     }
 }

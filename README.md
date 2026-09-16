@@ -15,7 +15,7 @@ supabase.com oder einen selbst gehosteten Server (Docker, läuft sogar auf einem
 | | |
 |---|---|
 | **Plattform** | Android 8.0 (API 26) oder neuer |
-| **Version** | `1.0.0-beta.11` |
+| **Version** | `1.0.0-beta.12` |
 | **Kosten** | kostenlos, keine Werbung, kein Abo |
 | **Konto** | nicht nötig (nur für den Online-Modus) |
 | **Autoscoring** | Handykamera (Lens), Autodarts Board Manager oder zweites Scorelens-Handy |

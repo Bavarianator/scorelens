@@ -476,11 +476,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** Dart der laufenden (oder zuletzt abgeschlossenen) Aufnahme korrigieren – wie die Dart-Korrektur bei Autodarts. */
-    fun correctDart(index: Int, segment: Segment) {
+    fun correctDart(index: Int, segment: Segment, x: Float? = null, y: Float? = null) {
         val g = game ?: return
         if (onlineMatch != null) return // Online: Protokoll ist für alle verbindlich, nur Undo
         botJob?.cancel()
-        if (g.correctDart(index, segment)) { refresh(); caller.beep(); track("dart_corrected", "input" to inputSource()) }
+        // Lens-Dart der laufenden Aufnahme: Trainingsbild mit der korrigierten Spitze sichern (Position aus dem Tipp aufs Board)
+        val fromLens = _gameState.value?.currentVisit?.let { it.isNotEmpty() && lens.detections.value.size == it.size } == true
+        if (g.correctDart(index, segment, x, y)) {
+            refresh(); caller.beep(); track("dart_corrected", "input" to inputSource())
+            if (fromLens) lens.relabel(index, segment, x, y)
+        }
         if (g.players[g.current].isBot && !g.finished) scheduleBot()
     }
 

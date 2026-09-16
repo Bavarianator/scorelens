@@ -351,7 +351,8 @@ fun MatchScreen(vm: AppViewModel) {
                         Chip(if (useBoard) "Grid" else "Board", selected = false) { useBoard = !useBoard }
                     }
                     Spacer(Modifier.height(8.dp))
-                    if (useBoard) Dartboard(Modifier.fillMaxWidth(), darts = current?.let { listOf(it) } ?: emptyList(), enabled = true) { seg -> vm.correctDart(correctIndex, seg); correctIndex = -1 }
+                    if (useBoard) Dartboard(Modifier.fillMaxWidth(), darts = current?.let { listOf(it) } ?: emptyList(), enabled = true,
+                        onTap = { seg, x, y -> vm.correctDart(correctIndex, seg, x, y); correctIndex = -1 }) { seg -> vm.correctDart(correctIndex, seg); correctIndex = -1 }
                     else SegmentGrid(enabled = true, compact = true) { seg -> vm.correctDart(correctIndex, seg); correctIndex = -1 }
                 }
             },

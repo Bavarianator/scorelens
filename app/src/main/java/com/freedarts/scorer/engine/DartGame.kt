@@ -83,14 +83,13 @@ abstract class DartGame(
     private fun lastThrowIndices(n: Int): List<Int> =
         events.indices.reversed().filter { events[it] is GameEvent.Throw }.take(n).reversed()
 
-    /** Ersetzt den Dart mit Index [index] (siehe [correctableDarts]) und spielt das Spiel neu ab. */
-    fun correctDart(index: Int, segment: Segment): Boolean {
+    /** Ersetzt den Dart mit Index [index] (siehe [correctableDarts]) und spielt das Spiel neu ab; [x]/[y] = neue Position in Board-mm, wenn per Tipp aufs Board korrigiert. */
+    fun correctDart(index: Int, segment: Segment, x: Float? = null, y: Float? = null): Boolean {
         val n = if (visit.isNotEmpty()) visit.size else lastVisitThrows
         val idx = lastThrowIndices(n)
         if (index !in idx.indices) return false
         val old = events[idx[index]] as GameEvent.Throw
-        // Korrigierter Dart: Position ist nicht mehr bekannt
-        events[idx[index]] = GameEvent.Throw(segment, null, null, old.at, old.hold)
+        events[idx[index]] = GameEvent.Throw(segment, x, y, old.at, old.hold)
         rebuild()
         return true
     }
@@ -126,7 +125,7 @@ abstract class DartGame(
         banner = null
         visit.add(segment)
         dartsThrown[current]++
-        _throwLog.add(ThrowRecord(current, currentSet, currentLeg, round, segment.number, segment.multiplier, x, y, false, at))
+        _throwLog.add(ThrowRecord(current, currentSet, currentLeg, round, segment.number, segment.multiplier, x, y, false, at, aim = botAim().name))
         val endVisit = onDart(segment)
         if (finished) return
         if (endVisit || visit.size >= 3) {

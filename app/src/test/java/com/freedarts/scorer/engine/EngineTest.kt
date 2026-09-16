@@ -42,6 +42,15 @@ class EngineTest {
         assertEquals(2, Checkout.bestRoute(100, 3, OutMode.DOUBLE)!!.size)
     }
 
+    @Test fun correctDartKeepsTappedPosition() {
+        val g = X01Game(listOf(a, b), GameSettings(baseScore = 501), seed = 1)
+        g.throwDart(Segment.triple(20), 1f, 103f)
+        assertTrue(g.correctDart(0, Segment.triple(19), -50f, -90f))
+        val t = g.throwLog.last()
+        assertEquals(19, t.number); assertEquals(-50f, t.x); assertEquals(-90f, t.y)
+        assertEquals("444", g.snapshot().players[0].score)
+    }
+
     @Test fun x01HandicapStartScores() {
         val g = X01Game(listOf(a, b), GameSettings(baseScore = 501, handicaps = mapOf("b" to 401), legs = 2), seed = 1)
         assertEquals("501", g.snapshot().players[0].score); assertEquals("401", g.snapshot().players[1].score)

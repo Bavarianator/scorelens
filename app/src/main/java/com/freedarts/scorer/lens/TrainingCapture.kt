@@ -31,14 +31,29 @@ class TrainingCapture(context: Context) {
         /** Boxgröße wie bei dart-sense / DeepDarts (2,5 % der Bildkante). */
         const val BOX = 0.025
         const val JPEG_QUALITY = 92
+
+        /** Label nach einer Korrektur: die Spitze, die [oldX]/[oldY] am nächsten liegt, wird durch [new] ersetzt (null = entfernt). */
+        fun relabeled(res: YoloDartModel.Result, oldX: Double, oldY: Double, new: YoloDartModel.Point?): YoloDartModel.Result {
+            val darts = res.darts.toMutableList()
+            val i = darts.indices.minByOrNull { kotlin.math.hypot(darts[it].x - oldX, darts[it].y - oldY) }
+            when {
+                i == null -> if (new != null) darts.add(new)
+                new != null -> darts[i] = new
+                else -> darts.removeAt(i)
+            }
+            return res.copy(darts = darts)
+        }
     }
 
-    /** Speichert [frame] (Koordinaten von [res] in Frame-Pixeln) samt Label. Läuft im Aufrufer-Thread. */
-    fun save(frame: RgbFrame, res: YoloDartModel.Result) {
-        if (!enabled || count >= MAX_FILES) return
+    /**
+     * Speichert [frame] (Koordinaten von [res] in Frame-Pixeln) samt Label. Läuft im Aufrufer-Thread.
+     * [force] = korrigierter Dart: wird auch ohne den Schalter gespeichert, als `fix_*` (vom Menschen bestätigtes Label).
+     */
+    fun save(frame: RgbFrame, res: YoloDartModel.Result, force: Boolean = false) {
+        if ((!enabled && !force) || count >= MAX_FILES) return
         try {
             images.mkdirs(); labels.mkdirs()
-            val name = String.format(Locale.US, "lens_%d", System.currentTimeMillis())
+            val name = String.format(Locale.US, if (force) "fix_%d" else "lens_%d", System.currentTimeMillis())
             // Alpha erzwingen, sonst würde ARGB_8888 die Farben vormultiplizieren (schwarzes Bild)
             val px = IntArray(frame.pixels.size) { frame.pixels[it] or 0xFF000000.toInt() }
             val bmp = Bitmap.createBitmap(px, frame.width, frame.height, Bitmap.Config.ARGB_8888)

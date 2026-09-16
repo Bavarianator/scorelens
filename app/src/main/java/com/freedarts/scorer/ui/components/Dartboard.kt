@@ -33,6 +33,8 @@ fun Dartboard(
     darts: List<Segment> = emptyList(),
     highlight: Set<Segment> = emptySet(),
     enabled: Boolean = true,
+    /** Tipp mit Position in Board-mm (Mitte 0/0, y nach oben); wenn gesetzt, ersetzt es [onSegment]. */
+    onTap: ((Segment, Float, Float) -> Unit)? = null,
     onSegment: (Segment) -> Unit,
 ) {
     val textPaint = remember {
@@ -54,7 +56,8 @@ fun Dartboard(
                     val scale = (min(size.width, size.height) / 2f) / Board.BOARD_RADIUS.toFloat()
                     val xmm = (pos.x - cx) / scale
                     val ymm = -(pos.y - cy) / scale
-                    onSegment(Board.segmentAt(xmm.toDouble(), ymm.toDouble()))
+                    val seg = Board.segmentAt(xmm.toDouble(), ymm.toDouble())
+                    onTap?.invoke(seg, xmm, ymm) ?: onSegment(seg)
                 }
             }
     ) {

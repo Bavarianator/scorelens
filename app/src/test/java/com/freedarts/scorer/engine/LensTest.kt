@@ -11,6 +11,15 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 class LensTest {
+    @Test fun relabelReplacesNearestTipOrRemovesIt() {
+        val p = { x: Double, y: Double -> com.freedarts.scorer.lens.YoloDartModel.Point(x, y, 0.7f) }
+        val res = com.freedarts.scorer.lens.YoloDartModel.Result(emptyMap(), listOf(p(100.0, 100.0), p(300.0, 300.0)), 0)
+        val moved = com.freedarts.scorer.lens.TrainingCapture.relabeled(res, 105.0, 98.0, p(120.0, 110.0))
+        assertEquals(listOf(120.0, 300.0), moved.darts.map { it.x })
+        val removed = com.freedarts.scorer.lens.TrainingCapture.relabeled(res, 290.0, 310.0, null)
+        assertEquals(listOf(100.0), removed.darts.map { it.x })
+    }
+
     private val w = 240; private val h = 320
 
     /** Synthetische Kamera: Board-mm → Bildpixel (Skalierung, Verschiebung, leichte Perspektive). */

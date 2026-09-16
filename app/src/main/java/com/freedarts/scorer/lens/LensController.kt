@@ -93,7 +93,10 @@ class LensController(private val context: Context) {
      */
     data class Detection(val segment: Segment, val imageX: Float, val imageY: Float, val snapshot: Bitmap? = null, val tipX: Float = 0.5f, val tipY: Float = 0.5f,
         /** Auftreffpunkt in Board-Millimetern (Mitte 0/0), für Heatmap und /api/state. */
-        val boardX: Float? = null, val boardY: Float? = null)
+        val boardX: Float? = null, val boardY: Float? = null,
+        /** Ausschnitt und Modellergebnis dieser Erkennung – für [relabel] nach einer Korrektur. */
+        // ponytail: bis zu 3 Ausschnitte (~4 MB je) im Speicher; bei Speicherdruck nur JPEG-Bytes halten
+        val frame: RgbFrame? = null, val result: YoloDartModel.Result? = null)
     /** Erkannter Wurf mit Auftreffpunkt in Board-Millimetern (Mitte 0/0). */
     data class Throw(val segment: Segment, val boardX: Float? = null, val boardY: Float? = null)
 
@@ -390,11 +393,11 @@ class LensController(private val context: Context) {
         }
     }
 
-    private fun emit(ev: DartDetector.Event?) {
+    private fun emit(ev: DartDetector.Event?, frame: RgbFrame? = null, result: YoloDartModel.Result? = null) {
         when (ev) {
             is DartDetector.Event.Dart -> {
                 val snap = snapshot(ev.imageX, ev.imageY)
-                _detections.value = (_detections.value + Detection(ev.segment, ev.imageX, ev.imageY, snap?.first, snap?.second ?: 0.5f, snap?.third ?: 0.5f, ev.boardX.toFloat(), ev.boardY.toFloat())).takeLast(3)
+                _detections.value = (_detections.value + Detection(ev.segment, ev.imageX, ev.imageY, snap?.first, snap?.second ?: 0.5f, snap?.third ?: 0.5f, ev.boardX.toFloat(), ev.boardY.toFloat(), frame, result)).takeLast(3)
                 _throws.tryEmit(Throw(ev.segment, ev.boardX.toFloat(), ev.boardY.toFloat()))
             }
             DartDetector.Event.Takeout -> { _detections.value = emptyList(); tips.reset(); _takeout.tryEmit(Unit) }
@@ -417,7 +420,7 @@ class LensController(private val context: Context) {
             val ev = tips.onTips(list, lastFrame, System.currentTimeMillis())
             // Trainingsdaten: genau der Ausschnitt, den das Modell gesehen hat, sobald ein Dart bestätigt ist
             if (ev is DartDetector.Event.Dart && training.enabled) aiExecutor.execute { training.save(rgb, res) }
-            emit(ev)
+            emit(ev, rgb, res)
             publish()
         }
     }
@@ -465,7 +468,7 @@ class LensController(private val context: Context) {
         val rotW = if (lastRotation == 90 || lastRotation == 270) cameraH else cameraW
         val rotH = if (lastRotation == 90 || lastRotation == 270) cameraW else cameraH
         if (crop != null && rotW > 0) {
-            val (px, py) = crop.fromUpright.map(ax.toDouble() * rotW / frameWidth, ay.toDouble() * rotH / frameHeight)
+            val (px, py) = cropPoint(crop, ax.toDouble(), ay.toDouble())
             val half = (detector.boardRadiusPx * rotW / frameWidth * 0.16 / crop.scale).toInt().coerceIn(40, 400)
             window(crop.pixels, crop.width, crop.height, px.toInt(), py.toInt(), half)
         } else {
@@ -482,6 +485,29 @@ class LensController(private val context: Context) {
         val out = IntArray(ww * hh)
         for (y in 0 until hh) for (x in 0 until ww) out[y * ww + x] = src[(y + y0) * w + x + x0] or (0xFF shl 24)
         return Triple(Bitmap.createBitmap(out, ww, hh, Bitmap.Config.ARGB_8888), (cx - x0).toFloat() / ww, (cy - y0).toFloat() / hh)
+    }
+
+    /** Analyse-Koordinaten → Pixel des KI-Ausschnitts [crop] (Umkehrung von [analysisPoint]). */
+    private fun cropPoint(crop: RgbFrame, ax: Double, ay: Double): Pair<Double, Double> {
+        val rotW = if (lastRotation == 90 || lastRotation == 270) cameraH else cameraW
+        val rotH = if (lastRotation == 90 || lastRotation == 270) cameraW else cameraH
+        return crop.fromUpright.map(ax * rotW / frameWidth, ay * rotH / frameHeight)
+    }
+
+    /**
+     * Korrektur eines Lens-Darts ([index] in [detections]): das Bild, das das Modell sah, wird mit dem richtigen Label
+     * gespeichert – unabhängig von „Trainingsdaten sammeln“, denn Fehlerkennungen sind das wertvollste Feintuning-Material.
+     * [xmm]/[ymm] = neue Spitze in Board-mm; null oder Miss = Spitze entfernen (Negativbeispiel).
+     */
+    fun relabel(index: Int, segment: Segment, xmm: Float?, ymm: Float?) {
+        val det = detections.value.getOrNull(index) ?: return
+        val frame = det.frame ?: return
+        val res = det.result ?: return
+        val b2i = detector.boardToImage ?: return
+        val old = cropPoint(frame, det.imageX.toDouble(), det.imageY.toDouble())
+        val new = if (xmm == null || ymm == null || segment.isMiss) null
+            else b2i.map(xmm.toDouble(), ymm.toDouble()).let { (ax, ay) -> cropPoint(frame, ax - 0.5, ay - 0.5) }.let { (px, py) -> YoloDartModel.Point(px, py, 1f) }
+        aiExecutor.execute { training.save(frame, TrainingCapture.relabeled(res, old.first, old.second, new), force = true) }
     }
 
     /** Punkt eines KI-Bilds ([frame]-Pixel) → Analyse-Koordinaten. */

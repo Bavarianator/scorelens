@@ -400,6 +400,9 @@ getroffen wird, scheidet aus. Der letzte Spieler gewinnt. Trefferart einstellbar
 
 ### Korrigieren
 - **Dart-Pill antippen** → Segment auf dem virtuellen Board neu wählen („Quick Correction: ein Tap = neuer Dart“).
+  Ein Tipp auf das Board übernimmt auch die **Position** (bleibt im Trefferbild), und bei einem Lens-Dart wird das
+  Kamerabild mit dem korrigierten Label als `fix_*` in den Trainingsordner gelegt – auch ohne „Trainingsdaten sammeln“.
+  So wird jede Fehlerkennung automatisch zum Feintuning-Beispiel.
 - **Letzten Dart zurücknehmen** (Undo), auch über mehrere Aufnahmen hinweg.
 - **Referee-Bild**: bei Lens-Darts den Kamera-Ausschnitt um die Spitze ansehen, um strittige Darts zu prüfen.
 
@@ -1053,7 +1056,8 @@ wurde. Das Modell erkennt Kalibrierpunkte am Doppelring und Dartspitzen als Obje
 DeepDarts), Eingabegröße 800 px.
 
 Ablauf in Kurzform:
-1. **Daten sammeln** – in der App „Trainingsdaten sammeln“ einschalten (max. 3000 Bilder), abholen mit
+1. **Daten sammeln** – in der App „Trainingsdaten sammeln“ einschalten (max. 3000 Bilder); korrigierte Darts landen
+   immer als `fix_*` mit bestätigtem Label dort. Abholen mit
    `adb pull /sdcard/Android/data/com.freedarts.scorer/files/training`; dazu eigene Fotos und öffentliche Datensätze
    (DeepDarts).
 2. **Datensatz bauen und prüfen** – `tools/finetune/prelabel.py` (Vorschlags-Labels, Review-Bilder, `finalize`).

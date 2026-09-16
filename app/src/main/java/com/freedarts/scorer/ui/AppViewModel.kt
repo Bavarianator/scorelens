@@ -324,7 +324,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun acceptInvite(i: Invite) { online.acceptInvite(i); track("invite_accepted"); navigate(Screen.OnlineLobby) }
 
     /** Öffentliches Match eines anderen live mitverfolgen; der Match-Screen bleibt ohne Eingabe. */
-    fun spectate(l: Lobby) { l.currentMatchId?.let { online.spectate(it); track("spectate") } }
+    fun spectate(l: Lobby) { l.currentMatchId?.let { spectate(it) } }
+    fun spectate(matchId: String) { online.spectate(matchId); track("spectate") }
 
     private fun stopSpectating() {
         caller.stop(); botJob?.cancel(); autoNextJob?.cancel()

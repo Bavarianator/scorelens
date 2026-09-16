@@ -152,7 +152,7 @@ fun FriendsScreen(vm: AppViewModel) {
 
             SectionLabel("Freunde (${accepted.size})")
             if (accepted.isEmpty()) AdCard { Text("Noch keine Freunde – scanne einen QR-Code oder suche nach dem Namen.", color = DartColors.TextMuted) }
-            accepted.forEach { f -> FriendRow(f, online, busy, isOnline = f.id in onlineIds, onInvite = { vm.inviteFriend(f.id) }, onJoin = { code -> online.joinByCode(code); vm.openOnlineLobby() }) }
+            accepted.forEach { f -> FriendRow(f, online, busy, isOnline = f.id in onlineIds, onInvite = { vm.inviteFriend(f.id) }, onJoin = { code -> online.joinByCode(code); vm.openOnlineLobby() }, onSpectate = { id -> vm.spectate(id) }) }
             Spacer(Modifier.height(24.dp))
         }
     }
@@ -203,7 +203,7 @@ private fun FriendHeader(f: Friend, isOnline: Boolean = false) {
 }
 
 @Composable
-private fun FriendRow(f: Friend, online: OnlineController, busy: Boolean, isOnline: Boolean, onInvite: () -> Unit, onJoin: (String) -> Unit) {
+private fun FriendRow(f: Friend, online: OnlineController, busy: Boolean, isOnline: Boolean, onInvite: () -> Unit, onJoin: (String) -> Unit, onSpectate: (String) -> Unit) {
     AdCard(padding = 12) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.weight(1f)) { FriendHeader(f, isOnline) }
@@ -216,8 +216,9 @@ private fun FriendRow(f: Friend, online: OnlineController, busy: Boolean, isOnli
         )
         Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            val code = f.lobbyCode
-            if (code != null) PrimaryButton("Lobby beitreten", Modifier.weight(1f), enabled = !busy, height = 42) { onJoin(code) }
+            val code = f.lobbyCode; val match = f.matchId
+            if (match != null) PrimaryButton("Spielt gerade · Zuschauen", Modifier.weight(1f), enabled = !busy, height = 42) { onSpectate(match) }
+            else if (code != null) PrimaryButton("Lobby beitreten", Modifier.weight(1f), enabled = !busy, height = 42) { onJoin(code) }
             PrimaryButton("Einladen", Modifier.weight(1f), enabled = !busy, height = 42, onClick = onInvite)
         }
     }

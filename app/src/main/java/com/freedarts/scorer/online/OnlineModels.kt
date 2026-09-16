@@ -144,6 +144,8 @@ data class Friend(
     val played: Int = 0,
     val won: Int = 0,
     @SerialName("lobby_code") val lobbyCode: String? = null,
+    /** Laufendes Online-Match des Freundes (zum Zuschauen), null = spielt gerade nicht. */
+    @SerialName("match_id") val matchId: String? = null,
 ) {
     val accepted: Boolean get() = status == "accepted"
     val winRate: Double get() = if (matches == 0) 0.0 else 100.0 * wins / matches

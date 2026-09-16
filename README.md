@@ -713,6 +713,7 @@ Lobby eröffnet, der andere beitreten können.
 - Freunde per **QR-Code scannen** oder **per Name suchen**.
 - Anfragen annehmen, ablehnen, zurückziehen; Freunde entfernen.
 - Die Freundesliste zeigt, wer gerade online ist, die gemeinsame Bilanz und offene Lobbys.
+- **Spielt gerade:** Läuft bei einem Freund ein Online-Match, steht in seiner Zeile „Spielt gerade · Zuschauen“ – ein Tipp, und du siehst live zu.
 - **Einladen:** Freund in die eigene offene Lobby einladen (gibt es keine, wird eine private Lobby angelegt). Die
   Einladung kommt sofort als Karte – und bei geschlossener App als **Push-Mitteilung**.
 

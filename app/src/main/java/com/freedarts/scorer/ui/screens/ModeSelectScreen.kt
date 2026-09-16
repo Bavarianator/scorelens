@@ -48,7 +48,7 @@ fun ModeSelectScreen(vm: AppViewModel) {
         Column(Modifier.fillMaxSize()) {
             AdTopBar("", onBack = { vm.back() })
             Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 12.dp)) {
-                BrandTitle("Select Game Mode")
+                BrandTitle("Spielmodus")
                 Spacer(Modifier.height(10.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     ModeCard(GameMode.X01, gs.mode == GameMode.X01, Modifier.weight(1f)) { vm.setMode(GameMode.X01); vm.back() }

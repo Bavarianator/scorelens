@@ -117,18 +117,18 @@ fun LobbyScreen(vm: AppViewModel) {
 
     Box(Modifier.fillMaxSize()) { ScreenBackground() }
     Column(Modifier.fillMaxSize()) {
-        AdTopBar("Create Game", onBack = { vm.back() })
+        AdTopBar("Neues Spiel", onBack = { vm.back() })
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
 
             // PLAYERS
             AdCard {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("PLAYERS", style = MaterialTheme.typography.headlineSmall)
+                    Text("SPIELER", style = MaterialTheme.typography.headlineSmall)
                     Spacer(Modifier.width(8.dp))
                     Chip("${lobby.size}/6")
                     Spacer(Modifier.weight(1f))
                     Row(Modifier.clickable { vm.shuffleLobbyPlayers() }, verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Shuffle, null, Modifier.width(18.dp)); Spacer(Modifier.width(4.dp)); Text("Shuffle", style = MaterialTheme.typography.labelMedium)
+                        Icon(Icons.Default.Shuffle, null, Modifier.width(18.dp)); Spacer(Modifier.width(4.dp)); Text("Mischen", style = MaterialTheme.typography.labelMedium)
                     }
                 }
                 Spacer(Modifier.height(8.dp))
@@ -153,8 +153,8 @@ fun LobbyScreen(vm: AppViewModel) {
                 }
                 Spacer(Modifier.height(6.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    PrimaryButton("Add Player", Modifier.weight(1f), icon = Icons.Default.Add, enabled = lobby.size < 6) { showAddPlayer = true }
-                    PrimaryButton("Add Bot", Modifier.weight(1f), icon = Icons.Default.SmartToy, enabled = lobby.size < 6) { showBots = true }
+                    PrimaryButton("Spieler", Modifier.weight(1f), icon = Icons.Default.Add, enabled = lobby.size < 6) { showAddPlayer = true }
+                    PrimaryButton("Bot", Modifier.weight(1f), icon = Icons.Default.SmartToy, enabled = lobby.size < 6) { showBots = true }
                 }
             }
 
@@ -172,7 +172,7 @@ fun LobbyScreen(vm: AppViewModel) {
                     settingsChips(gs).forEach { Chip(it) }
                 }
                 Spacer(Modifier.height(8.dp))
-                SecondaryButton("Edit settings", Modifier.fillMaxWidth(), icon = Icons.Default.Settings) { showSettings = true }
+                SecondaryButton("Einstellungen ändern", Modifier.fillMaxWidth(), icon = Icons.Default.Settings) { showSettings = true }
                 Spacer(Modifier.height(8.dp))
                 SecondaryButton("Anderen Modus wählen", Modifier.fillMaxWidth(), icon = Icons.Default.KeyboardArrowRight) { vm.navigate(Screen.ModeSelect) }
             }
@@ -216,7 +216,7 @@ fun LobbyScreen(vm: AppViewModel) {
             Spacer(Modifier.height(8.dp))
         }
         Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            PrimaryButton("Start Game", Modifier.fillMaxWidth(), enabled = lobby.isNotEmpty(), height = 56) { vm.startGame() }
+            PrimaryButton("Spiel starten", Modifier.fillMaxWidth(), enabled = lobby.isNotEmpty(), height = 56) { vm.startGame() }
             SecondaryButton("Als Turnier starten", Modifier.fillMaxWidth(), enabled = lobby.size >= 2) { showTournament = true }
         }
     }

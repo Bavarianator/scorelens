@@ -242,7 +242,7 @@ Unten führt die Navigationsleiste zu **Start**, **Lens**, **Statistik** und **E
 
 ## Ein Spiel anlegen (Lobby)
 
-Die Lobby („Create Game“) ist wie bei Autodarts aufgebaut:
+Die Lobby („Neues Spiel“) ist wie bei Autodarts aufgebaut:
 
 ### Spieler
 - **Spieler hinzufügen** – aus Deiner Spielerliste oder neu anlegen (auch als Gast). Spieler haben Namen, Farbe und
@@ -273,7 +273,7 @@ Wie in der Autodarts-Lobby: **Lens** (Kamera dieses Handys) oder **Board Manager
 aktive Gerät hat einen Haken. Ohne Autoscoring wird manuell eingegeben.
 
 ### Weitere Aktionen
-- **Start Game** – Match starten
+- **Spiel starten** – Match starten
 - **Als Turnier starten** – aus den Spielern der Lobby ein Turnier bauen (siehe [Turniere](#turniere))
 
 ---

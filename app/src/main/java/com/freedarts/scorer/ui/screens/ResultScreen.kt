@@ -75,7 +75,7 @@ fun ResultScreen(vm: AppViewModel) {
         }
         Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             com.freedarts.scorer.ui.components.SecondaryButton("Menü", Modifier.weight(1f)) { vm.goHome() }
-            com.freedarts.scorer.ui.components.PrimaryButton(if (vm.inTournament) "Zum Turnier" else "Rematch", Modifier.weight(1f)) { vm.rematch() }
+            com.freedarts.scorer.ui.components.PrimaryButton(if (vm.inTournament) "Zum Turnier" else "Revanche", Modifier.weight(1f)) { vm.rematch() }
         }
     }
     if (celebrate) Confetti(key = r?.id)

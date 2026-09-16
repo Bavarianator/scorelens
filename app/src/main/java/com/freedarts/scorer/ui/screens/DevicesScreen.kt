@@ -68,12 +68,12 @@ fun DevicesScreen(vm: AppViewModel) {
     Box(Modifier.fillMaxSize()) {
         ScreenBackground()
         Column(Modifier.fillMaxSize()) {
-            AdTopBar("Devices", onBack = { vm.back() })
+            AdTopBar("Geräte", onBack = null)
             Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                SectionLabel("My Devices")
+                SectionLabel("Meine Geräte")
 
                 DeviceCard(
-                    icon = Icons.Default.CameraAlt, title = "Lens", subtitle = "Kamera dieses Handys",
+                    icon = Icons.Default.CameraAlt, title = "Lens", subtitle = "Kamera-Erkennung mit diesem Handy",
                     status = when {
                         lens.setup == LensController.Setup.READY -> "Detecting" to DartColors.Green
                         lens.running -> lens.message to DartColors.Accent
@@ -81,8 +81,8 @@ fun DevicesScreen(vm: AppViewModel) {
                     },
                 ) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        PrimaryButton(if (lens.running) "Detection Mode öffnen" else "Start Lens Detection Mode", Modifier.weight(1f), height = 48) { vm.navigate(Screen.Lens) }
-                        if (lens.running) SecondaryButton("Done", Modifier.weight(0.45f)) { vm.stopLens() }
+                        PrimaryButton(if (lens.running) "Kamera-Erkennung öffnen" else "Kamera-Erkennung starten", Modifier.weight(1f), height = 48) { vm.navigate(Screen.Lens) }
+                        if (lens.running) SecondaryButton("Stopp", Modifier.weight(0.45f)) { vm.stopLens() }
                     }
                 }
 
@@ -101,7 +101,7 @@ fun DevicesScreen(vm: AppViewModel) {
                 var scan by remember { mutableStateOf(false) }
                 var showMyCode by remember { mutableStateOf(false) }
                 DeviceCard(
-                    icon = Icons.Default.Language, title = "Remote Scoring", subtitle = "Spielansicht im Browser eines zweiten Geräts",
+                    icon = Icons.Default.Language, title = "Anzeige auf TV oder Tablet", subtitle = "Remote Scoring: Spielansicht im Browser",
                     status = if (remoteUrl != null) "Aktiv" to DartColors.Green else "Aus" to DartColors.TextMuted,
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -123,7 +123,7 @@ fun DevicesScreen(vm: AppViewModel) {
                 // Dieses Gerät als Zweitgerät: Remote-Seite eines anderen Board-Handys in der App
                 var manual by remember { mutableStateOf(false) }
                 DeviceCard(
-                    icon = Icons.Default.Language, title = "Als Zweitgerät koppeln", subtitle = "Spiel eines anderen Board-Handys hier anzeigen und bedienen",
+                    icon = Icons.Default.Language, title = "Zweites Handy koppeln", subtitle = "Spiel eines anderen Board-Handys hier anzeigen und bedienen",
                     status = if (settings.remotePairedUrl.isNotBlank()) "Gekoppelt" to DartColors.Green else "Nicht gekoppelt" to DartColors.TextMuted,
                 ) {
                     if (settings.remotePairedUrl.isNotBlank()) {

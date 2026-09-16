@@ -124,7 +124,7 @@ fun StatsScreen(vm: AppViewModel, startTab: Int = 0) {
             AdTopBar("", onBack = { vm.back() })
             Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 12.dp)) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    BrandTitle("Statistics")
+                    BrandTitle("Statistik")
                     Chip("Erfolge", selected = true) { playerId?.let { vm.navigate(Screen.Achievements(it)) } }
                 }
                 Spacer(Modifier.height(12.dp))

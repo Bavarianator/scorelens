@@ -131,9 +131,9 @@ fun FreeDartsApp(vm: AppViewModel, onKeepScreenOn: (Boolean) -> Unit) {
     }
 }
 
-private val tabs = linkedMapOf("Home" to Screen.Home, "Lens" to Screen.Lens, "Statistik" to Screen.Stats, "Einstellungen" to Screen.Settings)
+private val tabs = linkedMapOf("Home" to Screen.Home, "Geräte" to Screen.Devices, "Statistik" to Screen.Stats, "Einstellungen" to Screen.Settings)
 /** Lucide-Strichicons (res/drawable/ic_nav_*): Haus, Blende, Balken, Schieberegler. */
-private val tabIcons = mapOf(Screen.Home to R.drawable.ic_nav_home, Screen.Lens to R.drawable.ic_nav_lens, Screen.Stats to R.drawable.ic_nav_stats, Screen.Settings to R.drawable.ic_nav_settings)
+private val tabIcons = mapOf(Screen.Home to R.drawable.ic_nav_home, Screen.Devices to R.drawable.ic_nav_lens, Screen.Stats to R.drawable.ic_nav_stats, Screen.Settings to R.drawable.ic_nav_settings)
 
 @Composable
 private fun ScreenContent(screen: Screen, vm: AppViewModel) {

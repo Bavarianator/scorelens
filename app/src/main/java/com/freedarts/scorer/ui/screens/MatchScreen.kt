@@ -292,8 +292,8 @@ fun MatchScreen(vm: AppViewModel) {
                     DropdownMenuItem(text = { Text("Dart für Dart") }, leadingIcon = { Icon(Icons.Default.Keyboard, null) }, onClick = { pick(InputMethod.DART_BY_DART, false) })
                 }
             }
-            SecondaryButton("Undo", enabled = game.canUndo && vm.onlineCanUndo(), icon = Icons.AutoMirrored.Filled.Undo) { vm.undo() }
-            PrimaryButton("Next", Modifier.weight(1f), enabled = inputEnabled, height = 48) { vm.nextPlayer() }
+            SecondaryButton("Rückgängig", enabled = game.canUndo && vm.onlineCanUndo(), icon = Icons.AutoMirrored.Filled.Undo) { vm.undo() }
+            PrimaryButton("Weiter", Modifier.weight(1f), enabled = inputEnabled, height = 48) { vm.nextPlayer() }
         }
     }
 
@@ -343,7 +343,7 @@ fun MatchScreen(vm: AppViewModel) {
                         Spacer(Modifier.height(8.dp)); Text("Lens", style = MaterialTheme.typography.titleMedium)
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             TextButton(onClick = { vm.lens.requestReference() }) { Text("Referenz neu") }
-                            TextButton(onClick = { vm.navigate(Screen.Lens) }) { Text("Detection Mode") }
+                            TextButton(onClick = { vm.navigate(Screen.Lens) }) { Text("Kamera-Erkennung") }
                         }
                     }
                 }

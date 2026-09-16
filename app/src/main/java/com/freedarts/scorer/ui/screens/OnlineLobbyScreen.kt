@@ -121,7 +121,7 @@ fun OnlineLobbyScreen(vm: AppViewModel) {
             // Spieler
             AdCard {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("PLAYERS", style = MaterialTheme.typography.headlineSmall)
+                    Text("SPIELER", style = MaterialTheme.typography.headlineSmall)
                     Spacer(Modifier.width(8.dp)); Chip("${l.players.size}/${l.maxPlayers}")
                 }
                 Spacer(Modifier.height(8.dp))
@@ -159,7 +159,7 @@ fun OnlineLobbyScreen(vm: AppViewModel) {
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) { settingsChips(gs).forEach { Chip(it) } }
                 if (isHost) {
                     Spacer(Modifier.height(8.dp))
-                    SecondaryButton("Edit settings", Modifier.fillMaxWidth(), icon = Icons.Default.Settings) { showSettings = true }
+                    SecondaryButton("Einstellungen ändern", Modifier.fillMaxWidth(), icon = Icons.Default.Settings) { showSettings = true }
                     Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text("Öffentlich", Modifier.weight(1f)); Switch(checked = l.isPublic, onCheckedChange = { online.updateLobby(isPublic = it) })
                     }
@@ -179,7 +179,7 @@ fun OnlineLobbyScreen(vm: AppViewModel) {
         if (l != null) Box(Modifier.fillMaxWidth().padding(12.dp)) {
             if (l.tournament != null) PrimaryButton("Turnier-Spielplan", Modifier.fillMaxWidth(), height = 56) { vm.navigate(Screen.Tournament) }
             else if (isHost) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                PrimaryButton(if (l.players.size < 2) "Warten auf Spieler …" else "Start Game", Modifier.weight(1f), enabled = l.players.size >= 2 && !busy, height = 56) { online.startMatch() }
+                PrimaryButton(if (l.players.size < 2) "Warten auf Spieler …" else "Spiel starten", Modifier.weight(1f), enabled = l.players.size >= 2 && !busy, height = 56) { online.startMatch() }
                 if (l.players.size >= 3) SecondaryButton("Turnier", enabled = !busy) { showTournament = true }
             }
             else {

@@ -6,7 +6,9 @@ import androidx.lifecycle.viewModelScope
 import com.freedarts.scorer.audio.Caller
 import com.freedarts.scorer.board.BoardManagerClient
 import com.freedarts.scorer.data.Repository
+import com.freedarts.scorer.engine.AimAdvisor
 import com.freedarts.scorer.engine.Bot
+import com.freedarts.scorer.engine.Predictor
 import com.freedarts.scorer.engine.Checkout
 import com.freedarts.scorer.engine.DartGame
 import com.freedarts.scorer.engine.GameFactory
@@ -37,6 +39,7 @@ import com.freedarts.scorer.online.OnlineController
 import com.freedarts.scorer.online.OnlineMatch
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
@@ -356,6 +359,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         _lastRecord.value = null
         _snapshots.value = emptyMap()
         onlineMatch = m
+        // Average der Mitspieler fürs Vorhersagen: aus der Lobby, sonst Profil nachladen
+        online.lobby.value?.players?.forEach { lp -> lp.profile?.let { opponentAvg[lp.userId] = it.avg } }
+        viewModelScope.launch {
+            var changed = false
+            for (p in m.players) if (p.id !in opponentAvg) online.fetchProfile(p.id)?.let { opponentAvg[p.id] = it.avg; changed = true }
+            if (changed) predict()
+        }
         val g = GameFactory.create(onlinePlayers(m), m.settings, m.seed)
         replay(g, events)
         game = g
@@ -466,12 +476,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         )
     }
 
-    private fun vibrate() {
+    /** Kurzes haptisches Feedback (Dart erkannt/eingegeben, Undo, Next); [ms] 15 = Tick, 40 = Leg/Set. */
+    private fun haptic(ms: Long = 15) { if (settings.value.haptics) vibrate(ms) }
+
+    private fun vibrate(ms: Long = 90) {
         try {
             val app = getApplication<Application>()
             val v = if (Build.VERSION.SDK_INT >= 31) (app.getSystemService(Application.VIBRATOR_MANAGER_SERVICE) as VibratorManager).defaultVibrator
             else @Suppress("DEPRECATION") app.getSystemService(Application.VIBRATOR_SERVICE) as Vibrator
-            v.vibrate(VibrationEffect.createOneShot(90, VibrationEffect.DEFAULT_AMPLITUDE))
+            v.vibrate(VibrationEffect.createOneShot(ms, VibrationEffect.DEFAULT_AMPLITUDE))
         } catch (_: Exception) { }
     }
 
@@ -686,6 +699,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val hold = fromBoard && !g.players[g.current].isBot
         val at = System.currentTimeMillis()
         g.throwDart(segment, x, y, at, hold = hold)
+        haptic()
         if (onlineMatch != null) {
             online.sendEvent(MatchEvent.KIND_THROW, segment, x, y, hold, at)
             if (fromBoard) lens.detections.value.lastOrNull()?.snapshot?.let { shareSnapshot(at, it) }
@@ -740,8 +754,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val g = game ?: return
         if (onlineMatch != null && !online.canUndo()) return
         botJob?.cancel(); autoNextJob?.cancel()
-        g.undo()
+        val removed = g.undo()
+        haptic()
         if (onlineMatch != null) online.sendEvent(MatchEvent.KIND_UNDO)
+        when (removed) {
+            is com.freedarts.scorer.engine.GameEvent.Throw -> toasts.tryEmit(Toast("Rückgängig: ${removed.segment.name}", "Wiederherstellen") { throwDart(removed.segment, removed.x, removed.y, fromBoard = removed.hold) })
+            null -> {}
+            else -> toasts.tryEmit(Toast("Rückgängig: Spielerwechsel"))
+        }
         refresh()
         caller.beep()
         if (g.players[g.current].isBot && !g.finished) scheduleBot()
@@ -752,6 +772,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if (g.finished || !isMyTurn) return
         val before = g.snapshot()
         g.next()
+        haptic()
         if (onlineMatch != null) online.sendEvent(MatchEvent.KIND_NEXT)
         afterEvent(before)
     }
@@ -793,7 +814,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val visitEnded = after.currentPlayer != before.currentPlayer || after.currentVisit.isEmpty()
         when {
             after.banner == "Bust" -> { caller.error(); caller.callBust() }
-            after.banner == "Leg gewonnen" || after.banner == "Set gewonnen" -> { caller.ding(); caller.callLeg(playerName) }
+            after.banner == "Leg gewonnen" || after.banner == "Set gewonnen" -> { caller.ding(); caller.callLeg(playerName); haptic(40) }
             after.banner == "Set unentschieden" -> { caller.ding(); caller.say(after.banner) }
             visitEnded && g.settings.mode == GameMode.X01 -> {
                 val lastVisit = before.players[before.currentPlayer].let { p -> after.players[before.currentPlayer].history.lastOrNull() }
@@ -809,7 +830,54 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if (g.players[g.current].isBot) scheduleBot()
     }
 
-    private fun refresh() { _gameState.value = game?.snapshot() }
+    private fun refresh() { _gameState.value = game?.snapshot(); predict() }
+
+    // ---------- Vorhersage ----------
+
+    /** Kurze Rückmeldung als Snackbar (App-weit), optional mit Aktion. */
+    data class Toast(val text: String, val action: String? = null, val onAction: (() -> Unit)? = null)
+    val toasts = MutableSharedFlow<Toast>(extraBufferCapacity = 4)
+
+    /** Live-Vorhersage fürs laufende X01-Leg (Siegchance, erwartete Aufnahme, Checkout-Chance des Werfers). */
+    val prediction = MutableStateFlow<Predictor.Prediction?>(null)
+    private var predictJob: Job? = null
+    /** Online-Average der Mitspieler (Profil), Schlüssel = Spieler-ID. */
+    private val opponentAvg = HashMap<String, Double>()
+
+    private fun recentAverage(playerId: String): Double? = matches.value.filter { it.mode == GameMode.X01 }
+        .mapNotNull { m -> m.players.firstOrNull { it.playerId == playerId }?.takeIf { it.dartsThrown > 0 }?.average3 }
+        .take(10).takeIf { it.isNotEmpty() }?.average()
+
+    /** Streuung eines Spielers: Bot-Stufe; sonst echte Lens-Würfe (Verlauf + laufendes Spiel); sonst Average (Profil oder Verlauf); sonst 45 mm. */
+    private fun sigmaFor(p: Player, g: DartGame?): Double {
+        if (p.botLevel == Player.ADAPTIVE) return adaptiveSigma()
+        if (p.isBot) return Bot.sigma(p.botLevel)
+        val live = g?.let { AimAdvisor.radials(it.throwLog, it.players.indexOf(p), assumeT20 = it.settings.mode == GameMode.X01) } ?: emptyList()
+        AimAdvisor.sigmaOf(AimAdvisor.radials(matches.value, p.id) + live)?.let { return it }
+        val avg = opponentAvg[p.id]?.takeIf { it > 0 } ?: recentAverage(p.id) ?: return 45.0
+        return Bot.sigmaForAverage(avg)
+    }
+
+    private fun predict() {
+        predictJob?.cancel()
+        val g = game; val s = _gameState.value
+        if (g == null || s == null || g.settings.mode != GameMode.X01 || s.finished || s.bullOff || g.players.size < 2) { prediction.value = null; return }
+        val remaining = IntArray(g.players.size) { s.players[it].score.toIntOrNull() ?: -1 }
+        if (remaining.any { it <= 0 }) { prediction.value = null; return }
+        val onThrow = s.currentPlayer
+        val dartsLeft = if (s.visitLocked) 0 else 3 - s.currentVisit.size
+        predictJob = viewModelScope.launch(kotlinx.coroutines.Dispatchers.Default) {
+            val sigmas = DoubleArray(g.players.size) { sigmaFor(g.players[it], g) }
+            prediction.value = Predictor.leg(remaining, onThrow, dartsLeft, sigmas, g.settings)
+        }
+    }
+
+    /** Prognose fürs erste Leg einer Lobby (Siegchance je Spieler), nur X01. */
+    suspend fun forecast(players: List<Player>, gs: GameSettings): DoubleArray? = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+        if (gs.mode != GameMode.X01 || players.size < 2) return@withContext null
+        val remaining = IntArray(players.size) { gs.handicaps[players[it].id] ?: gs.baseScore }
+        Predictor.leg(remaining, 0, 3, DoubleArray(players.size) { sigmaFor(players[it], null) }, gs, sims = 200).legWin
+    }
 
     private fun scheduleBot() {
         botJob?.cancel()

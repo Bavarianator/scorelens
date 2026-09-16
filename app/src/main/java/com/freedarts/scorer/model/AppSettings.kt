@@ -60,6 +60,8 @@ data class AppSettings(
     val autoNextDelayMs: Long = 0,
     /** Animationen (Match-Intro, Gewinn, Bust, Caller). */
     val animations: Boolean = true,
+    /** Kurze Vibration bei Dart, Undo, Next und Leg-Ende. */
+    val haptics: Boolean = true,
     /** Anonyme Nutzungsdaten (Firebase Analytics) und Absturzberichte (Crashlytics) senden. */
     val analyticsEnabled: Boolean = true,
 

@@ -19,6 +19,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -121,16 +123,25 @@ fun VisitRow(darts: List<Segment>, modifier: Modifier = Modifier) {
     }
 }
 
+/** Ereignis-Banner: Farbe je Ereignis (Bust rot, 180 gold, Game Shot gold, sonst grün), blendet nach [holdMs] von selbst aus. */
 @Composable
-fun Banner(text: String?, modifier: Modifier = Modifier) {
-    AnimatedVisibility(visible = text != null, modifier = modifier) {
-        val isBust = text == "Bust"
+fun Banner(text: String?, modifier: Modifier = Modifier, holdMs: Long = 4000) {
+    var shown by androidx.compose.runtime.remember(text) { androidx.compose.runtime.mutableStateOf(text != null) }
+    androidx.compose.runtime.LaunchedEffect(text) { if (text != null) { kotlinx.coroutines.delay(holdMs); shown = false } }
+    // Text während des Ausblendens behalten, sonst springt der Inhalt auf leer
+    var last by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(text ?: "") }
+    if (text != null) last = text
+    AnimatedVisibility(visible = shown && text != null, modifier = modifier,
+        enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.expandVertically() + androidx.compose.animation.scaleIn(initialScale = 0.9f),
+        exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.shrinkVertically()) {
+        val gold = last == "180" || last.startsWith("Game Shot") || last.contains("gewonnen")
+        val bg = when { last == "Bust" -> DartColors.RedDark; gold -> DartColors.OrangeDark; else -> DartColors.GreenDark }
+        val fg = if (gold) DartColors.Accent else Color.White
         Box(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp)
-                .background(if (isBust) DartColors.RedDark else DartColors.GreenDark, RoundedCornerShape(12.dp)).padding(10.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp).background(bg, RoundedCornerShape(12.dp)).padding(10.dp),
             contentAlignment = Alignment.Center,
         ) {
-            Text(text ?: "", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            Text(last, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = fg)
         }
     }
 }

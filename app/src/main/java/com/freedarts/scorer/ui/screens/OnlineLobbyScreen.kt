@@ -89,22 +89,6 @@ fun OnlineLobbyScreen(vm: AppViewModel) {
         AdTopBar("Online-Lobby", onBack = { confirmLeave = true }) { ConnectionDot(connection) }
         val l = lobby
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            error?.let { msg ->
-                AdCard(background = DartColors.RedDark, padding = 10) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(msg, color = Color.White, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
-                        TextButton(onClick = { online.error.value = null }) { Text("OK") }
-                    }
-                }
-            }
-            notice?.let { msg ->
-                AdCard(background = DartColors.GreenDark, padding = 10) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(msg, color = Color.White, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
-                        TextButton(onClick = { online.notice.value = null }) { Text("OK") }
-                    }
-                }
-            }
             if (l == null) {
                 Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
                     if (busy) CircularProgressIndicator() else Text("Keine Lobby – zurück zur Übersicht.", color = DartColors.TextMuted)

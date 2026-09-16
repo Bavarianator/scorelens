@@ -145,6 +145,7 @@ fun SettingsScreen(vm: AppViewModel) {
                         SettingSwitch("Bildschirm anlassen", s.keepScreenOn) { v -> vm.updateSettings { it.copy(keepScreenOn = v) } }
                         SettingSwitch("Darts Zoom im Kamerabild", s.dartsZoom) { v -> vm.updateSettings { it.copy(dartsZoom = v) } }
                         SettingSwitch("Animationen und Match-Intro", s.animations) { v -> vm.updateSettings { it.copy(animations = v) } }
+                        SettingSwitch("Vibration bei Dart, Undo, Next", s.haptics) { v -> vm.updateSettings { it.copy(haptics = v) } }
                         SettingSlider("Bot-Wurfpause", "%.1f s".format(s.botDelayMillis / 1000f), s.botDelayMillis.toFloat(), 200f..2000f, steps = 17) { v ->
                             vm.updateSettings { it.copy(botDelayMillis = (v / 100).toInt() * 100L) }
                         }

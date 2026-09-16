@@ -20,6 +20,13 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.Alignment
+import androidx.compose.runtime.remember
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarHost
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -89,8 +96,25 @@ fun FreeDartsApp(vm: AppViewModel, onKeepScreenOn: (Boolean) -> Unit) {
         vm.back()
     }
 
+    // Eine Snackbar für Online-Fehler, Hinweise und Undo („Wiederherstellen“) – statt drei verschiedener Fehlerkarten
+    val snackbar = remember { SnackbarHostState() }
+    val error by vm.online.error.collectAsStateWithLifecycle()
+    val notice by vm.online.notice.collectAsStateWithLifecycle()
+    LaunchedEffect(error) { error?.let { snackbar.showSnackbar(it, actionLabel = "OK", duration = SnackbarDuration.Long); if (vm.online.error.value == it) vm.online.error.value = null } }
+    LaunchedEffect(notice) { notice?.let { snackbar.showSnackbar(it, duration = SnackbarDuration.Short); if (vm.online.notice.value == it) vm.online.notice.value = null } }
+    LaunchedEffect(Unit) {
+        vm.toasts.collect { t ->
+            val r = snackbar.showSnackbar(t.text, actionLabel = t.action, duration = SnackbarDuration.Short, withDismissAction = t.action == null)
+            if (r == SnackbarResult.ActionPerformed) t.onAction?.invoke()
+        }
+    }
+
+    Box(Modifier.fillMaxSize()) {
     Column(Modifier.fillMaxSize()) {
-        Box(Modifier.weight(1f)) { ScreenContent(screen, vm) }
+        Box(Modifier.weight(1f)) {
+            if (settings.animations) androidx.compose.animation.Crossfade(targetState = screen, label = "screen") { ScreenContent(it, vm) }
+            else ScreenContent(screen, vm)
+        }
         // Untere Navigation wie in einer normalen Android-App: nur auf den vier Hauptseiten
         if (screen in tabs.values) NavigationBar(containerColor = DartColors.BottomBar) {
             tabs.forEach { (label, target) ->
@@ -100,6 +124,8 @@ fun FreeDartsApp(vm: AppViewModel, onKeepScreenOn: (Boolean) -> Unit) {
                         unselectedIconColor = DartColors.TextMuted, unselectedTextColor = DartColors.TextMuted))
             }
         }
+    }
+        SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).padding(bottom = if (screen in tabs.values) 84.dp else 8.dp))
     }
 }
 

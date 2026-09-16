@@ -9,6 +9,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -42,6 +43,10 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -73,6 +78,7 @@ import com.freedarts.scorer.lens.LensController
 import com.freedarts.scorer.model.GameMode
 import com.freedarts.scorer.model.InputMethod
 import com.freedarts.scorer.model.MatchMode
+import com.freedarts.scorer.model.Player
 import com.freedarts.scorer.model.Segment
 import com.freedarts.scorer.online.RealtimeClient
 import com.freedarts.scorer.ui.AppViewModel
@@ -98,11 +104,13 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.scaleIn
 import androidx.compose.ui.draw.scale
 import com.freedarts.scorer.ui.components.NameRibbon
 import com.freedarts.scorer.ui.components.SegmentGrid
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MatchScreen(vm: AppViewModel) {
     val state by vm.gameState.collectAsStateWithLifecycle()
@@ -125,6 +133,7 @@ fun MatchScreen(vm: AppViewModel) {
     val onlineConnection by vm.online.connection.collectAsStateWithLifecycle()
     val presence by vm.online.presence.collectAsStateWithLifecycle()
     val snapshots by vm.snapshots.collectAsStateWithLifecycle()
+    val prediction by vm.prediction.collectAsStateWithLifecycle()
     val inputEnabled = !s.finished && !isBotTurn && (!online || myTurn)
     val landscape = LocalConfiguration.current.screenWidthDp > LocalConfiguration.current.screenHeightDp
     val totalAllowed = game.settings.mode in setOf(GameMode.X01, GameMode.COUNT_UP, GameMode.GOTCHA)
@@ -192,8 +201,10 @@ fun MatchScreen(vm: AppViewModel) {
                     }
                 }
                 Spacer(Modifier.height(10.dp))
+                HintBar(if (settings.showCheckoutGuide && !s.finished) s.checkoutHint else null, prediction, s.players.map { it.player })
                 val correctable = if (s.currentVisit.isNotEmpty()) s.currentVisit else vm.correctableDarts()
-                DartRow(correctable, current = s.currentVisit.isNotEmpty(), onTap = { i -> if (!s.finished && !online && i < correctable.size) correctIndex = i })
+                DartRow(correctable, current = s.currentVisit.isNotEmpty(), onTap = { i -> if (!s.finished && !online && i < correctable.size) correctIndex = i },
+                    onSwipeUndo = { if (game.canUndo && vm.onlineCanUndo()) vm.undo() })
                 if (online) Ticker(game.throwLog, s.players.map { it.player.name }, snapshots)
                 Banner(s.banner, Modifier.padding(top = 6.dp))
                 s.cricketTargets?.let { Spacer(Modifier.height(6.dp)); CricketTable(s.players, it, Modifier.padding(horizontal = 12.dp), hidden = s.cricketHidden ?: emptySet()) }
@@ -336,10 +347,11 @@ fun MatchScreen(vm: AppViewModel) {
     if (correctIndex >= 0) {
         val darts = if (s.currentVisit.isNotEmpty()) s.currentVisit else vm.correctableDarts()
         val current = darts.getOrNull(correctIndex)
-        AlertDialog(
-            onDismissRequest = { correctIndex = -1 },
-            title = { Text("Dart ${correctIndex + 1} korrigieren" + (current?.let { " (${it.name})" } ?: "")) },
-            text = {
+        // Korrektur als Bottom Sheet: einhändig vom Board aus bedienbar
+        ModalBottomSheet(onDismissRequest = { correctIndex = -1 }, containerColor = DartColors.Surface) {
+            Column(Modifier.padding(horizontal = 16.dp).padding(bottom = 16.dp)) {
+                Text("Dart ${correctIndex + 1} korrigieren" + (current?.let { " (${it.name})" } ?: ""), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(8.dp))
                 var useBoard by remember { mutableStateOf(false) }
                 Column {
                     // Referee-Bild: Kamera-Ausschnitt der erkannten Spitze, wenn dieser Dart von Lens kam
@@ -355,10 +367,14 @@ fun MatchScreen(vm: AppViewModel) {
                         onTap = { seg, x, y -> vm.correctDart(correctIndex, seg, x, y); correctIndex = -1 }) { seg -> vm.correctDart(correctIndex, seg); correctIndex = -1 }
                     else SegmentGrid(enabled = true, compact = true) { seg -> vm.correctDart(correctIndex, seg); correctIndex = -1 }
                 }
-            },
-            confirmButton = { TextButton(onClick = { vm.correctDart(correctIndex, Segment.MISS); correctIndex = -1 }) { Text("Bouncer / Miss", color = DartColors.Red) } },
-            dismissButton = { TextButton(onClick = { correctIndex = -1 }) { Text("Abbrechen") } },
-        )
+                Spacer(Modifier.height(8.dp))
+                Row {
+                    TextButton(onClick = { vm.correctDart(correctIndex, Segment.MISS); correctIndex = -1 }) { Text("Bouncer / Miss", color = DartColors.Red) }
+                    Spacer(Modifier.weight(1f))
+                    TextButton(onClick = { correctIndex = -1 }) { Text("Abbrechen") }
+                }
+            }
+        }
     }
     if (confirmAbort) {
         AlertDialog(
@@ -424,8 +440,13 @@ fun ScoreCard(p: PlayerState, active: Boolean, showLegs: Boolean, showSets: Bool
             if (p.isKiller) Text(" K", fontSize = 12.sp, color = DartColors.Accent)
         }
         Row(verticalAlignment = Alignment.Bottom) {
-            Text(p.score, fontSize = if (compact) 46.sp else 62.sp, fontWeight = FontWeight.ExtraBold, lineHeight = if (compact) 48.sp else 64.sp, letterSpacing = (-2).sp,
-                color = if (p.isOut) DartColors.TextMuted else Color.White, maxLines = 1, modifier = Modifier.weight(1f, fill = false))
+            // Score wechselt mit vertikalem Durchlauf (neue Zahl von unten, alte nach oben)
+            androidx.compose.animation.AnimatedContent(targetState = p.score, label = "score", modifier = Modifier.weight(1f, fill = false), transitionSpec = {
+                (androidx.compose.animation.slideInVertically { it / 2 } + fadeIn()).togetherWith(androidx.compose.animation.slideOutVertically { -it / 2 } + fadeOut())
+            }) { score ->
+                Text(score, fontSize = if (compact) 46.sp else 62.sp, fontWeight = FontWeight.ExtraBold, lineHeight = if (compact) 48.sp else 64.sp, letterSpacing = (-2).sp,
+                    color = if (p.isOut) DartColors.TextMuted else Color.White, maxLines = 1)
+            }
             if (showLegs || showSets) {
                 Spacer(Modifier.width(8.dp))
                 Column(Modifier.padding(bottom = 10.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
@@ -463,13 +484,52 @@ private fun TakeoutPanel(visible: Boolean, onReset: () -> Unit) {
 }
 
 /** Aufnahme-Leiste: drei Dart-Pills mit Segment, Zwischensumme rechts. */
+/** Leiste unter den Spielerkarten: Checkout-Weg (alle Eingabearten) und Live-Vorhersage (Siegchance je Spieler, erwartete Aufnahme, Checkout-Chance). */
 @Composable
-private fun DartRow(darts: List<Segment>, current: Boolean, onTap: (Int) -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp).background(DartColors.Surface, RoundedCornerShape(12.dp)).padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+private fun HintBar(checkout: String?, prediction: com.freedarts.scorer.engine.Predictor.Prediction?, players: List<Player>) {
+    if (checkout == null && prediction == null) return
+    Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp).padding(bottom = 8.dp).background(DartColors.Surface, RoundedCornerShape(12.dp)).padding(horizontal = 12.dp, vertical = 8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(if (checkout != null) "Checkout" else "Am Zug", fontSize = 10.sp, color = DartColors.TextMuted)
+                Text(checkout ?: players.getOrNull(prediction?.onThrow ?: 0)?.name ?: "", fontFamily = Condensed, fontWeight = FontWeight.Bold, fontSize = 20.sp, lineHeight = 22.sp, color = DartColors.Accent)
+            }
+            prediction?.let { p ->
+                Column(horizontalAlignment = Alignment.End) {
+                    Text("${players.getOrNull(p.onThrow)?.name ?: ""} · Aufnahme Ø ${"%.0f".format(p.expectedVisit)}", fontSize = 12.sp, color = DartColors.TextMuted)
+                    if (p.checkoutNow > 0.005) Text("Checkout jetzt ${"%.0f".format(p.checkoutNow * 100)} %", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = DartColors.Lime)
+                }
+            }
+        }
+        if (prediction != null && players.size == 2) {
+            val a = prediction.legWin[0].toFloat().coerceIn(0.02f, 0.98f)
+            Spacer(Modifier.height(6.dp))
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("${players[0].name} ${"%.0f".format(a * 100)} %", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Color(players[0].color))
+                Spacer(Modifier.weight(1f))
+                Text("${"%.0f".format((1 - a) * 100)} % ${players[1].name}", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Color(players[1].color))
+            }
+            Spacer(Modifier.height(3.dp))
+            Row(Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp))) {
+                Box(Modifier.weight(a).fillMaxHeight().background(Color(players[0].color)))
+                Box(Modifier.weight(1 - a).fillMaxHeight().background(Color(players[1].color)))
+            }
+        }
+    }
+}
+
+@Composable
+private fun DartRow(darts: List<Segment>, current: Boolean, onTap: (Int) -> Unit, onSwipeUndo: () -> Unit = {}) {
+    // Wischen nach links über die Aufnahme-Leiste = Undo
+    var drag = 0f
+    Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp).background(DartColors.Surface, RoundedCornerShape(12.dp))
+        .pointerInput(Unit) { detectHorizontalDragGestures(onDragStart = { drag = 0f }, onDragEnd = { if (drag < -120f) onSwipeUndo() }) { _, dx -> drag += dx } }
+        .padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         for (i in 0 until 3) {
             val d = darts.getOrNull(i)
+            val pill by androidx.compose.animation.animateColorAsState(if (d != null) DartColors.Primary else DartColors.SurfaceHigh, label = "pill")
             Row(
-                Modifier.background(if (d != null) DartColors.Primary else DartColors.SurfaceHigh, RoundedCornerShape(999.dp)).clip(RoundedCornerShape(999.dp))
+                Modifier.background(pill, RoundedCornerShape(999.dp)).clip(RoundedCornerShape(999.dp))
                     .clickable(enabled = d != null) { onTap(i) }.padding(start = 8.dp, end = 12.dp, top = 6.dp, bottom = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {

@@ -117,22 +117,6 @@ fun OnlineScreen(vm: AppViewModel) {
             IconButton(onClick = { showServer = true }) { Icon(Icons.Default.Settings, "Server") }
         }
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            error?.let { msg ->
-                AdCard(background = DartColors.RedDark, padding = 10) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(msg, color = Color.White, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
-                        TextButton(onClick = { online.error.value = null }) { Text("OK") }
-                    }
-                }
-            }
-            notice?.let { msg ->
-                AdCard(background = DartColors.GreenDark, padding = 10) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(msg, color = Color.White, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
-                        TextButton(onClick = { online.notice.value = null }) { Text("OK") }
-                    }
-                }
-            }
             if (busy) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) { CircularProgressIndicator(Modifier.size(28.dp)) }
 
             when {

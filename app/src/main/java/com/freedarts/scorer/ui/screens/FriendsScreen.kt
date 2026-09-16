@@ -78,8 +78,6 @@ fun FriendsScreen(vm: AppViewModel) {
             IconButton(onClick = { showScanner = true }) { Icon(Icons.Default.QrCodeScanner, "QR-Code scannen") }
         }
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            error?.let { msg -> Banner(msg, DartColors.RedDark) { online.error.value = null } }
-            notice?.let { msg -> Banner(msg, DartColors.GreenDark) { online.notice.value = null } }
             invite?.let { InviteCard(it, friends, onAccept = { vm.acceptInvite(it) }, onDismiss = { online.dismissInvite(it) }) }
             if (busy) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) { CircularProgressIndicator(Modifier.size(28.dp)) }
 

@@ -189,10 +189,12 @@ abstract class DartGame(
         completeVisit()
     }
 
-    fun undo() {
-        if (events.isEmpty()) return
-        events.removeAt(events.size - 1)
+    /** Letztes Ereignis zurücknehmen; Rückgabe = das entfernte Ereignis (für „Wiederherstellen“). */
+    fun undo(): GameEvent? {
+        if (events.isEmpty()) return null
+        val removed = events.removeAt(events.size - 1)
         rebuild()
+        return removed
     }
 
     private fun rebuild() {

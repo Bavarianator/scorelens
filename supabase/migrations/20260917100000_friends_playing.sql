@@ -16,7 +16,7 @@ as $$
     f.status, f.addressee = (select auth.uid()) as incoming,
     coalesce(h.played, 0)::integer, coalesce(h.won, 0)::integer,
     (select l.code from public.lobbies l join public.lobby_players lp on lp.lobby_id = l.id
-      where lp.user_id = p.id and l.status = 'open' order by l.updated_at desc limit 1) as lobby_code
+      where lp.user_id = p.id and l.status = 'open' order by l.updated_at desc limit 1) as lobby_code,
     (select l.current_match_id from public.lobbies l join public.lobby_players lp on lp.lobby_id = l.id
       where lp.user_id = p.id and l.status = 'running' and l.current_match_id is not null order by l.updated_at desc limit 1) as match_id
   from public.friendships f
@@ -30,5 +30,6 @@ as $$
   ) h on true
   where f.requester = (select auth.uid()) or f.addressee = (select auth.uid())
   order by f.status, p.name;
+$$;
 
 grant execute on function public.friends() to authenticated, service_role;

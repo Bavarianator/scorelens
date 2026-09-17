@@ -211,7 +211,7 @@ fun MatchScreen(vm: AppViewModel) {
                 Spacer(Modifier.height(8.dp))
                 HintBar(if (settings.showCheckoutGuide && !s.finished) s.checkoutHint else null, prediction, s.players.map { it.player })
                 val correctable = if (s.currentVisit.isNotEmpty()) s.currentVisit else vm.correctableDarts()
-                DartRow(correctable, current = s.currentVisit.isNotEmpty(), onTap = { i -> if (!s.finished && !online && i < correctable.size) correctIndex = i },
+                DartRow(correctable, current = s.currentVisit.isNotEmpty(), onTap = { i -> if (!s.finished && i < correctable.size && (!online || myTurn)) correctIndex = i },
                     onSwipeUndo = { if (game.canUndo && vm.onlineCanUndo()) vm.undo() })
                 if (online) Ticker(game.throwLog, s.players.map { it.player.name }, snapshots)
                 s.cricketTargets?.let { Spacer(Modifier.height(8.dp)); CricketTable(s.players, it, Modifier.padding(horizontal = 12.dp), hidden = s.cricketHidden ?: emptySet()) }

@@ -80,6 +80,8 @@ class OnlineController(private val context: Context, private val repo: Repositor
     private var pending = 0
     private var lastEventUser: String? = null
     private var lastEventKind: String? = null
+    /** Rückgängig in Folge: drei Schritte sind die eigene Aufnahme, danach wäre die des Gegners dran. */
+    private var undoStreak = 0
 
     /** Match beginnt (neu oder nach Beitritt): Engine aufbauen und Ereignisse einspielen. */
     var onMatchStarted: ((OnlineMatch, List<MatchEvent>) -> Unit)? = null
@@ -478,7 +480,14 @@ class OnlineController(private val context: Context, private val repo: Repositor
         _presence.value = emptySet()
     }
 
-    private fun noteLast(e: MatchEvent?) { lastEventUser = e?.userId; lastEventKind = e?.kind }
+    private fun noteLast(e: MatchEvent?) {
+        undoStreak = when {
+            e == null || e.kind != MatchEvent.KIND_UNDO -> 0
+            e.userId == lastEventUser -> undoStreak + 1
+            else -> 1
+        }
+        lastEventUser = e?.userId; lastEventKind = e?.kind
+    }
 
     private fun onMatchMessage(event: String, payload: JsonObject) {
         when (event) {
@@ -547,13 +556,16 @@ class OnlineController(private val context: Context, private val repo: Repositor
     }
 
     /** Eigenes Ereignis (bereits lokal angewendet) ins Protokoll schreiben. */
-    fun sendEvent(kind: String, segment: Segment? = null, x: Float? = null, y: Float? = null, hold: Boolean = false, at: Long = 0L) {
+    fun sendEvent(kind: String, segment: Segment? = null, x: Float? = null, y: Float? = null, hold: Boolean = false, at: Long = 0L, idx: Int? = null) {
         val m = _match.value?.takeIf { !spectating } ?: return
         val me = myId ?: return
         scope.launch {
             val seq = eventLock.withLock { pending++; serverSeq + pending }
-            val e = MatchEvent(m.id, seq, me, kind, segment?.number, segment?.multiplier, x, y, hold, at, clientId)
-            eventLock.withLock { lastEventUser = me; lastEventKind = kind }
+            val e = MatchEvent(m.id, seq, me, kind, segment?.number, segment?.multiplier, x, y, hold, idx, at, clientId)
+            eventLock.withLock {
+                undoStreak = if (kind != MatchEvent.KIND_UNDO) 0 else if (lastEventUser == me) undoStreak + 1 else 1
+                lastEventUser = me; lastEventKind = kind
+            }
             try {
                 ensureFresh()
                 requireApi().insert("match_events", SupabaseApi.json.encodeToString(MatchEvent.serializer(), e), returning = false)
@@ -566,7 +578,7 @@ class OnlineController(private val context: Context, private val repo: Repositor
     }
 
     /** Undo ist nur für das eigene letzte Ereignis erlaubt. */
-    fun canUndo(): Boolean = lastEventUser != null && lastEventUser == myId && lastEventKind != MatchEvent.KIND_UNDO
+    fun canUndo(): Boolean = lastEventUser != null && lastEventUser == myId && undoStreak < 3
 
     fun finishMatch(winnerId: String?, stats: List<PlayerMatchStats>) = scope.launch {
         val m = _match.value ?: return@launch

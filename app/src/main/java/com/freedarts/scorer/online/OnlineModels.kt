@@ -107,22 +107,27 @@ data class MatchEvent(
     @SerialName("match_id") val matchId: String,
     val seq: Int,
     @SerialName("user_id") val userId: String,
-    /** throw | next | undo */
+    /** throw | next | undo | correct */
     val kind: String,
     val number: Int? = null,
     val multiplier: Int? = null,
     val x: Float? = null,
     val y: Float? = null,
     val hold: Boolean = false,
+    /** Nur bei correct: Dart der Aufnahme (0..2), der ersetzt wird. */
+    val idx: Int? = null,
     val at: Long = 0,
     val client: String = "",
 ) {
-    val segment: Segment? get() = if (kind == KIND_THROW && number != null && multiplier != null) Segment(number, multiplier) else null
+    val segment: Segment? get() = if ((kind == KIND_THROW || kind == KIND_CORRECT) && number != null && multiplier != null) Segment(number, multiplier) else null
 
     companion object {
         const val KIND_THROW = "throw"
         const val KIND_NEXT = "next"
         const val KIND_UNDO = "undo"
+
+        /** Dart der laufenden (oder gerade beendeten) eigenen Aufnahme ersetzen; [MatchEvent.idx] sagt welchen. */
+        const val KIND_CORRECT = "correct"
     }
 }
 

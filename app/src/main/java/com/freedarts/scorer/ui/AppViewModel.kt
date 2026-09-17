@@ -367,6 +367,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             MatchEvent.KIND_THROW -> e.segment?.let { g.throwDart(it, e.x, e.y, e.at, e.hold) }
             MatchEvent.KIND_NEXT -> g.next()
             MatchEvent.KIND_UNDO -> g.undo()
+            MatchEvent.KIND_CORRECT -> e.idx?.let { i -> e.segment?.let { g.correctDart(i, it, e.x, e.y) } }
         }
     }
 
@@ -408,6 +409,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             MatchEvent.KIND_THROW -> e.segment?.let { g.throwDart(it, e.x, e.y, e.at, e.hold) }
             MatchEvent.KIND_NEXT -> g.next()
             MatchEvent.KIND_UNDO -> { g.undo(); refresh(); caller.beep(); return }
+            MatchEvent.KIND_CORRECT -> { e.idx?.let { i -> e.segment?.let { g.correctDart(i, it, e.x, e.y) } }; refresh(); caller.beep(); return }
         }
         afterEvent(before)
         if (!g.finished && isMyTurn && before.currentPlayer != g.current) caller.callPlayer(g.players[g.current].name)
@@ -529,7 +531,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** Dart der laufenden (oder zuletzt abgeschlossenen) Aufnahme korrigieren – wie die Dart-Korrektur bei Autodarts. */
     fun correctDart(index: Int, segment: Segment, x: Float? = null, y: Float? = null) {
         val g = game ?: return
-        if (onlineMatch != null) return // Online: Protokoll ist für alle verbindlich, nur Undo
+        // Online nur die eigene Aufnahme: die Korrektur geht als Ereignis an alle, fremde Würfe bleiben unangetastet
+        if (onlineMatch != null && (!isMyTurn || g.finished)) return
         botJob?.cancel()
         // Lens-Dart der laufenden Aufnahme: Trainingsbild mit der korrigierten Spitze sichern (Position aus dem Tipp aufs Board)
         val fromLens = _gameState.value?.currentVisit?.let { it.isNotEmpty() && lens.detections.value.size == it.size } == true

@@ -11,6 +11,7 @@ import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
@@ -70,7 +71,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             val themeMode by vm.settings.collectAsStateWithLifecycle()
             FreeDartsTheme(themeMode.theme) {
-                Surface(modifier = Modifier.fillMaxSize().systemBarsPadding()) {
+                Surface(modifier = Modifier.fillMaxSize().systemBarsPadding().imePadding()) {
                     FreeDartsApp(vm, onKeepScreenOn = { on ->
                         if (on) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                         else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -117,8 +118,9 @@ fun FreeDartsApp(vm: AppViewModel, onKeepScreenOn: (Boolean) -> Unit) {
             if (settings.animations) androidx.compose.animation.Crossfade(targetState = screen, label = "screen") { ScreenContent(it, vm) }
             else ScreenContent(screen, vm)
         }
-        // Untere Navigation wie in einer normalen Android-App: nur auf den vier Hauptseiten
-        if (screen in tabs.values) NavigationBar(containerColor = DartColors.BottomBar) {
+        // Untere Navigation nur auf den vier Hauptseiten und nur, wenn sie über den Tab erreicht wurden:
+        // aus dem Match geöffnet (Lens) würde ein Tipp auf einen Tab das laufende Match verlieren
+        if (screen in tabs.values && vm.atTabRoot) NavigationBar(containerColor = DartColors.BottomBar) {
             tabs.forEach { (label, target) ->
                 NavigationBarItem(selected = screen == target, onClick = { vm.switchTab(target) }, label = { Text(label) },
                     icon = { Icon(painterResource(tabIcons.getValue(target)), label, Modifier.size(22.dp)) },
@@ -127,7 +129,7 @@ fun FreeDartsApp(vm: AppViewModel, onKeepScreenOn: (Boolean) -> Unit) {
             }
         }
     }
-        SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).padding(bottom = if (screen in tabs.values) 84.dp else 8.dp))
+        SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).padding(bottom = if (screen in tabs.values && vm.atTabRoot) 84.dp else 8.dp))
     }
 }
 

@@ -137,8 +137,6 @@ fun HomeScreen(vm: AppViewModel) {
                 }
             }
             Spacer(Modifier.height(10.dp))
-
-            Spacer(Modifier.height(10.dp))
             // Neues Spiel und Gegner finden nebeneinander
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Box(

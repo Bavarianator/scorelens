@@ -159,7 +159,7 @@ fun LobbyScreen(vm: AppViewModel) {
             }
 
             // GAME MODE
-            AdCard(onClick = { vm.navigate(Screen.ModeSelect) }) {
+            AdCard {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(if (gs.mode == GameMode.X01) gs.baseScore.toString() else gs.mode.title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
                     ModeBadge(gs.mode)
@@ -169,7 +169,7 @@ fun LobbyScreen(vm: AppViewModel) {
                 Spacer(Modifier.height(8.dp)); Box(Modifier.fillMaxWidth().height(1.dp).background(DartColors.Divider))
                 Spacer(Modifier.height(8.dp))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    settingsChips(gs).forEach { Chip(it) }
+                    settingsChips(gs).forEach { Chip(it) { showSettings = true } }
                 }
                 Spacer(Modifier.height(8.dp))
                 SecondaryButton("Einstellungen ändern", Modifier.fillMaxWidth(), icon = Icons.Default.Settings) { showSettings = true }
@@ -181,7 +181,9 @@ fun LobbyScreen(vm: AppViewModel) {
             AdCard {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("AUTOSCORING", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
-                    Switch(checked = lensStatus.running || settings.boardManagerEnabled, onCheckedChange = { on -> if (on) vm.navigate(Screen.Lens) else { vm.stopLens(); vm.disconnectBoard() } })
+                    // Schalter nur zum Ausschalten; einschalten heißt einrichten, das führt zu Lens statt zu einem Schalter, der zurückspringt
+                    if (lensStatus.running || settings.boardManagerEnabled) Switch(checked = true, onCheckedChange = { vm.stopLens(); vm.disconnectBoard() })
+                    else TextButton(onClick = { vm.navigate(Screen.Lens) }) { Text("Einrichten"); Icon(Icons.Default.KeyboardArrowRight, null, Modifier.size(18.dp)) }
                 }
                 Spacer(Modifier.height(6.dp))
                 // Geräte wie bei Autodarts: Lens (dieses Handy) und Board Manager, aktives Gerät mit Haken

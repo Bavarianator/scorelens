@@ -148,6 +148,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val screen: StateFlow<Screen> = _screen
     private val backStack = ArrayDeque<Screen>()
 
+    /** true, wenn der Screen direkt über einen Tab erreicht wurde (leerer Zurück-Stapel) – steuert die Tab-Leiste. */
+    val atTabRoot: Boolean get() = backStack.isEmpty()
+
     // Lobby
     private val _lobbySettings = MutableStateFlow(settings.value.lastGameSettings)
     val lobbySettings: StateFlow<GameSettings> = _lobbySettings
@@ -312,13 +315,18 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun findOpponent() {
         if (online.session.value != null && online.configured) {
             val gs = GameSettings(mode = GameMode.X01, baseScore = 501, legs = 3)
-            online.quickMatch(gs)
+            openOnlineLobbyWhenReady { online.quickMatch(gs) }
             track("quick_match")
-            navigate(Screen.OnlineLobby)
         } else playVsMatchedBot()
     }
 
     fun openOnlineLobby() { navigate(Screen.OnlineLobby) }
+
+    /** Erst nach Erfolg in die Lobby wechseln; vorher stand bei falschem Code oder Fehler „Keine Lobby“ da. */
+    fun openOnlineLobbyWhenReady(start: () -> kotlinx.coroutines.Job) = viewModelScope.launch {
+        start().join()
+        if (online.lobby.value != null) navigate(Screen.OnlineLobby)
+    }
 
     fun openFriends() { online.loadFriends(); navigate(Screen.Friends) }
 
@@ -326,9 +334,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun inviteFriend(friendId: String) {
         val last = settings.value.lastGameSettings
         val gs = if (last.mode.category == GameMode.Category.COMPETITIVE) last else GameSettings(mode = GameMode.X01, baseScore = 501, legs = 3)
-        online.inviteFriend(friendId, gs)
+        openOnlineLobbyWhenReady { online.inviteFriend(friendId, gs) }
         track("friend_invite")
-        navigate(Screen.OnlineLobby)
     }
 
     fun acceptInvite(i: Invite) { online.acceptInvite(i); track("invite_accepted"); navigate(Screen.OnlineLobby) }
@@ -544,6 +551,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     /** true = konsumiert, false = App darf beendet werden. */
     fun back(): Boolean {
+        if (_screen.value == Screen.Result) { leaveResult(); return true }
         val prev = backStack.removeLastOrNull() ?: if (_screen.value != Screen.Home) Screen.Home else return false
         // Nach dem Ergebnis nicht wieder ins Match springen
         _screen.value = if (prev == Screen.Match && game?.finished != false) Screen.Home else prev
@@ -675,6 +683,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         tournamentMatch = null; game = null; _gameState.value = null
         backStack.clear(); _screen.value = Screen.Tournament
     }
+
+    /** Ergebnis verlassen: ins Turnier, in die Online-Lobby oder nach Hause – für Pfeil, System-Zurück und „Home“. */
+    fun leaveResult() { if (inTournament || isOnlineGame) rematch() else goHome() }
 
     fun rematch() {
         val g = game ?: return

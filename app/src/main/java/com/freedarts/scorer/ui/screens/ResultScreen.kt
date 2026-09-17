@@ -60,7 +60,7 @@ fun ResultScreen(vm: AppViewModel) {
     val pop by animateFloatAsState(if (shown || !celebrate) 1f else 0.4f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow), label = "pop")
     Box(Modifier.fillMaxSize()) { com.freedarts.scorer.ui.components.ScreenBackground() }
     Column(Modifier.fillMaxSize()) {
-        com.freedarts.scorer.ui.components.AdTopBar("Ergebnis", onBack = { vm.goHome() })
+        com.freedarts.scorer.ui.components.AdTopBar("Ergebnis", onBack = { vm.leaveResult() })
         if (r == null) { com.freedarts.scorer.ui.components.AdCard(Modifier.padding(12.dp)) { Text("Kein Ergebnis vorhanden", color = DartColors.TextMuted) }; return }
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(16.dp)) {
             Text((winner?.let { "${it.playerName} gewinnt" } ?: "Unentschieden").uppercase(), fontFamily = com.freedarts.scorer.ui.theme.Condensed, fontWeight = FontWeight.Bold, fontSize = 34.sp, color = DartColors.LimeText,
@@ -74,8 +74,9 @@ fun ResultScreen(vm: AppViewModel) {
             }
         }
         Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            com.freedarts.scorer.ui.components.SecondaryButton("Menü", Modifier.weight(1f)) { vm.goHome() }
-            com.freedarts.scorer.ui.components.PrimaryButton(if (vm.inTournament) "Zum Turnier" else "Revanche", Modifier.weight(1f)) { vm.rematch() }
+            com.freedarts.scorer.ui.components.SecondaryButton("Home", Modifier.weight(1f)) { vm.goHome() }
+            // Online führt „Revanche“ in die Lobby und im Turnier zum Turnierbaum – das Label sagt es jetzt
+            com.freedarts.scorer.ui.components.PrimaryButton(when { vm.inTournament -> "Zum Turnier"; vm.isOnlineGame -> "Zur Lobby"; else -> "Revanche" }, Modifier.weight(1f)) { vm.rematch() }
         }
     }
     if (celebrate) Confetti(key = r?.id)

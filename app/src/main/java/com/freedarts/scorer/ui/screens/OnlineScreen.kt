@@ -190,7 +190,7 @@ fun OnlineScreen(vm: AppViewModel) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             OutlinedTextField(value = code, onValueChange = { code = it.uppercase().take(6) }, label = { Text("Code") }, singleLine = true, modifier = Modifier.weight(1f),
                                 keyboardOptions = KeyboardOptions(capitalization = androidx.compose.ui.text.input.KeyboardCapitalization.Characters))
-                            PrimaryButton("Beitreten", enabled = code.length >= 4 && !busy, height = 48) { online.joinByCode(code); vm.openOnlineLobby() }
+                            PrimaryButton("Beitreten", enabled = code.length >= 4 && !busy, height = 48) { vm.openOnlineLobbyWhenReady { online.joinByCode(code) } }
                         }
                     }
 
@@ -201,7 +201,7 @@ fun OnlineScreen(vm: AppViewModel) {
                     if (others.isEmpty()) AdCard { Text("Gerade keine offenen Lobbys – erstelle eine oder nutze „Gegner finden“.", color = DartColors.TextMuted) }
                     others.forEach { l ->
                         if (l.status == "running") LobbyRow(l, enabled = !busy && l.currentMatchId != null) { vm.spectate(l) }
-                        else LobbyRow(l, enabled = !busy && !l.isFull) { online.joinByCode(l.code); vm.openOnlineLobby() }
+                        else LobbyRow(l, enabled = !busy && !l.isFull) { vm.openOnlineLobbyWhenReady { online.joinByCode(l.code) } }
                     }
 
                     SectionLabel("Rangliste")
@@ -226,8 +226,7 @@ fun OnlineScreen(vm: AppViewModel) {
     }
     if (showCreate) CreateLobbyDialog(settings.lastGameSettings, onDismiss = { showCreate = false }) { gs, public, max ->
         showCreate = false
-        online.createLobby(gs, public, max)
-        vm.openOnlineLobby()
+        vm.openOnlineLobbyWhenReady { online.createLobby(gs, public, max) }
     }
     if (showProfile) {
         val p = profile

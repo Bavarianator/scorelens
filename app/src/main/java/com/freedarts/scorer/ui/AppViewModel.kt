@@ -537,6 +537,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         // Lens-Dart der laufenden Aufnahme: Trainingsbild mit der korrigierten Spitze sichern (Position aus dem Tipp aufs Board)
         val fromLens = _gameState.value?.currentVisit?.let { it.isNotEmpty() && lens.detections.value.size == it.size } == true
         if (g.correctDart(index, segment, x, y)) {
+            if (onlineMatch != null) online.sendEvent(MatchEvent.KIND_CORRECT, segment, x, y, idx = index)
             refresh(); caller.beep(); track("dart_corrected", "input" to inputSource())
             if (fromLens) lens.relabel(index, segment, x, y)
         }

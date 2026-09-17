@@ -226,7 +226,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 botJob?.cancel(); autoNextJob?.cancel(); caller.stop()
                 game = null; _gameState.value = null; onlineMatch = null
                 online.notice.value = if (aborted) "Das Match wurde abgebrochen" else "Das Match ist beendet"
-                if (_screen.value == Screen.Match) { backStack.clear(); _screen.value = Screen.OnlineLobby }
+                if (_screen.value == Screen.Match) { backStack.clear(); _screen.value = if (online.lobby.value != null) Screen.OnlineLobby else Screen.Online }
             }
         }
         online.onLobbyClosed = {
@@ -728,8 +728,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         _gameState.value = null
         if (isSpectator) return stopSpectating()
         if (onlineMatch != null) {
+            val wasPlayer = isOnlineParticipant
             onlineMatch = null
-            online.abortMatch()
+            if (wasPlayer) online.abortMatch() // der Server lehnt Fremde ab („Kein Spieler dieses Matches“) und der Nutzer sah den Fehler
             backStack.clear(); _screen.value = Screen.OnlineLobby
             return
         }
@@ -804,7 +805,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun undo() {
         val g = game ?: return
-        if (onlineMatch != null && !online.canUndo()) return
+        // Nach dem Online-Ende ist finish_match beim Server durch; ein lokales Undo ließe die Geräte auseinanderlaufen
+        if (onlineMatch != null && (g.finished || !online.canUndo())) return
         botJob?.cancel(); autoNextJob?.cancel()
         val removed = g.undo()
         haptic()
@@ -994,9 +996,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** Nur wer selbst mitspielt, speichert das Ergebnis und darf abbrechen – Lobby-Mitglieder sehen nur zu. */
+    private val isOnlineParticipant: Boolean get() = onlineMatch?.players?.any { it.id == online.myId } ?: false
+
     private fun recordMatch() {
         val g = game ?: return
-        if (recorded || isSpectator) return
+        if (recorded || isSpectator || (onlineMatch != null && !isOnlineParticipant)) return
         recorded = true
         val stats = g.players.indices.map { g.playerStats(it) }
         val om = onlineMatch

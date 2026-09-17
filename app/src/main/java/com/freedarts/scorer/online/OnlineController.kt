@@ -446,7 +446,10 @@ class OnlineController(private val context: Context, private val repo: Repositor
         _presence.value = emptySet()
         val topic = "realtime:match:$id"
         matchTopic = topic
-        realtime.subscribe(topic, listOf(pgChange("INSERT", "match_events", "match_id=eq.$id")), presenceKey = myId,
+        // Zuschauer haben keinen Lobby-Kanal: ohne die matches-Zeile bleiben sie nach Ende oder Abbruch auf dem Match hängen
+        val changes = listOf(pgChange("INSERT", "match_events", "match_id=eq.$id")) +
+            if (spectating) listOf(pgChange("UPDATE", "matches", "id=eq.$id")) else emptyList()
+        realtime.subscribe(topic, changes, presenceKey = myId,
             onMessage = { event, payload -> onMatchMessage(event, payload) },
             onJoined = { if (!spectating) myId?.let { realtime.track(topic, buildJsonObject { put("uid", it) }) }; scope.launch { resync() } })
         connectRealtime()
@@ -459,8 +462,6 @@ class OnlineController(private val context: Context, private val repo: Repositor
     var spectating = false; private set
 
     /** Laufendes öffentliches Match live mitverfolgen (matches, match_events und Realtime sind für alle Angemeldeten lesbar). */
-    // ponytail: Abbruch durch den Host wird nicht bemerkt (kein Lobby-Kanal) – der Zuschauer verlässt das Match selbst;
-    //           bei Bedarf zusätzlich pgChange auf matches id=eq.<id> abonnieren
     fun spectate(matchId: String) = scope.launch {
         if (_lobby.value != null) { error.value = "Erst die eigene Lobby verlassen"; return@launch }
         guarded {
@@ -482,7 +483,14 @@ class OnlineController(private val context: Context, private val repo: Repositor
     private fun onMatchMessage(event: String, payload: JsonObject) {
         when (event) {
             "postgres_changes" -> {
-                val record = payload["data"]?.jsonObject?.get("record")?.jsonObject ?: return
+                val data = payload["data"]?.jsonObject ?: return
+                val record = data["record"]?.jsonObject ?: return
+                if (data["table"]?.jsonPrimitive?.contentOrNull == "matches") {
+                    val status = record["status"]?.jsonPrimitive?.contentOrNull
+                    val m = _match.value
+                    if (m != null && status != null && status != "running") { stopSpectating(); onMatchEnded?.invoke(m, status != "finished") }
+                    return
+                }
                 val e = runCatching { SupabaseApi.json.decodeFromJsonElement(MatchEvent.serializer(), record) }.getOrNull() ?: return
                 scope.launch { applyIncoming(e) }
             }

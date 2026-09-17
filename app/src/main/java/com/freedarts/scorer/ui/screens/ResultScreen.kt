@@ -72,6 +72,11 @@ fun ResultScreen(vm: AppViewModel) {
                 Spacer(Modifier.height(10.dp))
                 com.freedarts.scorer.ui.components.SecondaryButton("Wurfprotokoll und Teilen", Modifier.fillMaxWidth()) { vm.openMatch(r) }
             }
+            // Online ist das Ergebnis beim Server verbindlich, lokal lässt sich ein falscher Finish-Dart noch zurücknehmen
+            if (!vm.isOnlineGame && vm.canUndoResult) {
+                Spacer(Modifier.height(10.dp))
+                com.freedarts.scorer.ui.components.SecondaryButton("Ergebnis falsch? Zurück ins Match", Modifier.fillMaxWidth()) { vm.reopenMatch() }
+            }
         }
         Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             com.freedarts.scorer.ui.components.SecondaryButton("Home", Modifier.weight(1f)) { vm.goHome() }

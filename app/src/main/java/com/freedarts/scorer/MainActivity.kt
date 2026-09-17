@@ -129,7 +129,7 @@ fun FreeDartsApp(vm: AppViewModel, onKeepScreenOn: (Boolean) -> Unit) {
             }
         }
     }
-        SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).padding(bottom = if (screen in tabs.values && vm.atTabRoot) 84.dp else 8.dp))
+        SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).padding(bottom = if (screen in tabs.values && vm.atTabRoot) 84.dp else if (screen == Screen.Match) 88.dp else 8.dp))
     }
 }
 

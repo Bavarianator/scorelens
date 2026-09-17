@@ -28,6 +28,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Dialpad
 import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.Settings
@@ -263,7 +264,9 @@ fun MatchScreen(vm: AppViewModel) {
         if (landscape) {
             Row(Modifier.weight(1f)) {
                 content(Modifier.weight(0.45f).verticalScroll(rememberScrollState()))
-                input(Modifier.weight(0.55f).fillMaxSize())
+                // Zahlenblöcke brauchen quer mehr Höhe als da ist (25/BULL/Miss bzw. OK waren abgeschnitten); das Board bleibt formatfüllend
+                if (inputMethod == InputMethod.BOARD) input(Modifier.weight(0.55f).fillMaxSize())
+                else input(Modifier.weight(0.55f).verticalScroll(rememberScrollState()))
             }
         } else {
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
@@ -555,7 +558,11 @@ private fun DartRow(darts: List<Segment>, current: Boolean, onTap: (Int) -> Unit
         Spacer(Modifier.weight(1f))
         Column(horizontalAlignment = Alignment.End) {
             Text(darts.sumOf { it.score }.toString(), fontFamily = Condensed, fontWeight = FontWeight.Bold, fontSize = 24.sp, lineHeight = 24.sp, color = DartColors.LimeText)
-            Text(if (current) "Aufnahme" else "Letzte", fontSize = 10.sp, color = DartColors.TextMuted)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // Stift zeigt, dass die Darts antippbar sind – die Korrektur war sonst nicht zu entdecken
+                if (darts.isNotEmpty()) { Icon(Icons.Default.Edit, "Dart antippen zum Korrigieren", Modifier.size(11.dp), tint = DartColors.TextMuted); Spacer(Modifier.width(3.dp)) }
+                Text(if (current) "Aufnahme" else "Letzte", fontSize = 10.sp, color = DartColors.TextMuted)
+            }
         }
     }
 }

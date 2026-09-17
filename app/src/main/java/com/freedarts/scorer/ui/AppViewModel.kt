@@ -684,6 +684,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         backStack.clear(); _screen.value = Screen.Tournament
     }
 
+    /** Ein beendetes Spiel liegt noch im Speicher und lässt einen Dart zurücknehmen. */
+    val canUndoResult: Boolean get() = game?.let { it.finished && it.canUndo } == true
+
+    /** Falsch erkannter Finish-Dart: Ende zurücknehmen und weiterspielen (der voreilige Verlaufseintrag fällt weg). */
+    fun reopenMatch() { undo(); navigate(Screen.Match) }
+
     /** Ergebnis verlassen: ins Turnier, in die Online-Lobby oder nach Hause – für Pfeil, System-Zurück und „Home“. */
     fun leaveResult() { if (inTournament || isOnlineGame) rematch() else goHome() }
 

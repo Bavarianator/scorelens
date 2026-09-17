@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Splash-Symbol, helle Fassung (drawable-night hält die dunkle); Rand wie beim Launcher-Icon, damit die Dartspitze in der Sicherheitszone bleibt. -->
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@drawable/ic_logo_light"
+    android:inset="28%" />

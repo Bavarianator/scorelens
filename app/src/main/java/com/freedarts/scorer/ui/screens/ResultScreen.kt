@@ -117,7 +117,7 @@ fun StatsTable(r: MatchRecord) {
     val x01 = r.mode == GameMode.X01
     val rows: List<Pair<String, (com.freedarts.scorer.model.PlayerMatchStats) -> String>> = buildList {
         add("Ergebnis" to { it.finalScore })
-        if (r.settings.legs > 1 || r.settings.sets > 1) add("Legs / Sets" to { "${it.legsWon} / ${it.setsWon}" })
+        if (x01 && (r.settings.legs > 1 || r.settings.sets > 1)) add("Legs / Sets" to { "${it.legsWon} / ${it.setsWon}" })
         add("Darts" to { it.dartsThrown.toString() })
         if (x01 || r.mode == GameMode.COUNT_UP) add("3-Dart-Average" to { "%.2f".format(it.average3) })
         if (x01) {

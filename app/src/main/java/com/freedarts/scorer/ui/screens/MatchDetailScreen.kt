@@ -31,6 +31,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.freedarts.scorer.engine.Statistics
+import com.freedarts.scorer.engine.games.cricketTargetsOf
 import com.freedarts.scorer.model.GameMode
 import com.freedarts.scorer.model.MatchRecord
 import com.freedarts.scorer.model.ThrowRecord
@@ -89,6 +91,9 @@ private fun LegTable(r: MatchRecord, set: Int, leg: Int, list: List<ThrowRecord>
     val rounds = list.map { it.round }.distinct().sorted()
     val remaining = IntArray(r.players.size) { r.settings.baseScore }
     val winner = list.lastOrNull()?.takeIf { !it.bust }?.player
+    val counted = Statistics.countedScores(r.settings, r.players.size, list)
+    // Cricket: die rohe Segmentsumme (T20 = 60) sagt nichts, gezählt werden Marks auf den Zielzahlen
+    val cricketTargets = if (r.mode == GameMode.CRICKET) cricketTargetsOf(r.settings.effectiveCricketBoard) else null
     AdCard(Modifier.padding(bottom = 8.dp), padding = 10) {
         Row {
             Text((if (r.settings.sets > 1 || set > 1) "Set $set · " else "") + "Leg $leg", fontWeight = FontWeight.Bold, modifier = Modifier.width(44.dp))
@@ -101,15 +106,17 @@ private fun LegTable(r: MatchRecord, set: Int, leg: Int, list: List<ThrowRecord>
             Row(Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
                 Text(round.toString(), Modifier.width(44.dp), color = DartColors.TextMuted, fontSize = 12.sp)
                 for (p in r.players.indices) {
-                    val visit = list.filter { it.player == p && it.round == round }
-                    val bust = visit.any { it.bust }
-                    val sum = visit.sumOf { it.score }
+                    val visit = list.withIndex().filter { it.value.player == p && it.value.round == round }
+                    val bust = visit.any { it.value.bust }
+                    val sum = visit.sumOf { counted[it.index] }
                     if (visit.isNotEmpty() && !bust) remaining[p] -= sum
                     Column(Modifier.weight(1f), horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
                         if (visit.isNotEmpty()) {
-                            Text(visit.joinToString(" ") { it.segment.name }, fontSize = 12.sp, color = if (bust) DartColors.Red else DartColors.Text, maxLines = 1)
+                            Text(visit.joinToString(" ") { it.value.segment.name }, fontSize = 12.sp, color = if (bust) DartColors.Red else DartColors.Text, maxLines = 1)
                             Row {
-                                Text(if (bust) "Bust" else sum.toString(), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = if (bust) DartColors.Red else if (sum >= 100) DartColors.Lime else DartColors.Text)
+                                val marks = cricketTargets?.let { ts -> visit.sumOf { if (it.value.number in ts) it.value.multiplier else 0 } }
+                                Text(if (bust) "Bust" else if (marks != null) "$marks Marks" else sum.toString(), fontSize = 12.sp, fontWeight = FontWeight.Bold,
+                                    color = if (bust) DartColors.Red else if (marks == null && sum >= 100) DartColors.LimeText else DartColors.Text)
                                 if (x01) Text("  ${remaining[p]}", fontSize = 12.sp, color = DartColors.TextMuted)
                             }
                         }
@@ -126,7 +133,7 @@ fun shareText(r: MatchRecord): String {
     val head = "🎯 Scorelens · ${r.mode.title}" + (if (x01) " ${r.settings.baseScore} · ${matchTitle(r.settings)}" else "")
     val lines = r.players.map { p ->
         (if (p.won) "🏆 " else "    ") + p.playerName + ": " + p.finalScore +
-            (if (r.settings.legs > 1 || r.settings.sets > 1) " · ${p.legsWon} Legs" else "") +
+            (if (x01 && (r.settings.legs > 1 || r.settings.sets > 1)) " · ${p.legsWon} Legs" else "") +
             (if (x01) " · Ø %.1f · Checkout %.0f %%".format(p.average3, p.checkoutRate) + (if (p.highestCheckout > 0) " · Finish ${p.highestCheckout}" else "") + (if (p.count180 > 0) " · ${p.count180}× 180" else "") else "")
     }
     return (listOf(head) + lines).joinToString("\n")

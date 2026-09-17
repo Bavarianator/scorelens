@@ -306,6 +306,7 @@ class SegmentTrainingGame(players: List<Player>, settings: GameSettings, seed: L
         if (hitsNumber(segment, t, settings.hitMode)) addPoints(p, 1)
         if (settings.endAfterHits && score[p] >= count) {
             done[p] = true
+            out[p] = true // fertig = raus aus der Reihenfolge, sonst zählen weitere Darts gegen „wenigste Darts gewinnt“
             if (done.all { it }) {
                 val best = players.indices.minOf { dartsThrown[it] }
                 val w = players.indices.filter { dartsThrown[it] == best }

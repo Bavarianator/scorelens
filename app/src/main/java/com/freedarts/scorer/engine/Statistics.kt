@@ -1,9 +1,13 @@
 package com.freedarts.scorer.engine
 
+import com.freedarts.scorer.model.BullMode
 import com.freedarts.scorer.model.GameMode
+import com.freedarts.scorer.model.GameSettings
+import com.freedarts.scorer.model.InMode
 import com.freedarts.scorer.model.MatchRecord
 import com.freedarts.scorer.model.PlayerMatchStats
 import com.freedarts.scorer.model.Segment
+import com.freedarts.scorer.model.ThrowRecord
 
 /** Auswertungen über mehrere Spiele: Head-to-Head und Trefferbild (wie die Autodarts-Statistik). */
 object Statistics {
@@ -127,13 +131,39 @@ object Statistics {
     // ---------- Auswertungen aus dem Wurfprotokoll ----------
 
     /** Aufnahmen (bis zu 3 Darts) eines Spielers in Spielreihenfolge; eine Bust-Aufnahme zählt 0. */
+    /**
+     * Gewertete Punkte je Dart eines Legs, index-gleich zu [legThrows]: Bull 50/50 zählt die 25 als 50, und bei
+     * Double-/Master-In zählen die Darts vor dem Eröffnungs-Dart nicht. Im rohen Segment steht beides nicht.
+     */
+    fun countedScores(settings: GameSettings, players: Int, legThrows: List<ThrowRecord>): IntArray {
+        val opened = BooleanArray(players) { settings.inMode == InMode.STRAIGHT }
+        return IntArray(legThrows.size) { i ->
+            val t = legThrows[i]
+            val seg = if (settings.bullMode == BullMode.B50_50 && t.number == 25 && t.multiplier == 1) Segment.BULL else t.segment
+            val p = t.player.coerceIn(0, players - 1)
+            if (!opened[p]) {
+                val opens = when (settings.inMode) {
+                    InMode.DOUBLE -> seg.isDouble
+                    InMode.MASTER -> seg.isDouble || seg.isTriple
+                    else -> true
+                }
+                if (opens) opened[p] = true else return@IntArray 0
+            }
+            seg.score
+        }
+    }
+
     fun visits(matches: List<MatchRecord>, playerId: String): List<Int> {
         val out = ArrayList<Int>()
         for (m in matches) {
             val idx = m.players.indexOfFirst { it.playerId == playerId }
             if (idx < 0) continue
-            m.throws.filter { it.player == idx && it.leg > 0 }.groupBy { Triple(it.set, it.leg, it.round) }
-                .values.forEach { v -> out.add(if (v.any { it.bust }) 0 else v.sumOf { it.score }) }
+            // je Leg, weil die Eröffnung (Double-In) legweise gilt
+            m.throws.filter { it.leg > 0 }.groupBy { it.set to it.leg }.values.forEach { legThrows ->
+                val counted = countedScores(m.settings, m.players.size, legThrows)
+                legThrows.withIndex().filter { it.value.player == idx }.groupBy { it.value.round }
+                    .values.forEach { v -> out.add(if (v.any { it.value.bust }) 0 else v.sumOf { counted[it.index] }) }
+            }
         }
         return out
     }

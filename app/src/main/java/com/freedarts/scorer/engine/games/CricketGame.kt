@@ -14,6 +14,13 @@ import com.freedarts.scorer.model.Segment
  * zufällige Zahlen, die bis zum ersten Treffer verdeckt bleiben (Hidden Cricket). Wertung Standard
  * (Punkte für sich), Cut Throat (Punkte an die Gegner, wenigste gewinnen) oder No Score (nur Schließen zählt).
  */
+/** Zielzahlen eines Cricket-Boards; Hidden würfelt sie je Spiel neu und ist von außen nicht rekonstruierbar (null). */
+fun cricketTargetsOf(board: CricketBoard): List<Int>? = when (board) {
+    CricketBoard.CRICKET -> listOf(20, 19, 18, 17, 16, 15, 25)
+    CricketBoard.TACTICS -> (20 downTo 10).toList() + 25
+    CricketBoard.HIDDEN -> null
+}
+
 class CricketGame(players: List<Player>, settings: GameSettings, seed: Long = System.currentTimeMillis()) :
     DartGame(players, settings, seed) {
 
@@ -31,11 +38,8 @@ class CricketGame(players: List<Player>, settings: GameSettings, seed: Long = Sy
     init { resetState() }
 
     override fun resetState() {
-        targets = when (board) {
-            CricketBoard.TACTICS -> (20 downTo 10).toList() + 25
-            CricketBoard.HIDDEN -> ((1..20).toList() + 25).shuffled(random).take(7).sortedWith(compareBy({ it == 25 }, { -it }))
-            CricketBoard.CRICKET -> listOf(20, 19, 18, 17, 16, 15, 25)
-        }
+        targets = cricketTargetsOf(board)
+            ?: ((1..20).toList() + 25).shuffled(random).take(7).sortedWith(compareBy({ it == 25 }, { -it }))
         revealed.clear()
         marks.forEach { m -> m.clear(); targets.forEach { t -> m[t] = 0 } }
         points.fill(0); visitPoints = 0

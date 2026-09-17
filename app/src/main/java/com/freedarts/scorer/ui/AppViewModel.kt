@@ -288,7 +288,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             val r = json.decodeFromJsonElement(AppSettings.serializer(), remote.settings)
             val l = local
             repo.setSettingsFromCloud(r.copy(
-                lensEnabled = l.lensEnabled, lensCalibration = l.lensCalibration, lensSensitivity = l.lensSensitivity, lensUseFrontCamera = l.lensUseFrontCamera,
+                lensCalibration = l.lensCalibration, lensSensitivity = l.lensSensitivity, lensUseFrontCamera = l.lensUseFrontCamera,
                 lensExposure = l.lensExposure, lensCaptureTraining = l.lensCaptureTraining, boardManagerEnabled = l.boardManagerEnabled, boardManagerHost = l.boardManagerHost,
                 boardManagerPort = l.boardManagerPort, remoteEnabled = l.remoteEnabled, remotePairedUrl = l.remotePairedUrl, onlineUrl = l.onlineUrl, onlineAnonKey = l.onlineAnonKey,
                 onlinePkceVerifier = l.onlinePkceVerifier, onboardingDone = l.onboardingDone, changedAt = remote.updatedAt,
@@ -1081,12 +1081,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         lens.exposure = settings.value.lensExposure
         lens.onCalibrationChanged = { pts -> updateSettings { it.copy(lensCalibration = pts) }; track("lens_calibrated", "method" to "auto") }
         lens.start(owner, null)
-        updateSettings { it.copy(lensEnabled = true) }
     }
 
     fun stopLens() {
         lens.stop()
-        updateSettings { it.copy(lensEnabled = false) }
     }
 
     fun setLensCalibration(points: List<Float>) {

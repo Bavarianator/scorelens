@@ -50,6 +50,7 @@ import com.freedarts.scorer.engine.AimAdvisor
 import com.freedarts.scorer.engine.Coach
 import com.freedarts.scorer.engine.Statistics
 import com.freedarts.scorer.model.Segment
+import com.freedarts.scorer.model.CricketBoard
 import com.freedarts.scorer.model.GameMode
 import com.freedarts.scorer.model.MatchRecord
 import com.freedarts.scorer.model.Player
@@ -304,7 +305,15 @@ private fun ModeDetails(mode: GameMode, ms: List<MatchRecord>, stats: List<Playe
             }
         }
         GameMode.CRICKET -> {
-            val numbers = listOf(15, 16, 17, 18, 19, 20, 25)
+            // Zahlen aus den Einstellungen: Tactics spielt 20–10, Hidden je Spiel sieben zufällige
+            val numbers = remember(ms) {
+                val boards = ms.map { it.settings.effectiveCricketBoard }.distinct()
+                when {
+                    boards.all { it == CricketBoard.CRICKET } -> listOf(15, 16, 17, 18, 19, 20, 25)
+                    boards.none { it == CricketBoard.HIDDEN } -> (10..20).toList() + 25
+                    else -> (1..20).toList() + 25
+                }
+            }
             val perNumber = remember(ms, playerId) { Statistics.dartsPerNumber(ms, playerId, numbers) }
             if (perNumber.sum() > 0) {
                 SectionLabel("Darts je Zahl")

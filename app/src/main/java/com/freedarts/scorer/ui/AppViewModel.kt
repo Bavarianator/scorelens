@@ -1007,7 +1007,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val om = onlineMatch
         if (om != null) online.finishMatch(g.winner?.let { g.players[it].id }, stats)
         var record = MatchRecord(
-            id = UUID.randomUUID().toString(),
+            // Match-ID als Record-ID: sonst lud jedes Gerät die Kopie des Gegners mit fremder ID dazu und alles zählte doppelt
+            id = om?.id ?: UUID.randomUUID().toString(),
             mode = g.settings.mode,
             settings = g.settings,
             startedAt = g.startedAt,

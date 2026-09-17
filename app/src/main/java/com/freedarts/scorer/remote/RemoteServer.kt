@@ -54,6 +54,13 @@ class RemoteServer(private val stateProvider: () -> RemoteState, private val fra
     companion object { const val PORT = 8765 }
 
     private val json = Json { encodeDefaults = true }
+
+    /**
+     * Schlüssel dieses Serverlaufs: steht im QR-Code (`/?k=…`) und ist Pflicht für Steuern (/cmd), Kamerabild
+     * (/board.jpg) und Kopplung (/pair). Vorher konnte jeder im WLAN dieses Handy mitten im Spiel in die
+     * Zweitgeräte-Ansicht zwingen und das Kamerabild abrufen.
+     */
+    val token: String = (1..10).map { "abcdefghijkmnpqrstuvwxyz23456789".random() }.joinToString("")
     private var server: ServerSocket? = null
     private val running = AtomicBoolean(false)
     private val pool = Executors.newCachedThreadPool()
@@ -102,10 +109,14 @@ class RemoteServer(private val stateProvider: () -> RemoteState, private val fra
             while (true) { val l = reader.readLine() ?: break; if (l.isEmpty()) break }
             val parts = requestLine.split(" ")
             val path = parts.getOrNull(1) ?: "/"
+            val authed = path.substringAfter('?', "").split("&").any { it == "k=$token" }
             val out = c.getOutputStream()
             when {
                 path.startsWith("/state") -> respond(out, "application/json; charset=utf-8", json.encodeToString(stateProvider()))
-                path.startsWith("/board.jpg") -> frameProvider()?.let { respond(out, "image/jpeg", it) } ?: respond(out, "text/plain", ByteArray(0), status = "404 Not Found")
+                path.startsWith("/board.jpg") -> when {
+                    !authed -> respond(out, "text/plain", ByteArray(0), status = "403 Forbidden")
+                    else -> frameProvider()?.let { respond(out, "image/jpeg", it) } ?: respond(out, "text/plain", ByteArray(0), status = "404 Not Found")
+                }
                 // Autodarts-Board-Manager-Format: ein zweites Handy verbindet sich unter Devices → Board Manager mit diesem Gerät
                 path.startsWith("/api/state") -> {
                     val s = stateProvider()
@@ -117,12 +128,13 @@ class RemoteServer(private val stateProvider: () -> RemoteState, private val fra
                     respond(out, "application/json; charset=utf-8", "{\"status\":\"${s.boardStatus}\",\"numThrows\":${s.boardThrows.size},\"throws\":[$throwsJson],\"tipSeq\":${s.tipSeq},\"tips\":[$tipsJson]}")
                 }
                 // Umgekehrte Kopplung: das Board-Handy ruft /pair?url=<seine Adresse> auf, dieses Gerät wird Zweitgerät
-                // ponytail: jeder im WLAN darf koppeln; Token erst, wenn fremde Netze relevant werden
                 path.startsWith("/pair") -> {
                     val url = java.net.URLDecoder.decode(path.substringAfter("url=", "").substringBefore("&"), "UTF-8")
                     if (url.startsWith("http://")) onCommand("pair:$url")
                     respond(out, "application/json; charset=utf-8", "{\"ok\":true}")
                 }
+                // ponytail: /state, /api/* und /overlay bleiben ohne Schlüssel lesbar (Autodarts-Board-Manager-Protokoll,
+                // TV/OBS); Schlüssel auch dort, sobald der Board-Manager-Client ihn mitschicken kann
                 path.startsWith("/api/") -> {
                     onCommand("board:" + path.removePrefix("/api/").substringBefore("?").substringBefore("/"))
                     respond(out, "application/json; charset=utf-8", "{\"ok\":true}")
@@ -298,7 +310,7 @@ function render(s){
 }
 function tick(){fetch('/state').then(function(r){return r.text()}).then(function(t){q('conn').style.display='none';if(t===last)return;last=t;render(JSON.parse(t))}).catch(function(){q('conn').style.display=''})}
 setInterval(tick,500);tick();pad();
-var img=q('board');setInterval(function(){if(camOn&&img.complete)img.src='/board.jpg?t='+Date.now()},700);
+var img=q('board');setInterval(function(){if(camOn&&img.complete)img.src='/board.jpg?t='+Date.now()+key()},700);
 document.addEventListener('keydown',function(e){if(e.target.tagName==='INPUT')return;var k=e.key.toLowerCase();
  if(k==='u')cmd('undo');else if(k===' '||k==='n'){e.preventDefault();cmd('next')}else if(k==='f')fs()});
 </script></body></html>

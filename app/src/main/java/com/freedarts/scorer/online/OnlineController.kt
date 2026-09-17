@@ -775,18 +775,23 @@ class OnlineController(private val context: Context, private val repo: Repositor
     suspend fun syncMatches(local: List<MatchRecord>): List<MatchRecord> {
         ensureFresh()
         val a = requireApi()
-        val remoteIds = SupabaseApi.json.parseToJsonElement(a.select("saved_matches", "select=id&limit=5000")).let { arr ->
-            (arr as kotlinx.serialization.json.JsonArray).map { it.jsonObject.getValue("id").jsonPrimitive.content }.toSet()
-        }
-        // ponytail: alle fehlenden auf einmal (max. 500 lokale Einträge); in Häppchen schicken, falls PostgREST-Bodygrenze greift
-        upload(local.filter { it.id !in remoteIds })
+        // IDs neueste zuerst: zum Hochladen zählen alle, geholt werden nur die neuesten – mehr hält das Gerät ohnehin nicht
+        val remoteOrdered = (SupabaseApi.json.parseToJsonElement(a.select("saved_matches", "select=id&order=played_at.desc&limit=5000")) as kotlinx.serialization.json.JsonArray)
+            .map { it.jsonObject.getValue("id").jsonPrimitive.content }
+        val remoteIds = remoteOrdered.toSet()
+        // in Blöcken: ein Body mit hunderten Matches bzw. eine URL mit hunderten IDs lief in die PostgREST-Grenzen
+        local.filter { it.id !in remoteIds }.chunked(UPLOAD_CHUNK).forEach { upload(it) }
         val localIds = local.map { it.id }.toSet()
-        val missing = remoteIds.filter { it !in localIds }
+        val missing = remoteOrdered.take(DOWNLOAD_LIMIT).filter { it !in localIds }
         if (missing.isEmpty()) return emptyList()
-        val q = "select=*&id=in.(${missing.joinToString(",") { SupabaseApi.enc("\"$it\"") }})"
-        // Einzeln dekodieren: ein kaputter (z. B. von einem Mitspieler geteilter) Eintrag blockiert nicht den ganzen Abgleich
-        return (SupabaseApi.json.parseToJsonElement(a.select("saved_matches", q)) as kotlinx.serialization.json.JsonArray)
-            .mapNotNull { runCatching { SupabaseApi.json.decodeFromJsonElement(SavedMatch.serializer(), it).record }.getOrNull() }
+        val out = ArrayList<MatchRecord>(missing.size)
+        for (chunk in missing.chunked(DOWNLOAD_CHUNK)) {
+            val q = "select=*&id=in.(${chunk.joinToString(",") { SupabaseApi.enc("\"$it\"") }})"
+            // Einzeln dekodieren: ein kaputter (z. B. von einem Mitspieler geteilter) Eintrag blockiert nicht den ganzen Abgleich
+            out += (SupabaseApi.json.parseToJsonElement(a.select("saved_matches", q)) as kotlinx.serialization.json.JsonArray)
+                .mapNotNull { runCatching { SupabaseApi.json.decodeFromJsonElement(SavedMatch.serializer(), it).record }.getOrNull() }
+        }
+        return out
     }
 
     @kotlinx.serialization.Serializable
@@ -822,6 +827,11 @@ class OnlineController(private val context: Context, private val repo: Repositor
     fun shutdown() { realtime.disconnect(); refreshJob?.cancel() }
 
     companion object {
+        /** Blockgrößen des Verlaufs-Abgleichs (PostgREST: Body- und URL-Länge) und wie viele Matches ein neues Gerät holt. */
+        private const val UPLOAD_CHUNK = 50
+        private const val DOWNLOAD_CHUNK = 100
+        private const val DOWNLOAD_LIMIT = 500
+
         const val REDIRECT_URI = "scorelens://auth/callback"
         /** Freundes-Link (QR-Code): scorelens://friend/<Nutzer-ID> */
         const val FRIEND_LINK = "scorelens://friend/"

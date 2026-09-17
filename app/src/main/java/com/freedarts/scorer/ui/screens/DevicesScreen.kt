@@ -111,7 +111,7 @@ fun DevicesScreen(vm: AppViewModel) {
                     }
                     remoteUrl?.takeIf { it.startsWith("http://") && !it.contains("<") }?.let { u ->
                         Spacer(Modifier.height(8.dp))
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) { QrCode(u, size = 160.dp) }
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) { QrCode("$u/?k=${vm.remoteKey}", size = 160.dp) }
                         Text("Am Zweitgerät: Scorelens → Devices → „Als Zweitgerät koppeln“ und den Code scannen.", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
                         Text("Stream/TV: $u/overlay als OBS-Browserquelle (transparent) oder im Fernseher-Browser; ?pos=top setzt den Streifen nach oben.", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
                         Spacer(Modifier.height(8.dp))

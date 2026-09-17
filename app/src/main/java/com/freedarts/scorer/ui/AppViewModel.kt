@@ -120,6 +120,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         cmd.startsWith("pair:") -> { updateSettings { it.copy(remotePairedUrl = cmd.removePrefix("pair:")) }; toasts.tryEmit(Toast("Mit Board-Handy gekoppelt")); navigate(Screen.RemoteView) }
         else -> Segment.parse(cmd)?.let { s -> game?.let { g -> if (!g.finished && !g.players[g.current].isBot) throwDart(s) } }
     } } }
+    /** Schlüssel für QR-Code und Kopplung; die nackte Adresse bleibt für TV/Overlay ohne Schlüssel lesbar. */
+    val remoteKey: String get() = remote.token
+
     private val _remoteUrl = MutableStateFlow<String?>(null)
     /** Letzter Lens-Takeout; /api/state meldet danach ~1 s lang „Takeout“, damit ein pollendes Zweithandy ihn sicher sieht. */
     @Volatile private var lensTakeoutAt = 0L
@@ -466,13 +469,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun handleDeviceCode(raw: String) {
         val text = raw.trim()
         if (!text.startsWith("http://")) { toasts.tryEmit(Toast("Das ist kein Scorelens-Gerätecode")); return }
-        if (text.endsWith("/pair")) {
+        if (text.substringBefore("?").endsWith("/pair")) {
             if (_remoteUrl.value == null) startRemote()
             val me = _remoteUrl.value?.takeIf { !it.contains("<") } ?: run { toasts.tryEmit(Toast("Keine WLAN-Adresse gefunden")); return }
             viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
                 val ok = runCatching {
                     okhttp3.OkHttpClient.Builder().connectTimeout(3, java.util.concurrent.TimeUnit.SECONDS).build()
-                        .newCall(okhttp3.Request.Builder().url("$text?url=" + java.net.URLEncoder.encode(me, "UTF-8")).build()).execute().use { it.isSuccessful }
+                        .newCall(okhttp3.Request.Builder().url(text + (if ("?" in text) "&" else "?") + "url=" + java.net.URLEncoder.encode(me, "UTF-8")).build()).execute().use { it.isSuccessful }
                 }.getOrDefault(false)
                 toasts.tryEmit(Toast(if (ok) "Zweitgerät gekoppelt – es zeigt jetzt dieses Spiel" else "Zweitgerät nicht erreichbar (gleiches WLAN?)"))
                 if (ok) track("device_paired_reverse")

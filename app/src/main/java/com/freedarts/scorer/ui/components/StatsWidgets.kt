@@ -135,7 +135,7 @@ private fun CompareRow(label: String, mine: Double, theirs: Double, format: (Dou
     val share = if (total <= 0) 0.5f else (mine / total).toFloat()
     Column(Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
         Row(Modifier.fillMaxWidth()) {
-            Text(format(mine), fontWeight = FontWeight.Bold, color = if (mine >= theirs) DartColors.Lime else DartColors.Text, modifier = Modifier.weight(1f))
+            Text(format(mine), fontWeight = FontWeight.Bold, color = if (mine >= theirs) DartColors.LimeText else DartColors.Text, modifier = Modifier.weight(1f))
             Text(label, color = DartColors.TextMuted, style = MaterialTheme.typography.labelSmall)
             Text(format(theirs), fontWeight = FontWeight.Bold, color = if (theirs > mine) DartColors.Red else DartColors.Text, modifier = Modifier.weight(1f), textAlign = TextAlign.End)
         }

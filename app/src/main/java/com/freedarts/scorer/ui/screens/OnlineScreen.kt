@@ -124,7 +124,7 @@ fun OnlineScreen(vm: AppViewModel) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             if (offline) AdCard(background = DartColors.OrangeDark, padding = 10) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Offline – keine Verbindung zum Server.", color = DartColors.Orange, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+                    Text("Offline – keine Verbindung zum Server.", color = DartColors.OrangeText, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
                     TextButton(onClick = { online.refreshLobbies(); online.loadLeaderboard() }) { Text("Erneut versuchen") }
                 }
             }

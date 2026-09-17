@@ -38,6 +38,8 @@ class Palette(
     val Purple: Color, val PurpleDark: Color, val Orange: Color, val OrangeDark: Color, val PartyLime: Color, val PartyDark: Color,
     val Magenta: Color, val MagentaMid: Color, val Violet: Color, val Pink: Color, val Cream: Color, val Black: Color, val Accent: Color,
     val TextMuted: Color, val Text: Color, val BottomBar: Color,
+    /** Grün/Orange als Schriftfarbe: hell dunkler als die Flächenfarben (auf Papier hatten Lime/Orange nur ~2,4:1), dunkel identisch. */
+    val LimeText: Color, val OrangeText: Color,
     /** Schrift auf der aktiven Spielerkarte und Farbe ihres Balkens. */
     val OnActive: Color, val ActiveBar: Color,
     /** Schrift auf getönten Karten (GreenDark/RedDark/OrangeDark) und gedämpfte Schrift auf Home-Kacheln. */
@@ -63,6 +65,7 @@ val DarkPalette = Palette(
     Purple = Color(0xFF8B5CF6), PurpleDark = Color(0xFF3B2A6E), Orange = Color(0xFFF59E5B), OrangeDark = Color(0xFF3A2418), PartyLime = Color(0xFFBEF264), PartyDark = Color(0xFF2E3A16),
     Magenta = Color(0xFFE0287E), MagentaMid = Color(0xFFB21A8E), Violet = Color(0xFF6D28D9), Pink = Color(0xFFE9A8E4), Cream = Color(0xFFF1E9D2), Black = Color(0xFF14161B), Accent = Color(0xFFFFC107),
     TextMuted = Color(0xFF9AA3B5), Text = Color(0xFFF3F5F9), BottomBar = Color(0xFF10192E),
+    LimeText = Color(0xFF7CF06B), OrangeText = Color(0xFFF59E5B),
     OnActive = Color.White, ActiveBar = Color(0xFF22C55E),
     OnTint = Color.White, OnTileMuted = Color(0xFFDDE6F5),
     Hero = listOf(Color(0xFF0E3A8C), Color(0xFF0F6E8F), Color(0xFF16B8B0)), TileNew = listOf(Color(0xFF1D2A4A), Color(0xFF22346A)), TileFind = listOf(Color(0xFF15305F), Color(0xFF1D4ED8)),
@@ -78,10 +81,11 @@ val LightPalette = Palette(
     // Band/Swoosh in Hintergrundfarbe statt transparent: Transparent.copy(alpha) wäre schwarz-grau
     Background = Color(0xFFEDE9E1), Band = Color(0xFFEDE9E1), Surface = Color(0xFFF7F4EE), SurfaceHigh = Color(0xFFE3DED4), SurfaceDeep = Color(0xFFD8D2C6), Outline = Color(0xFFCFC8BC),
     Primary = Color(0xFFE5484D), PrimaryDark = Color(0xFFB93A3E), PrimaryLight = Color(0xFFC43A3F),
-    Teal = Color(0xFF0F9B87), Lime = Color(0xFF1FB58F), Green = Color(0xFF15803D), GreenDark = Color(0xFFDCFCE7), Red = Color(0xFFE5484D), RedDark = Color(0xFFFDE2E2),
+    Teal = Color(0xFF0C7A6B), Lime = Color(0xFF1FB58F), Green = Color(0xFF15803D), GreenDark = Color(0xFFDCFCE7), Red = Color(0xFFE5484D), RedDark = Color(0xFFFDE2E2),
     Purple = Color(0xFF6D28D9), PurpleDark = Color(0xFFEDE9FE), Orange = Color(0xFFD97706), OrangeDark = Color(0xFFFFEDD5), PartyLime = Color(0xFF4D7C0F), PartyDark = Color(0xFFECFCCB),
     Magenta = Color(0xFFF7F4EE), MagentaMid = Color(0xFFF7F4EE), Violet = Color(0xFFF7F4EE), Pink = Color(0xFFE9A8E4), Cream = Color(0xFFF1E9D2), Black = Color(0xFF14161B), Accent = Color(0xFFB45309),
     TextMuted = Color(0xFF5C6370), Text = Color(0xFF14161B), BottomBar = Color(0xFFF7F4EE),
+    LimeText = Color(0xFF0F7A5A), OrangeText = Color(0xFF9A5B06),
     OnActive = Color(0xFF14161B), ActiveBar = Color(0xFFE5484D),
     OnTint = Color(0xFF14161B), OnTileMuted = Color(0xFF5C6370),
     Hero = listOf(Color(0xFFF7F4EE), Color(0xFFF7F4EE)), TileNew = listOf(Color(0xFFF7F4EE), Color(0xFFF7F4EE)), TileFind = listOf(Color(0xFFF7F4EE), Color(0xFFF7F4EE)),

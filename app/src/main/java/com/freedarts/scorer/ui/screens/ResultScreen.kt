@@ -63,7 +63,7 @@ fun ResultScreen(vm: AppViewModel) {
         com.freedarts.scorer.ui.components.AdTopBar("Ergebnis", onBack = { vm.goHome() })
         if (r == null) { com.freedarts.scorer.ui.components.AdCard(Modifier.padding(12.dp)) { Text("Kein Ergebnis vorhanden", color = DartColors.TextMuted) }; return }
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(16.dp)) {
-            Text((winner?.let { "${it.playerName} gewinnt" } ?: "Unentschieden").uppercase(), fontFamily = com.freedarts.scorer.ui.theme.Condensed, fontWeight = FontWeight.Bold, fontSize = 34.sp, color = DartColors.Lime,
+            Text((winner?.let { "${it.playerName} gewinnt" } ?: "Unentschieden").uppercase(), fontFamily = com.freedarts.scorer.ui.theme.Condensed, fontWeight = FontWeight.Bold, fontSize = 34.sp, color = DartColors.LimeText,
                 modifier = Modifier.scale(pop))
             Text("${r.mode.title} · Spielzeit ${formatDuration(r.durationMillis)}", color = DartColors.TextMuted)
             Spacer(Modifier.height(16.dp))

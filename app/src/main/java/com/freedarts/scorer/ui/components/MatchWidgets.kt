@@ -30,6 +30,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -49,6 +50,9 @@ fun decodeAvatar(base64: String?): ImageBitmap? {
     }.getOrNull()
 }
 
+/** Schrift auf farbigem Grund: helle Spielerfarben (Limette, Gelb) brauchen dunkle Schrift. */
+fun onColor(c: Color): Color = if (c.luminance() > 0.45f) DartColors.Black else Color.White
+
 @Composable
 fun Avatar(player: Player, size: Int = 36, online: Boolean = size >= 32) {
     Box(Modifier.size(size.dp)) {
@@ -59,7 +63,7 @@ fun Avatar(player: Player, size: Int = 36, online: Boolean = size >= 32) {
         ) {
             val image = remember(player.avatar) { decodeAvatar(player.avatar) }
             if (image != null) Image(image, player.name, Modifier.size(size.dp).clip(CircleShape), contentScale = ContentScale.Crop)
-            else Text(if (player.isBot) "B" else player.initials, color = Color.White, fontWeight = FontWeight.Bold, fontSize = (size / 2.4).sp)
+            else Text(if (player.isBot) "B" else player.initials, color = onColor(Color(player.color)), fontWeight = FontWeight.Bold, fontSize = (size / 2.4).sp)
         }
         if (online && !player.isBot) Box(
             Modifier.align(Alignment.BottomEnd).size((size / 3.2).dp).background(DartColors.Green, CircleShape).border(2.dp, DartColors.Surface, CircleShape),

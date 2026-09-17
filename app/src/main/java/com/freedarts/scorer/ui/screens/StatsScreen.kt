@@ -171,7 +171,7 @@ fun StatsScreen(vm: AppViewModel, startTab: Int = 0) {
                                     val (sc, ad) = advice
                                     Text("Zielhilfe: Streuung ø %.0f mm (%d Darts) · bester Zielpunkt %s mit Ø %.1f Punkte pro Dart (T20: %.1f · Bull: %.1f)".format(
                                         sc.sigmaMm, sc.darts, ad.best.name, ad.expected[ad.best] ?: 0.0, ad.expected[Segment.triple(20)] ?: 0.0, ad.expected[Segment.BULL] ?: 0.0),
-                                        color = DartColors.Lime, style = MaterialTheme.typography.bodySmall)
+                                        color = DartColors.LimeText, style = MaterialTheme.typography.bodySmall)
                                 } else if (heat.points.isNotEmpty()) Text("Zielhilfe ab ${AimAdvisor.MIN_DARTS} Lens-Darts", color = DartColors.TextMuted, style = MaterialTheme.typography.bodySmall)
                             }
                         }

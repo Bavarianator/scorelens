@@ -94,8 +94,8 @@ fun PlayerCardDialog(player: Player, matches: List<MatchRecord>, profileId: Stri
                     }
                     Spacer(Modifier.height(8.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Tile(x01.sumOf { it.count180 }.toString(), "180er", DartColors.Lime, Modifier.weight(1f))
-                        Tile((x01.maxOfOrNull { it.highestCheckout } ?: 0).toString(), "Höchstes Finish", DartColors.Orange, Modifier.weight(1f))
+                        Tile(x01.sumOf { it.count180 }.toString(), "180er", DartColors.LimeText, Modifier.weight(1f))
+                        Tile((x01.maxOfOrNull { it.highestCheckout } ?: 0).toString(), "Höchstes Finish", DartColors.OrangeText, Modifier.weight(1f))
                     }
                     if (x01.size >= 2) {
                         SectionLabel("Form", size = 16, trailing = { Chip("letzte ${x01.takeLast(10).size}") })

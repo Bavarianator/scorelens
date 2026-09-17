@@ -57,7 +57,7 @@ fun CheckoutTableScreen(vm: AppViewModel) {
                 val darts = route?.split("  ")?.size ?: 0
                 Row(Modifier.fillMaxWidth().padding(vertical = 3.dp).background(DartColors.Surface, RoundedCornerShape(10.dp)).padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(score.toString(), fontFamily = Condensed, fontWeight = FontWeight.Bold, fontSize = 22.sp, modifier = Modifier.width(52.dp), color = if (route == null) DartColors.TextMuted else DartColors.Text)
-                    Text(route?.replace("  ", "   ") ?: "–", fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = if (route == null) DartColors.TextMuted else DartColors.Orange, modifier = Modifier.weight(1f))
+                    Text(route?.replace("  ", "   ") ?: "–", fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = if (route == null) DartColors.TextMuted else DartColors.OrangeText, modifier = Modifier.weight(1f))
                     if (darts in 1..2) Chip("$darts ${if (darts == 1) "Dart" else "Darts"}")
                 }
             }

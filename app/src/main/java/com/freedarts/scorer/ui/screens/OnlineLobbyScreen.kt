@@ -105,7 +105,7 @@ fun OnlineLobbyScreen(vm: AppViewModel) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text("LOBBY-CODE", style = MaterialTheme.typography.labelSmall, color = DartColors.TextMuted)
-                        Text(l.code, fontFamily = Condensed, fontWeight = FontWeight.Bold, fontSize = 44.sp, letterSpacing = 4.sp, color = DartColors.Lime)
+                        Text(l.code, fontFamily = Condensed, fontWeight = FontWeight.Bold, fontSize = 44.sp, letterSpacing = 4.sp, color = DartColors.LimeText)
                     }
                     Chip(if (l.isPublic) "Öffentlich" else "Privat")
                 }

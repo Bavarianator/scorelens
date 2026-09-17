@@ -130,7 +130,7 @@ class RemoteServer(private val stateProvider: () -> RemoteState, private val fra
                 // Umgekehrte Kopplung: das Board-Handy ruft /pair?url=<seine Adresse> auf, dieses Gerät wird Zweitgerät
                 path.startsWith("/pair") -> {
                     val url = java.net.URLDecoder.decode(path.substringAfter("url=", "").substringBefore("&"), "UTF-8")
-                    if (url.startsWith("http://")) onCommand("pair:$url")
+                    if (authed && url.startsWith("http://")) onCommand("pair:$url")
                     respond(out, "application/json; charset=utf-8", "{\"ok\":true}")
                 }
                 // ponytail: /state, /api/* und /overlay bleiben ohne Schlüssel lesbar (Autodarts-Board-Manager-Protokoll,
@@ -141,7 +141,7 @@ class RemoteServer(private val stateProvider: () -> RemoteState, private val fra
                 }
                 path.startsWith("/cmd") -> {
                     val cmd = path.substringAfter("do=", "").substringBefore("&")
-                    if (cmd.isNotEmpty()) onCommand(cmd)
+                    if (cmd.isNotEmpty() && authed) onCommand(cmd)
                     respond(out, "application/json; charset=utf-8", "{\"ok\":true}")
                 }
                 // Streaming-/TV-Overlay: transparenter Scoreboard-Streifen für OBS-Browserquelle oder Fernseher
@@ -279,7 +279,8 @@ footer kbd{margin-left:8px;font-family:inherit;font-size:11px;color:rgba(255,255
 <div id="banner"><span class="cond"></span></div>
 <script>
 var q=function(id){return document.getElementById(id)},last='',camOn=false;
-function cmd(c){fetch('/cmd?do='+c).then(tick)}
+function key(){var m=location.search.match(/[?&]k=([^&]+)/);return m?'&k='+m[1]:''}
+function cmd(c){fetch('/cmd?do='+c+key()).then(tick)}
 var mult='S';
 function pad(){var h='';['S','D','T'].forEach(function(m){h+='<button class="m'+(mult===m?' sel':'')+'" onclick="setM(\''+m+'\')">'+{S:'Single',D:'Double',T:'Triple'}[m]+'</button>'});
  h+='<button onclick="hit(\'25\')">25</button><button onclick="hit(\'50\')">Bull</button>';

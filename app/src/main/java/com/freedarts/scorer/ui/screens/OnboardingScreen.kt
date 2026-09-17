@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.SportsScore
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -141,7 +142,7 @@ private fun ProfileStep(name: String, color: Long, onName: (String) -> Unit, onC
         Spacer(Modifier.height(8.dp))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Player.AVATAR_COLORS.forEach { c ->
-                Box(Modifier.size(36.dp).background(Color(c), CircleShape).border(3.dp, if (c == color) Color.White else Color.Transparent, CircleShape).clickable { onColor(c) }, contentAlignment = Alignment.Center) {
+                Box(Modifier.size(36.dp).background(Color(c), CircleShape).border(3.dp, if (c == color) Color.White else Color.Transparent, CircleShape).clickable(onClickLabel = "Farbe wählen", role = androidx.compose.ui.semantics.Role.RadioButton) { onColor(c) }.minimumInteractiveComponentSize(), contentAlignment = Alignment.Center) {
                     if (c == color) Icon(Icons.Default.Check, null, Modifier.size(18.dp), tint = Color.White)
                 }
             }

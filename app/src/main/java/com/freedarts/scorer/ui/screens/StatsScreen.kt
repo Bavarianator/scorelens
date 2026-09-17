@@ -98,7 +98,7 @@ fun StatsScreen(vm: AppViewModel, startTab: Int = 0) {
     if (confirmClear) AlertDialog(
         onDismissRequest = { confirmClear = false },
         title = { Text("Verlauf löschen?") },
-        text = { Text("Alle gespeicherten Matches und Statistiken auf diesem Gerät werden gelöscht. Das lässt sich nicht rückgängig machen.") },
+        text = { Text("Alle gespeicherten Matches und Statistiken werden gelöscht – auf diesem Gerät und in deinem Online-Konto. Das lässt sich nicht rückgängig machen.") },
         confirmButton = { TextButton(onClick = { vm.clearHistory(); confirmClear = false }) { Text("Löschen", color = DartColors.Red) } },
         dismissButton = { TextButton(onClick = { confirmClear = false }) { Text("Abbrechen") } },
     )

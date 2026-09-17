@@ -59,6 +59,7 @@ import com.freedarts.scorer.ui.components.AdCard
 import com.freedarts.scorer.ui.components.AdTopBar
 import com.freedarts.scorer.ui.components.Avatar
 import com.freedarts.scorer.ui.components.Chip
+import com.freedarts.scorer.ui.components.ConfirmDialog
 import com.freedarts.scorer.ui.components.ModeBadge
 import com.freedarts.scorer.ui.components.NameRibbon
 import com.freedarts.scorer.ui.components.PrimaryButton
@@ -134,7 +135,12 @@ fun OnlineLobbyScreen(vm: AppViewModel) {
                         Spacer(Modifier.weight(1f))
                         if (p.userId == l.hostId) Chip("Host")
                         else if (p.ready) Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.CheckCircle, null, Modifier.size(16.dp), tint = DartColors.Teal); Spacer(Modifier.width(4.dp)); Text("bereit", color = DartColors.Teal, fontWeight = FontWeight.Bold, fontSize = 12.sp) }
-                        if (isHost && p.userId != me) IconButton(onClick = { online.kick(p.userId) }) { Icon(Icons.Default.Close, "Entfernen", tint = DartColors.TextMuted) }
+                        if (isHost && p.userId != me) {
+                            var askKick by remember { mutableStateOf(false) }
+                            IconButton(onClick = { askKick = true }) { Icon(Icons.Default.Close, "Entfernen", tint = DartColors.TextMuted) }
+                            if (askKick) ConfirmDialog("${p.name} entfernen?", "${p.name} fliegt aus der Lobby und muss neu beitreten.", "Entfernen",
+                                onDismiss = { askKick = false }) { online.kick(p.userId) }
+                        }
                     }
                 }
                 repeat((l.maxPlayers - l.players.size).coerceAtLeast(0)) {

@@ -28,6 +28,7 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -122,7 +123,8 @@ private fun PlayerDialog(player: Player?, onDismiss: () -> Unit, onSave: (String
                         Box(
                             Modifier.size(34.dp).background(Color(c), CircleShape)
                                 .border(3.dp, if (c == color) DartColors.Text else Color.Transparent, CircleShape)
-                                .clickable { color = c },
+                                .clickable(onClickLabel = "Farbe wählen", role = androidx.compose.ui.semantics.Role.RadioButton) { color = c }
+                                .minimumInteractiveComponentSize(),
                         )
                     }
                 }

@@ -128,7 +128,6 @@ fun OnlineScreen(vm: AppViewModel) {
                     TextButton(onClick = { online.refreshLobbies(); online.loadLeaderboard() }) { Text("Erneut versuchen") }
                 }
             }
-            if (busy) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) { CircularProgressIndicator(Modifier.size(28.dp)) }
 
             when {
                 !online.configured -> {
@@ -220,7 +219,10 @@ fun OnlineScreen(vm: AppViewModel) {
         AlertDialog(
             onDismissRequest = { showServer = false },
             title = { Text("Supabase-Server") },
-            text = { Column { OnlineServerFields(vm); if (session != null) TextButton(onClick = { online.signOut(); showServer = false }) { Text("Abmelden", color = DartColors.Red) } } },
+            text = { Column { OnlineServerFields(vm); if (session != null) {
+                var askOut by remember { mutableStateOf(false) }
+                TextButton(onClick = { if (askOut) { online.signOut(); showServer = false } else askOut = true }) { Text(if (askOut) "Wirklich abmelden?" else "Abmelden", color = DartColors.Red) }
+            } } },
             confirmButton = { TextButton(onClick = { showServer = false }) { Text("Schließen") } },
         )
     }
@@ -247,7 +249,8 @@ fun OnlineScreen(vm: AppViewModel) {
                         }
                     }
                     Spacer(Modifier.height(8.dp))
-                    TextButton(onClick = { online.signOut(); showProfile = false }) { Text("Abmelden", color = DartColors.Red) }
+                    var askOut by remember { mutableStateOf(false) }
+                    TextButton(onClick = { if (askOut) { online.signOut(); showProfile = false } else askOut = true }) { Text(if (askOut) "Wirklich abmelden?" else "Abmelden", color = DartColors.Red) }
                 }
             },
             confirmButton = { TextButton(onClick = { online.updateProfile(name, color); showProfile = false }, enabled = name.isNotBlank()) { Text("Speichern") } },

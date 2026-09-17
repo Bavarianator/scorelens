@@ -26,6 +26,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import com.freedarts.scorer.ui.components.Badge
+import com.freedarts.scorer.ui.components.ConfirmDialog
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.LaunchedEffect
@@ -74,7 +75,20 @@ fun FriendsScreen(vm: AppViewModel) {
     var query by remember { mutableStateOf("") }
     var results by remember { mutableStateOf<List<Profile>?>(null) }
     val context = LocalContext.current
-    LaunchedEffect(query) { results = if (query.trim().length < 2) null else runCatching { online.searchProfiles(query) }.getOrNull() }
+    var searching by remember { mutableStateOf(false) }
+    var searchError by remember { mutableStateOf<String?>(null) }
+    // 300 ms Pause statt einer Suche je Tastendruck; Fehler landeten bisher still im Nichts
+    LaunchedEffect(query) {
+        val q = query.trim()
+        searchError = null
+        if (q.length < 2) { results = null; searching = false; return@LaunchedEffect }
+        kotlinx.coroutines.delay(300)
+        searching = true
+        runCatching { online.searchProfiles(q) }
+            .onSuccess { results = it }
+            .onFailure { results = null; searchError = it.message ?: "Suche fehlgeschlagen" }
+        searching = false
+    }
 
     Box(Modifier.fillMaxSize()) { ScreenBackground() }
     Column(Modifier.fillMaxSize()) {
@@ -84,7 +98,6 @@ fun FriendsScreen(vm: AppViewModel) {
         PullToRefreshBox(isRefreshing = busy, onRefresh = { online.loadFriends() }, modifier = Modifier.weight(1f)) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             invite?.let { InviteCard(it, friends, onAccept = { vm.acceptInvite(it) }, onDismiss = { online.dismissInvite(it) }) }
-            if (busy) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) { CircularProgressIndicator(Modifier.size(28.dp)) }
 
             AdCard {
                 Text("MEIN QR-CODE", style = MaterialTheme.typography.headlineSmall)
@@ -104,6 +117,10 @@ fun FriendsScreen(vm: AppViewModel) {
             AdCard {
                 Text("PER NAME HINZUFÜGEN", style = MaterialTheme.typography.headlineSmall)
                 OutlinedTextField(value = query, onValueChange = { query = it.take(32) }, label = { Text("Anzeigename") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                if (searching) Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    CircularProgressIndicator(Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text("Suche …", color = DartColors.TextMuted)
+                }
+                searchError?.let { Text(it, color = DartColors.Red, modifier = Modifier.padding(top = 8.dp)) }
                 results?.let { list ->
                     if (list.isEmpty()) Text("Niemand gefunden", color = DartColors.TextMuted, modifier = Modifier.padding(top = 8.dp))
                     list.forEach { p ->
@@ -201,7 +218,10 @@ private fun FriendRow(f: Friend, online: OnlineController, busy: Boolean, isOnli
     AdCard(padding = 12) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.weight(1f)) { FriendHeader(f, isOnline) }
-            IconButton(onClick = { online.removeFriend(f.id) }, enabled = !busy) { Icon(Icons.Default.Close, "Freund entfernen", tint = DartColors.TextMuted) }
+            var askRemove by remember { mutableStateOf(false) }
+            IconButton(onClick = { askRemove = true }, enabled = !busy) { Icon(Icons.Default.Close, "Freund entfernen", tint = DartColors.TextMuted) }
+            if (askRemove) ConfirmDialog("${f.name} entfernen?", "Ihr seid danach keine Freunde mehr; eure gemeinsamen Matches bleiben im Verlauf.", "Entfernen",
+                onDismiss = { askRemove = false }) { online.removeFriend(f.id) }
         }
         Spacer(Modifier.height(6.dp))
         Text(

@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.Palette
 import com.freedarts.scorer.ui.components.Chip
+import com.freedarts.scorer.ui.components.ConfirmDialog
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -97,7 +98,12 @@ fun SettingsScreen(vm: AppViewModel) {
                 val user = session?.user
                 SettingsCard(Icons.Default.AccountCircle, "Online-Konto", user?.email ?: user?.provider?.replaceFirstChar { it.uppercase() } ?: "Nicht angemeldet",
                     status = if (user != null) "Angemeldet" to DartColors.Green else "Nicht angemeldet" to DartColors.TextMuted) {
-                    if (user != null) SecondaryButton("Abmelden", Modifier.fillMaxWidth()) { vm.online.signOut() }
+                    if (user != null) {
+                        var askSignOut by remember { mutableStateOf(false) }
+                        SecondaryButton("Abmelden", Modifier.fillMaxWidth()) { askSignOut = true }
+                        if (askSignOut) ConfirmDialog("Abmelden?", "Deine Matches bleiben in deinem Online-Konto, auf diesem Gerät bist du danach abgemeldet.", "Abmelden",
+                            onDismiss = { askSignOut = false }) { vm.online.signOut() }
+                    }
                     else SecondaryButton("Anmelden und online spielen", Modifier.fillMaxWidth()) { vm.navigate(Screen.Online) }
                 }
 

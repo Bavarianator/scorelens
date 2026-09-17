@@ -21,12 +21,15 @@ import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.layout.heightIn
@@ -177,10 +180,23 @@ fun ModeBadge(mode: GameMode, modifier: Modifier = Modifier) {
 }
 
 /** Pill-Chip; ausgewählt = weiß mit dunkler Schrift (wie Statistik-Filter). */
+/** Rückfrage vor einer Aktion, die sich nicht rückgängig machen lässt (Abmelden, Entfernen, Löschen). */
+@Composable
+fun ConfirmDialog(title: String, text: String, confirm: String, onDismiss: () -> Unit, onConfirm: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = { Text(text) },
+        confirmButton = { TextButton(onClick = { onDismiss(); onConfirm() }) { Text(confirm, color = DartColors.Red) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } },
+    )
+}
+
 @Composable
 fun Chip(text: String, modifier: Modifier = Modifier, selected: Boolean = false, onClick: (() -> Unit)? = null) {
     var m = modifier.background(if (selected) DartColors.ChipSelected else DartColors.SurfaceHigh, RoundedCornerShape(999.dp))
-    if (onClick != null) m = m.clip(RoundedCornerShape(999.dp)).clickable(onClick = onClick)
+    // Chips sind auch Bedienelemente (Eingabeart im Match, Einstellungen): Trefferfläche 48 dp, Optik unverändert
+    if (onClick != null) m = m.clip(RoundedCornerShape(999.dp)).clickable(onClick = onClick).minimumInteractiveComponentSize()
     Box(m.padding(horizontal = 12.dp, vertical = 6.dp)) {
         Text(text, fontSize = 12.sp, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium, color = if (selected) DartColors.OnChipSelected else DartColors.ChipText)
     }

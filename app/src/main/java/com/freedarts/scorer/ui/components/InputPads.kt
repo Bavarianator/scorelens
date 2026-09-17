@@ -1,11 +1,8 @@
-@file:OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
-
 package com.freedarts.scorer.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,6 +25,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.saveable.rememberSaveable
+import com.freedarts.scorer.engine.Checkout
+import com.freedarts.scorer.model.OutMode
 import com.freedarts.scorer.model.Segment
 import com.freedarts.scorer.ui.theme.DartColors
 
@@ -54,20 +54,23 @@ private fun PadButton(
 /** Gesamtscore einer Aufnahme über den Nummernblock eingeben. */
 @Composable
 fun TotalScorePad(enabled: Boolean, onSubmit: (Int) -> Unit) {
-    var input by remember { mutableStateOf("") }
+    var input by rememberSaveable { mutableStateOf("") }
     val value = input.toIntOrNull() ?: 0
+    // 179, 178, 176 … lassen sich mit drei Darts nicht werfen; bisher leerte OK das Feld kommentarlos
+    val possible = value in 0..180 && (value == 0 || Checkout.bestRoute(value, 3, OutMode.STRAIGHT) != null)
     Column(modifier = Modifier.fillMaxWidth().padding(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Box(
             modifier = Modifier.fillMaxWidth().height(52.dp).background(DartColors.Surface, RoundedCornerShape(10.dp))
-                .border(1.dp, DartColors.Primary, RoundedCornerShape(10.dp)),
+                .border(1.dp, if (possible) DartColors.Primary else DartColors.Red, RoundedCornerShape(10.dp)),
             contentAlignment = Alignment.Center,
         ) {
-            Text(if (input.isEmpty()) "Score eingeben" else input, fontSize = 26.sp, fontWeight = FontWeight.Bold,
-                color = if (input.isEmpty()) DartColors.TextMuted else DartColors.Text)
+            Text(if (input.isEmpty()) "Score eingeben" else if (possible) input else "$input nicht möglich", fontSize = 26.sp, fontWeight = FontWeight.Bold,
+                color = if (input.isEmpty()) DartColors.TextMuted else if (possible) DartColors.Text else DartColors.Red)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             listOf(26, 41, 45, 60, 85, 100).forEach { q ->
-                PadButton(q.toString(), Modifier.weight(1f), color = DartColors.Surface, enabled = enabled) { onSubmit(q) }
+                // nur bei leerem Feld: sonst buchte ein Schnellwert über schon getippte Ziffern hinweg
+                PadButton(q.toString(), Modifier.weight(1f), color = DartColors.Surface, enabled = enabled && input.isEmpty()) { onSubmit(q) }
             }
         }
         listOf(listOf("1", "2", "3"), listOf("4", "5", "6"), listOf("7", "8", "9")).forEach { row ->
@@ -78,7 +81,7 @@ fun TotalScorePad(enabled: Boolean, onSubmit: (Int) -> Unit) {
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             PadButton("⌫", Modifier.weight(1f), color = DartColors.RedDark, enabled = enabled) { input = input.dropLast(1) }
             PadButton("0", Modifier.weight(1f), enabled = enabled) { if (input.length < 3) input += "0" }
-            PadButton("OK", Modifier.weight(1f), color = DartColors.Primary, enabled = enabled && input.isNotEmpty() && value <= 180) {
+            PadButton("OK", Modifier.weight(1f), color = DartColors.Primary, enabled = enabled && input.isNotEmpty() && possible) {
                 onSubmit(value); input = ""
             }
         }
@@ -92,7 +95,7 @@ fun TotalScorePad(enabled: Boolean, onSubmit: (Int) -> Unit) {
 @Composable
 fun SegmentGrid(enabled: Boolean, compact: Boolean = false, onSegment: (Segment) -> Unit) {
     val cellH = if (compact) 38 else 44
-    val subH = if (compact) 22 else 26
+    val subH = if (compact) 26 else 34
     Column(modifier = Modifier.fillMaxWidth().padding(if (compact) 4.dp else 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         (0 until 4).forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -102,7 +105,7 @@ fun SegmentGrid(enabled: Boolean, compact: Boolean = false, onSegment: (Segment)
                         Box(
                             Modifier.fillMaxWidth().height(cellH.dp).clip(RoundedCornerShape(10.dp, 10.dp, 4.dp, 4.dp))
                                 .background(if (enabled) DartColors.SurfaceHigh else DartColors.SurfaceHigh.copy(alpha = 0.4f))
-                                .combinedClickable(enabled = enabled, onClick = { onSegment(Segment.single(n)) }, onLongClick = { onSegment(Segment.double(n)) }),
+                                .clickable(enabled = enabled) { onSegment(Segment.single(n)) },
                             contentAlignment = Alignment.Center,
                         ) { Text(n.toString(), fontWeight = FontWeight.Bold, fontSize = 18.sp) }
                         Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -120,7 +123,6 @@ fun SegmentGrid(enabled: Boolean, compact: Boolean = false, onSegment: (Segment)
             PadButton("BULL", Modifier.weight(1f), color = DartColors.RedDark, enabled = enabled, height = cellH) { onSegment(Segment.BULL) }
             PadButton("Miss", Modifier.weight(1f), color = DartColors.Surface, enabled = enabled, height = cellH) { onSegment(Segment.MISS) }
         }
-        if (!compact) Text("Tipp: Zahl lange drücken = Double", fontSize = 11.sp, color = DartColors.TextMuted, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
     }
 }
 

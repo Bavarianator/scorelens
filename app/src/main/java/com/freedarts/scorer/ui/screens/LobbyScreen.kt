@@ -33,10 +33,13 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.minimumInteractiveComponentSize
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.foundation.layout.size
@@ -380,12 +383,34 @@ private fun <T> OptionRow(label: String, options: List<Pair<T, String>>, selecte
     }
 }
 
+/** Zahl direkt eintippen; null = abgebrochen. */
+@Composable
+private fun NumberDialog(label: String, value: Int, range: IntRange, onClose: (Int?) -> Unit) {
+    var text by remember { mutableStateOf(value.toString()) }
+    val n = text.toIntOrNull()
+    AlertDialog(
+        onDismissRequest = { onClose(null) },
+        title = { Text(label) },
+        text = {
+            OutlinedTextField(value = text, onValueChange = { t -> text = t.filter { it.isDigit() }.take(3) }, singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                supportingText = { Text("${range.first}–${range.last}") })
+        },
+        confirmButton = { TextButton(onClick = { onClose(n) }, enabled = n in range) { Text("Übernehmen") } },
+        dismissButton = { TextButton(onClick = { onClose(null) }) { Text("Abbrechen") } },
+    )
+}
+
 @Composable
 private fun NumberRow(label: String, value: Int, range: IntRange, step: Int = 1, onChange: (Int) -> Unit) {
     Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(label, modifier = Modifier.weight(1f))
         OutlinedButton(onClick = { onChange((value - step).coerceIn(range)) }, enabled = value > range.first) { Text("−") }
-        Text(value.toString(), modifier = Modifier.width(48.dp), style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
+        var edit by remember { mutableStateOf(false) }
+        // Tipp auf die Zahl: Min./Max. Checkout reichen von 2 bis 170, das wären sonst bis zu 168 Tipps
+        Text(value.toString(), modifier = Modifier.width(48.dp).clip(RoundedCornerShape(8.dp)).clickable { edit = true }.minimumInteractiveComponentSize(),
+            style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
+        if (edit) NumberDialog(label, value, range) { edit = false; it?.let(onChange) }
         OutlinedButton(onClick = { onChange((value + step).coerceIn(range)) }, enabled = value < range.last) { Text("+") }
     }
 }

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android ≤ 11. Die Online-Sitzung (Supabase-Token) gehört nicht in die Cloud; das GPU-Flag der KI gilt nur für dieses Gerät.
+     Spieler, Verlauf und Einstellungen bleiben gesichert. Keine Platzhalter möglich, deshalb .tmp/.bak einzeln. -->
+<full-backup-content>
+        <exclude domain="file" path="online_session.json" />
+        <exclude domain="file" path="online_session.json.tmp" />
+        <exclude domain="file" path="online_session.json.bak" />
+        <exclude domain="sharedpref" path="yolo_dart_model.xml" />
+</full-backup-content>

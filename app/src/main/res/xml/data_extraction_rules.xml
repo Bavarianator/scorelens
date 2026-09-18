@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12+. Auch beim Geräteumzug ohne Sitzung: Supabase-Refresh-Token sind einmalig, zwei Geräte mit demselben
+     Token würden sich gegenseitig abmelden. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="file" path="online_session.json" />
+        <exclude domain="file" path="online_session.json.tmp" />
+        <exclude domain="file" path="online_session.json.bak" />
+        <exclude domain="sharedpref" path="yolo_dart_model.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="file" path="online_session.json" />
+        <exclude domain="file" path="online_session.json.tmp" />
+        <exclude domain="file" path="online_session.json.bak" />
+        <exclude domain="sharedpref" path="yolo_dart_model.xml" />
+    </device-transfer>
+</data-extraction-rules>
